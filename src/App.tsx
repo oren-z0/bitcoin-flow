@@ -74,6 +74,8 @@ function AppInner() {
     }
   }, []);
 
+  const [sidePanelVisible, setSidePanelVisible] = useState(true);
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-900">
       {/* Flow canvas */}
@@ -93,7 +95,21 @@ function AppInner() {
       </div>
 
       {/* Side panel */}
-      <SidePanel />
+      {sidePanelVisible
+        ? <SidePanel onHide={() => setSidePanelVisible(false)} />
+        : (
+          <button
+            className="absolute top-2 right-2 z-10 p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+            onClick={() => setSidePanelVisible(true)}
+            title="Show panel"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
+          </button>
+        )
+      }
 
       {/* Overlays */}
       <ErrorToasts />

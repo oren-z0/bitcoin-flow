@@ -9,7 +9,11 @@ import SettingsTab from './SettingsTab';
 
 type Tab = 'transactions' | 'addresses' | 'settings';
 
-export default function SidePanel() {
+interface Props {
+  onHide: () => void;
+}
+
+export default function SidePanel({ onHide }: Props) {
   const { selectedTxid } = useGlobalState();
   const [tab, setTab] = useState<Tab>('transactions');
   const [addressDetailView, setAddressDetailView] = useState<string | null>(null);
@@ -49,11 +53,11 @@ export default function SidePanel() {
       style={{ width: 336 }}
     >
       {selectedTxid ? (
-        <TransactionDetail onOpenAddressDetail={handleOpenAddressDetail} />
+        <TransactionDetail onOpenAddressDetail={handleOpenAddressDetail} onHide={onHide} />
       ) : (
         <>
           {/* Tab bar */}
-          <div className="flex border-b border-gray-700 shrink-0">
+          <div className="flex items-center border-b border-gray-700 shrink-0">
             {tabs.map(t => (
               <button
                 key={t.id}
@@ -73,6 +77,16 @@ export default function SidePanel() {
                 {t.label}
               </button>
             ))}
+            <button
+              className="px-2 py-2 text-gray-500 hover:text-white transition-colors shrink-0"
+              onClick={onHide}
+              title="Hide panel"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="15" y1="3" x2="15" y2="21" />
+              </svg>
+            </button>
           </div>
 
           {/* Tab content */}

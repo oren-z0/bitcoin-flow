@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #111827;
+  color: #e5e7eb;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* React Flow overrides */
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__handle {
+  cursor: pointer !important;
+}
+
+.react-flow__controls {
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+}
+
+.react-flow__controls-button {
+  background: #1f2937 !important;
+  border-bottom: 1px solid #374151 !important;
+  fill: #9ca3af !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #374151 !important;
+}
+
+.react-flow__minimap {
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+}

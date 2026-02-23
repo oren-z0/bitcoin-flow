@@ -37,46 +37,63 @@ export default function GroupDetail({ groupId, onBack }: Props) {
   // Deduplication across all addresses
   const seenTxidsRef = useRef<Set<string>>(new Set());
 
-  const loadPage = useCallback(async (addressIndex: number, lastConfirmedTxid?: string) => {
+  const loadPage = useCallback(async (startAddressIndex: number, startLastConfirmedTxid?: string) => {
     const addrs = groupAddressesRef.current;
-    const address = addrs[addressIndex];
-    if (!address) return;
+    if (startAddressIndex >= addrs.length) return;
 
     setLoading(true);
     setLoadError('');
 
+    let addressIndex = startAddressIndex;
+    let lastConfirmedTxid = startLastConfirmedTxid;
+
     try {
-      const txs: MempoolTx[] = lastConfirmedTxid
-        ? await fetchAddressTxsChain(address, lastConfirmedTxid)
-        : await fetchAddressTxs(address);
+      // Keep fetching pages until we find new entries or exhaust pagination
+      while (addressIndex < addrs.length) {
+        const address = addrs[addressIndex];
+        const txs: MempoolTx[] = lastConfirmedTxid
+          ? await fetchAddressTxsChain(address, lastConfirmedTxid)
+          : await fetchAddressTxs(address);
 
-      // Deduplicate: only add txids we haven't seen
-      const newEntries: TxEntry[] = [];
-      for (const tx of txs) {
-        if (!seenTxidsRef.current.has(tx.txid)) {
-          seenTxidsRef.current.add(tx.txid);
-          newEntries.push({ tx, address });
+        // Deduplicate: only add txids we haven't seen
+        const newEntries: TxEntry[] = [];
+        for (const tx of txs) {
+          if (!seenTxidsRef.current.has(tx.txid)) {
+            seenTxidsRef.current.add(tx.txid);
+            newEntries.push({ tx, address });
+          }
         }
-      }
-      setTxEntries(prev => [...prev, ...newEntries]);
 
-      // Advance cursor
-      const confirmed = txs.filter(tx => tx.status.confirmed);
-      const lastConfirmed = confirmed.at(-1);
+        // Advance cursor for next iteration
+        const confirmed = txs.filter(tx => tx.status.confirmed);
+        const lastConfirmed = confirmed.at(-1);
 
-      if (confirmed.length >= 25 && lastConfirmed) {
-        cursorRef.current = { addressIndex, lastConfirmedTxid: lastConfirmed.txid };
-        setHasMore(true);
-      } else {
-        const nextIndex = addressIndex + 1;
-        cursorRef.current = { addressIndex: nextIndex };
-        if (nextIndex < addrs.length) {
-          setHasMore(true);
+        if (confirmed.length >= 25 && lastConfirmed) {
+          lastConfirmedTxid = lastConfirmed.txid;
+          // addressIndex stays the same (next chain page of same address)
         } else {
-          setHasMore(false);
-          setPaginationComplete(true);
+          addressIndex++;
+          lastConfirmedTxid = undefined;
         }
+
+        if (newEntries.length > 0) {
+          setTxEntries(prev => [...prev, ...newEntries]);
+          cursorRef.current = { addressIndex, lastConfirmedTxid };
+          if (addressIndex < addrs.length) {
+            setHasMore(true);
+          } else {
+            setHasMore(false);
+            setPaginationComplete(true);
+          }
+          return;
+        }
+        // No new entries — loop continues to next page automatically
       }
+
+      // Exhausted all pages without finding anything new
+      cursorRef.current = { addressIndex };
+      setHasMore(false);
+      setPaginationComplete(true);
     } catch {
       setLoadError('Failed to load transactions');
     } finally {

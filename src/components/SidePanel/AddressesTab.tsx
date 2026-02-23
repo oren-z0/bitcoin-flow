@@ -55,7 +55,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
       addAddressesToGroup(
         derived.map(({ address, path }) => ({
           address,
-          description: `Extended-Public-Key: ${extKey}\nDerivation-Path: ${path}`,
+          description: `${extKey}/${path.slice(2)}`, // remove "m/" prefix
         })),
         groupId
       );

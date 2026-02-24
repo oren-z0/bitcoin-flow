@@ -338,7 +338,7 @@ export default function FlowCanvas() {
     >
       <Background color="#374151" gap={20} />
       {Object.keys(transactions).length === 0 && (
-        <Panel position="top-center" style={{ top: '50%', transform: 'translate(-168px, -50%)' }}>
+        <Panel position="top-center" style={{ top: '50%', transform: 'translate(-50%, -50%)' }}>
           <div className="text-center text-gray-500 select-none">
             <div className="text-2xl font-semibold mb-2 pointer-events-none">No transactions yet</div>
             <div className="text-sm pointer-events-none">Add transaction IDs from the side panel,<br />or look up an address to explore its history.</div>

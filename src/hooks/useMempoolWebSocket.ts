@@ -25,7 +25,7 @@ export function useMempoolWebSocket() {
             if (msg.block) {
               onNewBlock();
             }
-          } catch (e) {
+          } catch {
             // Ignore parse errors
           }
         };
@@ -40,7 +40,7 @@ export function useMempoolWebSocket() {
             reconnectTimeoutRef.current = setTimeout(connect, 30000);
           }
         };
-      } catch (e) {
+      } catch {
         if (mounted) {
           reconnectTimeoutRef.current = setTimeout(connect, 30000);
         }

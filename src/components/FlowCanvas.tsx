@@ -72,14 +72,14 @@ function buildEdges(
       const width = computeEdgeWidth(amount, allAmounts);
 
       // Find source handle id in output handles
-      let sourceHandle = outHandles.find(h => h.voutIndices?.includes(voutIdx));
+      const sourceHandle = outHandles.find(h => h.voutIndices?.includes(voutIdx));
       const sourceHandleId = sourceHandle?.id ?? `out-${voutIdx}`;
       const sourceRepresentsMultiple = (sourceHandle?.voutIndices?.length ?? 1) > 1;
 
       // Find target handle id in input handles
       const spendingTx = transactions[spendingTxid];
       const inHandles = computeInputHandles(spendingTx.data.vin, addresses, groupMap);
-      let targetHandle = inHandles.find(h => h.vinIndices?.includes(vinIdx));
+      const targetHandle = inHandles.find(h => h.vinIndices?.includes(vinIdx));
       const targetHandleId = targetHandle?.id ?? `in-${vinIdx}`;
       const targetRepresentsMultiple = (targetHandle?.vinIndices?.length ?? 1) > 1;
 

@@ -350,7 +350,7 @@ export default function FlowCanvas() {
               >
                 click here
               </button>
-              {' '}to add the first Bitcoin transaction from Satoshi Nakamoto to Hal Finney.
+              {' '}to add the first Bitcoin transaction from<br />Satoshi Nakamoto to Hal Finney.
             </div>
           </div>
         </Panel>

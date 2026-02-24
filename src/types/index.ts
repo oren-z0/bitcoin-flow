@@ -1,6 +1,7 @@
 export interface MempoolVin {
   txid: string;
   vout: number;
+  is_coinbase?: boolean;
   prevout: {
     scriptpubkey_address?: string;
     scriptpubkey_type?: string;
@@ -81,4 +82,5 @@ export interface HandleDescriptor {
   vinIndices?: number[]; // for inputs
   voutIndices?: number[]; // for outputs
   isOpReturn?: boolean;
+  isCoinbase?: boolean;
 }

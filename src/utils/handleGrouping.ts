@@ -29,6 +29,19 @@ export function computeInputHandles(
 ): HandleDescriptor[] {
   const count = vins.length;
 
+  // Coinbase transaction: single vin with is_coinbase flag (or no prevout/txid)
+  if (count === 1 && vins[0].is_coinbase) {
+    return [{
+      id: 'in-0',
+      label: 'Coinbase',
+      amount: 0,
+      addresses: [],
+      txids: [],
+      vinIndices: [0],
+      isCoinbase: true,
+    }];
+  }
+
   if (count <= 4) {
     return vins.map((vin, i) => ({
       id: `in-${i}`,

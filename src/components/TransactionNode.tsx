@@ -52,6 +52,14 @@ function HandleLabel({
     ? COLOR_RED
     : COLOR_GREEN;
 
+  if (handle.isCoinbase) {
+    return (
+      <div className={`flex flex-col text-xs leading-tight ${isInput ? 'items-start' : 'items-end'}`}>
+        <span style={{ color: COLOR_GRAY }}>Coinbase</span>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`flex flex-col text-xs leading-tight cursor-pointer ${isInput ? 'items-start' : 'items-end'}`}
@@ -215,14 +223,16 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
               type="target"
               position={Position.Left}
               id={handle.id}
+              isConnectable={!handle.isCoinbase}
               style={{
                 top: `${topPercent}%`,
                 background: COLOR_GRAY,
                 width: 10,
                 height: 10,
                 border: '2px solid #4b5563',
+                cursor: handle.isCoinbase ? 'default' : undefined,
               }}
-              onClick={(e) => {
+              onClick={handle.isCoinbase ? undefined : (e) => {
                 e.stopPropagation();
                 handleInputHandleClick(handle);
               }}

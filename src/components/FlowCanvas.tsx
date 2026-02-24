@@ -125,6 +125,7 @@ export default function FlowCanvas() {
     setSelectedTxid,
     updateTransaction,
     setAutoLayout,
+    addTransaction,
   } = useGlobalState();
 
   const { setCenter, getViewport, fitView } = useReactFlow();
@@ -338,9 +339,19 @@ export default function FlowCanvas() {
       <Background color="#374151" gap={20} />
       {Object.keys(transactions).length === 0 && (
         <Panel position="top-center" style={{ top: '50%', transform: 'translate(-168px, -50%)' }}>
-          <div className="text-center text-gray-500 select-none pointer-events-none">
-            <div className="text-2xl font-semibold mb-2">No transactions yet</div>
-            <div className="text-sm">Add transaction IDs from the side panel,<br />or look up an address to explore its history.</div>
+          <div className="text-center text-gray-500 select-none">
+            <div className="text-2xl font-semibold mb-2 pointer-events-none">No transactions yet</div>
+            <div className="text-sm pointer-events-none">Add transaction IDs from the side panel,<br />or look up an address to explore its history.</div>
+            <div className="text-sm mt-2">
+              Or{' '}
+              <button
+                className="underline hover:text-gray-300 transition-colors"
+                onClick={() => addTransaction('f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16')}
+              >
+                click here
+              </button>
+              {' '}to add the first Bitcoin transaction from Satoshi Nakamoto to Hal Finney.
+            </div>
           </div>
         </Panel>
       )}

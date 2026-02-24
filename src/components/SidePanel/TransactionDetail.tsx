@@ -33,7 +33,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
   React.useEffect(() => {
     if (stored) setNameInput(stored.name || '');
-  }, [selectedTxid]);
+  }, [selectedTxid, stored]);
 
   if (!stored || !selectedTxid) return null;
 

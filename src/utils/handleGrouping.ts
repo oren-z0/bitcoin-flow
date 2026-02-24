@@ -7,7 +7,7 @@ function getDisplayLabel(
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup>
 ): string {
-  if (!address) return 'Unknown';
+  if (!address) return 'Non-Standard';
   const name = getEffectiveName(address, addresses[address], groupMap);
   if (name) return name;
   return truncateAddress(address);

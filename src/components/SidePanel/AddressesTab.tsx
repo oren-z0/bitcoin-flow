@@ -338,7 +338,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
             />
             <input
               className="w-full bg-gray-700 text-white text-xs rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500 placeholder-gray-500 font-mono"
-              placeholder="xpub.../0/{0...10}"
+              placeholder="xpub.../0,1/0-10"
               value={xpubInput}
               onChange={e => setXpubInput(e.target.value)}
               spellCheck={false}

@@ -19,23 +19,12 @@ function normalizeToXpub(key: string): string {
   return codec.encode(normalized);
 }
 
-// Recursively expand all {x...y} ranges in a path template, returning every
+// Recursively expand all ranges in a path template, returning every
 // concrete path. Multiple ranges produce a cartesian product.
-function expandRanges(template: string): string[] {
-  const match = template.match(/\{(\d+)\.\.\.(\d+)\}/);
-  if (!match) return [template];
-
-  const start = parseInt(match[1], 10);
-  const end = parseInt(match[2], 10);
-  if (start > end) throw new Error(`Invalid range {${start}...${end}}: start must be ≤ end`);
-
-  const results: string[] = [];
-  for (let i = start; i <= end; i++) {
-    // Replace only the first occurrence, then recurse for the rest
-    const expanded = template.replace(/\{\d+\.\.\.\d+\}/, String(i));
-    results.push(...expandRanges(expanded));
-  }
-  return results;
+function expandRanges(ranges: number[][]): string[] {
+  const [firstRange, ...restRanges] = ranges;
+  if (restRanges.length === 0) return firstRange.map(String);
+  return expandRanges(restRanges).flatMap(rest => firstRange.map(value => `${value}/${rest}`));
 }
 
 export interface DerivedAddress {
@@ -44,14 +33,14 @@ export interface DerivedAddress {
 }
 
 // Input format: "<xpub|ypub|zpub>/<path>" where path may contain {x...y} ranges.
-// Example: "zpub.../{0...1}/{0...9}"
+// Example: "zpub.../0,1/0-10"
 export function deriveAddressesFromXpub(
   input: string,
   format: XpubAddressFormat
 ): DerivedAddress[] {
   const trimmed = input.trim();
   const slashIdx = trimmed.indexOf('/');
-  if (slashIdx === -1) throw new Error('Input must include a path after the key, e.g. xpub.../0/{0...10}');
+  if (slashIdx === -1) throw new Error('Input must include a path after the key, e.g. xpub.../0,1/0-10');
 
   const extKey = trimmed.slice(0, slashIdx).trim();
   const pathTemplate = trimmed.slice(slashIdx + 1).trim();
@@ -61,14 +50,33 @@ export function deriveAddressesFromXpub(
   const hdKey = HDKey.fromExtendedKey(xpub);
 
   // Count total addresses before expanding to guard against huge ranges
-  const rangeMatches = [...pathTemplate.matchAll(/\{(\d+)\.\.\.(\d+)\}/g)];
-  const total = rangeMatches.reduce((acc, m) => {
-    const size = parseInt(m[2], 10) - parseInt(m[1], 10) + 1;
-    return acc * size;
-  }, 1);
-  if (total > 10_000) throw new Error(`Too many addresses (${total}). Max is 10,000.`);
+  let total = 1;
+  const ranges = pathTemplate.split('/').map((part) => {
+    const subranges = part.split(',').map(v => v.trim());
+    const values = new Set<number>();
+    for (const subrange of subranges) {
+      if (/^\d+$/.test(subrange)) {
+        values.add(parseInt(subrange, 10));
+        continue;
+      }
+      const subrangeMatch = subrange.match(/^(\d+)-(\d+)$/);
+      if (subrangeMatch) {
+        const rangeStart = parseInt(subrangeMatch[1], 10);
+        const rangeEnd = parseInt(subrangeMatch[2], 10);
+        if (rangeEnd - rangeStart > 10_000) throw new Error(`Range too large: ${subrange}. Max is 10,000.`);
+        for (let i = rangeStart; i <= rangeEnd; i++) {
+          values.add(i);
+        }
+        continue;
+      }
+      throw new Error(`Invalid subrange: ${subrange}`);
+    }
+    total *= values.size;
+    if (total > 10_000) throw new Error(`Too many addresses (${total}). Max is 10,000.`);
+    return [...values].sort((a, b) => a - b);
+  });
 
-  const relativePaths = expandRanges(pathTemplate);
+  const relativePaths = expandRanges(ranges); // ranges is not empty here
 
   return relativePaths.map(rel => {
     const path = 'm/' + rel;

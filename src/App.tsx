@@ -26,7 +26,7 @@ function CopiedToast() {
       className="fixed z-50 bg-gray-700 text-white text-xs px-2 py-1 rounded shadow pointer-events-none -translate-x-1/2 -translate-y-full -mt-1"
       style={{ left: pos.x, top: pos.y - 6 }}
     >
-      Copied!
+      Copied to clipboard!
     </div>
   );
 }

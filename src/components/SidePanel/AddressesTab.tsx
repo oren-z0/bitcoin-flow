@@ -479,7 +479,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                 {/* Magnifying glass for Default group (no other right-side actions) */}
                 {isDefault && !isEditing && (
                   <button
-                    className="text-gray-400 hover:text-white flex-shrink-0 text-xs leading-none"
+                    className="text-gray-400 hover:text-white flex-shrink-0 text-xs leading-none cursor-pointer"
                     title="Browse group transactions"
                     onClick={() => onOpenGroupDetail(group.id)}
                   >
@@ -492,7 +492,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {/* Magnifying glass */}
                     <button
-                      className="text-gray-400 hover:text-white text-xs leading-none"
+                      className="text-gray-400 hover:text-white text-xs leading-none cursor-pointer"
                       title="Browse group transactions"
                       onClick={() => onOpenGroupDetail(group.id)}
                     >
@@ -500,7 +500,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                     </button>
                     {/* Color picker */}
                     <button
-                      className="w-4 h-4 rounded-full border flex-shrink-0 focus:outline-none"
+                      className="w-4 h-4 rounded-full border flex-shrink-0 focus:outline-none cursor-pointer"
                       style={{
                         background: group.color || 'transparent',
                         borderColor: group.color || '#6b7280',
@@ -526,14 +526,14 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                       </button>
                     )}
                     <button
-                      className="text-gray-400 hover:text-white text-xs px-1"
+                      className="text-gray-400 hover:text-white text-xs px-1 cursor-pointer"
                       title="Rename group"
                       onClick={() => handleStartEditGroup(group.id, group.name)}
                     >
                       ✏️
                     </button>
                     <button
-                      className="text-gray-400 hover:text-red-400 text-xs px-1"
+                      className="text-gray-400 hover:text-red-400 text-xs px-1 cursor-pointer"
                       title="Delete group and all its addresses"
                       onClick={() => {
                         if (confirm(`Delete group "${group.name}" and all ${group.addresses.length} address(es)?`)) {
@@ -587,7 +587,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                             })()}
                           </div>
                           <button
-                            className="text-gray-600 hover:text-red-400 text-xs flex-shrink-0"
+                            className="text-gray-600 hover:text-red-400 text-xs flex-shrink-0 cursor-pointer"
                             title="Delete address"
                             onClick={() => removeAddress(addr)}
                           >

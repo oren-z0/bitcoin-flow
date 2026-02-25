@@ -106,14 +106,14 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
       <div className="p-3 border-b border-gray-700">
         <div className="flex items-center gap-2 mb-2">
           <button
-            className="text-gray-400 hover:text-white text-xs"
+            className="text-gray-400 hover:text-white text-xs cursor-pointer"
             onClick={() => setSelectedTxid(undefined)}
           >
             ← Back
           </button>
           <span className="text-xs text-gray-500 flex-1">Transaction Details</span>
           <button
-            className="text-gray-500 hover:text-white transition-colors"
+            className="text-gray-500 hover:text-white transition-colors cursor-pointer"
             onClick={onHide}
             title="Hide panel"
           >

@@ -109,7 +109,7 @@ export default function AddressDetail({ address, onBack }: Props) {
       {/* Header */}
       <div className="p-3 border-b border-gray-700">
         <button
-          className="text-gray-400 hover:text-white text-xs mb-2"
+          className="text-gray-400 hover:text-white text-xs mb-2 cursor-pointer"
           onClick={onBack}
         >
           ← Back to Addresses

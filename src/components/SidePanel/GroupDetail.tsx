@@ -197,7 +197,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
       {/* Header */}
       <div className="p-3 border-b border-gray-700">
         <button
-          className="text-gray-400 hover:text-white text-xs mb-2"
+          className="text-gray-400 hover:text-white text-xs mb-2 cursor-pointer"
           onClick={onBack}
         >
           ← Back to Addresses
@@ -291,14 +291,12 @@ export default function GroupDetail({ groupId, onBack }: Props) {
       </div>
 
       {/* Footer */}
-      {groupAddresses.length > 0 && (
+      {groupAddresses.length > 0 && !paginationComplete && (
         <div className="p-3 border-t border-gray-700 space-y-2">
           {confirmingAddAll ? (
             <div className="bg-gray-700 rounded p-2 space-y-2">
               <div className="text-xs text-gray-200 text-center">
-                {paginationComplete
-                  ? `Add all ${visibleCount} transaction${visibleCount !== 1 ? 's' : ''}?`
-                  : 'Add all transactions? Number of transactions is unknown.'}
+               Load and add all transactions? Number of transactions is unknown.
               </div>
               <div className="flex gap-2">
                 <button
@@ -323,9 +321,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
             >
               {addingAll
                 ? 'Adding...'
-                : paginationComplete
-                  ? `Add all ${visibleCount} transaction${visibleCount !== 1 ? 's' : ''}`
-                  : 'Add all transactions'}
+                : 'Load and add all transactions'}
             </button>
           )}
         </div>

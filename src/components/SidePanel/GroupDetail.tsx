@@ -9,6 +9,8 @@ interface TxEntry {
   address: string;
 }
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 interface GroupCacheEntry {
   txEntries: TxEntry[];
   hasMore: boolean;
@@ -59,7 +61,10 @@ export default function GroupDetail({ groupId, onBack }: Props) {
 
     try {
       // Keep fetching pages until we find new entries or exhaust pagination
+      let isFirst = true;
       while (addressIndex < addrs.length) {
+        if (!isFirst) await sleep(500);
+        isFirst = false;
         const address = addrs[addressIndex];
         const txs: MempoolTx[] = lastConfirmedTxid
           ? await fetchAddressTxsChain(address, lastConfirmedTxid)
@@ -174,7 +179,10 @@ export default function GroupDetail({ groupId, onBack }: Props) {
         let { addressIndex, lastConfirmedTxid } = cursorRef.current;
         const addrs = groupAddressesRef.current;
 
+        let isFirst = true;
         while (addressIndex < addrs.length) {
+          if (!isFirst) await sleep(500);
+          isFirst = false;
           const address = addrs[addressIndex];
           const txs: MempoolTx[] = lastConfirmedTxid
             ? await fetchAddressTxsChain(address, lastConfirmedTxid)

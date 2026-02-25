@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { fetchAddressInfo, fetchAddressTxs, fetchAddressTxsChain, InvalidInputError } from '../../api/mempool';
 import { truncateTxid, formatTimestamp } from '../../utils/formatting';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 import type { MempoolTx } from '../../types';
 
-function copyToClipboard(text: string) {
+function copyToClipboard(text: string, e: React.MouseEvent) {
   navigator.clipboard.writeText(text).then(() => {
-    window.dispatchEvent(new CustomEvent('copy-success'));
+    window.dispatchEvent(new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } }));
   }).catch(() => {});
 }
 
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export default function AddressDetail({ address, onBack }: Props) {
-  const { transactions, addresses, groups, updateAddress, removeAddress, moveAddressToGroup, addTransaction, addTransactions } = useGlobalState();
+  const { transactions, addresses, groups, updateAddress, removeAddress, moveAddressToGroup, addTransaction, addTransactions, removeTransaction } = useGlobalState();
 
   const stored = addresses[address] || { isSelected: false };
   const [nameInput, setNameInput] = useState(stored.name || '');
@@ -149,7 +149,7 @@ export default function AddressDetail({ address, onBack }: Props) {
         <div
           className="text-xs font-mono text-gray-300 cursor-pointer hover:text-white truncate"
           title="Click to copy"
-          onClick={() => copyToClipboard(address)}
+          onClick={e => copyToClipboard(address, e)}
         >
           {address}
         </div>
@@ -275,21 +275,25 @@ export default function AddressDetail({ address, onBack }: Props) {
             const isInState = !!storedTx;
             return (
               <div key={tx.txid} className="bg-gray-700 rounded p-2 text-xs">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isInState}
+                    onChange={() => {
+                      if (isInState) {
+                        removeTransaction(tx.txid);
+                      } else {
+                        addTransaction(tx.txid, { noSelect: true });
+                      }
+                    }}
+                    className="shrink-0 cursor-pointer accent-blue-500"
+                  />
                   <div
                     className="text-blue-400 cursor-pointer hover:text-blue-300 font-mono truncate"
                     onClick={() => handleTxClick(tx.txid)}
                   >
                     {storedTx?.name || truncateTxid(tx.txid)}
                   </div>
-                  {!isInState && (
-                    <button
-                      className="text-xs bg-blue-800 hover:bg-blue-700 text-white px-2 py-0.5 rounded shrink-0"
-                      onClick={() => addTransaction(tx.txid)}
-                    >
-                      Add
-                    </button>
-                  )}
                 </div>
                 {storedTx?.name && (
                   <div className="text-gray-500 font-mono text-xs">{truncateTxid(tx.txid)}</div>

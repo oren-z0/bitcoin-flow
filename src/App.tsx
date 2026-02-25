@@ -6,20 +6,26 @@ import { useGlobalState } from './hooks/useGlobalState';
 import { useMempoolWebSocket } from './hooks/useMempoolWebSocket';
 
 function CopiedToast() {
-  const [visible, setVisible] = useState(false);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    const handler = () => {
-      setVisible(true);
-      setTimeout(() => setVisible(false), 1500);
+    let timer: ReturnType<typeof setTimeout>;
+    const handler = (e: Event) => {
+      const { x, y } = (e as CustomEvent<{ x: number; y: number }>).detail;
+      setPos({ x, y });
+      clearTimeout(timer);
+      timer = setTimeout(() => setPos(null), 1500);
     };
     window.addEventListener('copy-success', handler);
-    return () => window.removeEventListener('copy-success', handler);
+    return () => { window.removeEventListener('copy-success', handler); clearTimeout(timer); };
   }, []);
 
-  if (!visible) return null;
+  if (!pos) return null;
   return (
-    <div className="fixed bottom-4 right-4 z-50 bg-gray-700 text-white text-xs px-3 py-1.5 rounded shadow">
+    <div
+      className="fixed z-50 bg-gray-700 text-white text-xs px-2 py-1 rounded shadow pointer-events-none -translate-x-1/2 -translate-y-full -mt-1"
+      style={{ left: pos.x, top: pos.y - 6 }}
+    >
       Copied!
     </div>
   );

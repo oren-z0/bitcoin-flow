@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function GroupDetail({ groupId, onBack }: Props) {
-  const { groupMap, transactions, addTransaction, addTransactions } = useGlobalState();
+  const { groupMap, transactions, addTransaction, addTransactions, removeTransaction } = useGlobalState();
 
   const group = groupMap[groupId];
   const groupAddresses = group?.addresses ?? [];
@@ -221,21 +221,25 @@ export default function GroupDetail({ groupId, onBack }: Props) {
             const isInState = !!storedTx;
             return (
               <div key={tx.txid} className="bg-gray-700 rounded p-2 text-xs">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isInState}
+                    onChange={() => {
+                      if (isInState) {
+                        removeTransaction(tx.txid);
+                      } else {
+                        addTransaction(tx.txid, { noFocus: true });
+                      }
+                    }}
+                    className="shrink-0 cursor-pointer accent-blue-500"
+                  />
                   <div
                     className="font-mono text-blue-400 cursor-pointer hover:text-blue-300 truncate"
                     onClick={() => handleTxClick(tx.txid)}
                   >
                     {storedTx?.name || truncateTxid(tx.txid)}
                   </div>
-                  {!isInState && (
-                    <button
-                      className="text-xs bg-blue-800 hover:bg-blue-700 text-white px-2 py-0.5 rounded shrink-0"
-                      onClick={() => addTransaction(tx.txid)}
-                    >
-                      Add
-                    </button>
-                  )}
                 </div>
                 <div className="text-gray-500 font-mono">{truncateAddress(address)}</div>
                 <div className="text-gray-400">

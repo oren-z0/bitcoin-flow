@@ -35,7 +35,7 @@ interface GlobalStore {
   errors: string[];
 
   // Actions
-  addTransaction: (txid: string) => Promise<void>;
+  addTransaction: (txid: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => Promise<void>;
   addTransactions: (txids: string[]) => Promise<void>;
   removeTransaction: (txid: string) => void;
   updateTransaction: (txid: string, patch: Partial<Pick<StoredTransaction, 'name' | 'color' | 'coordinates'>>) => void;
@@ -194,12 +194,15 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     set(s => ({ errors: s.errors.filter((_, i) => i !== index) }));
   },
 
-  addTransaction: async (txid: string) => {
+  addTransaction: async (txid: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => {
+    const noFocus = opts?.noFocus ?? false;
+    const noSelect = opts?.noSelect ?? false;
     const state = get();
     if (state.transactions[txid]) {
       // Already exists — just focus
-      layoutRef.focusNode(txid);
-      state.setSelectedTxid(txid);
+      if (!noFocus) {
+        layoutRef.focusNode(txid);
+      }
       return;
     }
     if (state.loadingTxids.has(txid)) return;
@@ -237,12 +240,16 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
         await get().runLayout();
       }
 
-      // Focus after layout (or immediately if no layout).
-      // Use rAF to ensure the node has been rendered before centering.
-      requestAnimationFrame(() => layoutRef.focusNode(txid));
+      if (!noFocus) {
+        // Focus after layout (or immediately if no layout).
+        // Use rAF to ensure the node has been rendered before centering.
+        requestAnimationFrame(() => layoutRef.focusNode(txid));
 
-      // Select the new transaction
-      get().setSelectedTxid(txid);
+        // Select the new transaction
+        if (!noSelect) {
+          get().setSelectedTxid(txid);
+        }
+      }
     } catch (e) {
       set(s => ({
         loadingTxids: new Set([...s.loadingTxids].filter(id => id !== txid)),

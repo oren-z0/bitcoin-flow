@@ -3,9 +3,9 @@ import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, truncateAddress, formatTimestamp, formatFeeRate } from '../../utils/formatting';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
-function copyToClipboard(text: string) {
+function copyToClipboard(text: string, e: React.MouseEvent) {
   navigator.clipboard.writeText(text).then(() => {
-    window.dispatchEvent(new CustomEvent('copy-success'));
+    window.dispatchEvent(new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } }));
   }).catch(() => {});
 }
 
@@ -117,7 +117,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
         <div
           className="text-xs text-gray-400 font-mono cursor-pointer hover:text-white truncate"
           title="Click to copy"
-          onClick={() => copyToClipboard(selectedTxid)}
+          onClick={e => copyToClipboard(selectedTxid, e)}
         >
           {selectedTxid}
         </div>
@@ -221,21 +221,25 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
               return (
                 <div key={i} className="bg-gray-700 rounded p-2 text-xs space-y-1">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={vinInState}
+                      onChange={() => {
+                        if (vinInState) {
+                          removeTransaction(vin.txid);
+                        } else {
+                          addTransaction(vin.txid, { noFocus: true });
+                        }
+                      }}
+                      className="shrink-0 cursor-pointer accent-blue-500"
+                    />
                     <div
                       className="text-blue-400 cursor-pointer hover:text-blue-300 font-mono truncate"
                       onClick={() => handleInputTxClick(vin)}
                     >
                       {vinTxLabel}
                     </div>
-                    {!vinInState && (
-                      <button
-                        className="shrink-0 bg-blue-800 hover:bg-blue-700 text-white px-2 py-0.5 rounded"
-                        onClick={() => addTransaction(vin.txid)}
-                      >
-                        Add
-                      </button>
-                    )}
                   </div>
                   {addr && (
                     <div
@@ -277,7 +281,19 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   {/* Spending tx or UTXO */}
                   {!isOpReturn && (
                     spendingTxid ? (
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={spendingInState}
+                          onChange={() => {
+                            if (spendingInState) {
+                              removeTransaction(spendingTxid);
+                            } else {
+                              addTransaction(spendingTxid, { noFocus: true });
+                            }
+                          }}
+                          className="shrink-0 cursor-pointer accent-blue-500"
+                        />
                         <div
                           className="cursor-pointer hover:opacity-80 font-mono truncate"
                           style={{ color: 'rgb(10, 171, 47)' }}
@@ -287,14 +303,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                             ? (transactions[spendingTxid].name || truncateTxid(spendingTxid))
                             : truncateTxid(spendingTxid)}
                         </div>
-                        {!spendingInState && (
-                          <button
-                            className="shrink-0 bg-blue-800 hover:bg-blue-700 text-white px-2 py-0.5 rounded"
-                            onClick={() => addTransaction(spendingTxid)}
-                          >
-                            Add
-                          </button>
-                        )}
                       </div>
                     ) : (
                       <div style={{ color: 'rgb(255, 61, 0)' }} className="font-semibold">

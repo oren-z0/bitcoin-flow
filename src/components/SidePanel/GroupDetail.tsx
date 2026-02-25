@@ -9,6 +9,16 @@ interface TxEntry {
   address: string;
 }
 
+interface GroupCacheEntry {
+  txEntries: TxEntry[];
+  hasMore: boolean;
+  paginationComplete: boolean;
+  cursor: { addressIndex: number; lastConfirmedTxid?: string };
+  seenTxids: Set<string>;
+}
+
+const groupTxCache = new Map<string, GroupCacheEntry>();
+
 interface Props {
   groupId: string;
   onBack: () => void;
@@ -102,6 +112,16 @@ export default function GroupDetail({ groupId, onBack }: Props) {
   }, []);
 
   useEffect(() => {
+    const cached = groupTxCache.get(groupId);
+    if (cached) {
+      setTxEntries(cached.txEntries);
+      setHasMore(cached.hasMore);
+      setPaginationComplete(cached.paginationComplete);
+      cursorRef.current = { ...cached.cursor };
+      seenTxidsRef.current = new Set(cached.seenTxids);
+      setConfirmingAddAll(false);
+      return;
+    }
     setTxEntries([]);
     setLoadError('');
     setHasMore(false);
@@ -116,6 +136,19 @@ export default function GroupDetail({ groupId, onBack }: Props) {
       setPaginationComplete(true);
     }
   }, [groupId, loadPage]);
+
+  // Keep cache in sync after every load/pagination/addAll
+  useEffect(() => {
+    if (txEntries.length > 0 || paginationComplete) {
+      groupTxCache.set(groupId, {
+        txEntries,
+        hasMore,
+        paginationComplete,
+        cursor: { ...cursorRef.current },
+        seenTxids: new Set(seenTxidsRef.current),
+      });
+    }
+  }, [groupId, txEntries, hasMore, paginationComplete]);
 
   const handleLoadMore = () => {
     const { addressIndex, lastConfirmedTxid } = cursorRef.current;

@@ -5,6 +5,8 @@ import { truncateTxid, formatTimestamp } from '../../utils/formatting';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 import type { MempoolTx } from '../../types';
 
+const addrTxCache = new Map<string, { txs: MempoolTx[]; hasMore: boolean }>();
+
 function copyToClipboard(text: string, e: React.MouseEvent) {
   navigator.clipboard.writeText(text).then(() => {
     window.dispatchEvent(new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } }));
@@ -66,11 +68,24 @@ export default function AddressDetail({ address, onBack }: Props) {
   }, [address]);
 
   useEffect(() => {
+    const cached = addrTxCache.get(address);
+    if (cached) {
+      setAddrTxs(cached.txs);
+      setHasMore(cached.hasMore);
+      return;
+    }
     setAddrTxs([]);
     setHasMore(false);
     fetchAddressInfo(address).catch(() => {});
     loadTxs();
   }, [address, loadTxs]);
+
+  // Keep cache in sync after every load/pagination
+  useEffect(() => {
+    if (addrTxs.length > 0) {
+      addrTxCache.set(address, { txs: addrTxs, hasMore });
+    }
+  }, [address, addrTxs, hasMore]);
 
   const handleLoadMore = () => {
     // The chain endpoint uses the last confirmed txid as cursor

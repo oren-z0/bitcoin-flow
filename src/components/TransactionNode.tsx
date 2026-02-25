@@ -84,6 +84,7 @@ function HandleLabel({
 export default function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
   const { txid, stored } = data;
   const {
+    transactions,
     addresses,
     groupMap,
     selectedAddresses,
@@ -97,14 +98,16 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
   const isSelected = selectedTxid === txid;
   const isUnconfirmed = !tx.status.confirmed;
 
+  const loadedTxids = useMemo(() => new Set(Object.keys(transactions)), [transactions]);
+
   const inputHandles = useMemo(
-    () => computeInputHandles(tx.vin, addresses, groupMap),
-    [tx.vin, addresses, groupMap]
+    () => computeInputHandles(tx.vin, addresses, groupMap, loadedTxids),
+    [tx.vin, addresses, groupMap, loadedTxids]
   );
 
   const outputHandles = useMemo(
-    () => computeOutputHandles(tx.vout, outspends, addresses, groupMap),
-    [tx.vout, outspends, addresses, groupMap]
+    () => computeOutputHandles(tx.vout, outspends, addresses, groupMap, loadedTxids),
+    [tx.vout, outspends, addresses, groupMap, loadedTxids]
   );
 
   const feeRate = formatFeeRate(tx.fee, tx.weight);

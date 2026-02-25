@@ -28,10 +28,12 @@ export async function computeLayout(
   // Build ELK nodes. We supply our pre-computed X so the INTERACTIVE
   // layering strategy groups nodes with the same X into the same ELK layer.
   // port.index 0 = topmost port in ELK's RIGHT-direction layout.
+  const loadedTxids = new Set(Object.keys(transactions));
+
   const elkNodes = sorted.map(txid => {
     const tx = transactions[txid];
-    const inputHandles = computeInputHandles(tx.data.vin, {});
-    const outputHandles = computeOutputHandles(tx.data.vout, tx.outspends, {});
+    const inputHandles = computeInputHandles(tx.data.vin, {}, {}, loadedTxids);
+    const outputHandles = computeOutputHandles(tx.data.vout, tx.outspends, {}, {}, loadedTxids);
 
     const ports = [
       ...inputHandles.map((h, i) => ({
@@ -72,7 +74,7 @@ export async function computeLayout(
   const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
   for (const txid of sorted) {
     const tx = transactions[txid];
-    const outputHandles = computeOutputHandles(tx.data.vout, tx.outspends, {});
+    const outputHandles = computeOutputHandles(tx.data.vout, tx.outspends, {}, {}, loadedTxids);
 
     tx.outspends.forEach((outspend, voutIdx) => {
       if (!outspend.spent || !outspend.txid || !transactions[outspend.txid]) return;
@@ -80,7 +82,7 @@ export async function computeLayout(
       const vinIdx = outspend.vin ?? 0;
 
       const spendingTx = transactions[spendingTxid];
-      const inputHandles = computeInputHandles(spendingTx.data.vin, {});
+      const inputHandles = computeInputHandles(spendingTx.data.vin, {}, {}, loadedTxids);
 
       // Find which output handle covers this voutIdx
       let srcHandleId = `out-${voutIdx}`;

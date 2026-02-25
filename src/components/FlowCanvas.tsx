@@ -46,6 +46,7 @@ function buildEdges(
 ): Edge[] {
   const edges: Edge[] = [];
   const allAmounts: number[] = [];
+  const loadedTxids = new Set(Object.keys(transactions));
 
   // Collect all edge amounts first for log-scale
   for (const [, stored] of Object.entries(transactions)) {
@@ -57,7 +58,7 @@ function buildEdges(
   }
 
   for (const [txid, stored] of Object.entries(transactions)) {
-    const outHandles = computeOutputHandles(stored.data.vout, stored.outspends, addresses, groupMap);
+    const outHandles = computeOutputHandles(stored.data.vout, stored.outspends, addresses, groupMap, loadedTxids);
 
     stored.outspends.forEach((outspend, voutIdx) => {
       if (!outspend.spent || !outspend.txid || !transactions[outspend.txid]) return;
@@ -78,7 +79,7 @@ function buildEdges(
 
       // Find target handle id in input handles
       const spendingTx = transactions[spendingTxid];
-      const inHandles = computeInputHandles(spendingTx.data.vin, addresses, groupMap);
+      const inHandles = computeInputHandles(spendingTx.data.vin, addresses, groupMap, loadedTxids);
       const targetHandle = inHandles.find(h => h.vinIndices?.includes(vinIdx));
       const targetHandleId = targetHandle?.id ?? `in-${vinIdx}`;
       const targetRepresentsMultiple = (targetHandle?.vinIndices?.length ?? 1) > 1;

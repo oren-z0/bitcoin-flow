@@ -187,7 +187,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
           />
           {stored.color && (
             <button
-              className="text-xs text-gray-400 hover:text-white"
+              className="text-xs text-gray-400 hover:text-white cursor-pointer"
               onClick={() => updateTransaction(selectedTxid, { color: undefined })}
             >
               Clear
@@ -223,7 +223,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             <div className="flex gap-3">
               {someInputsUnchecked && (
                 <button
-                  className="text-xs text-gray-400 hover:text-white"
+                  className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => addTransactions(nonCoinbaseVins.filter(vin => !transactions[vin.txid]).map(vin => vin.txid))}
                 >
                   Add All
@@ -231,7 +231,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               )}
               {someInputsChecked && (
                 <button
-                  className="text-xs text-gray-400 hover:text-white"
+                  className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => nonCoinbaseVins.filter(vin => !!transactions[vin.txid]).forEach(vin => removeTransaction(vin.txid))}
                 >
                   Remove All
@@ -300,7 +300,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             <div className="flex gap-3">
               {someOutputsUnchecked && (
                 <button
-                  className="text-xs text-gray-400 hover:text-white"
+                  className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => addTransactions(spendingTxids.filter(txid => !transactions[txid]))}
                 >
                   Add All
@@ -308,7 +308,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               )}
               {someOutputsChecked && (
                 <button
-                  className="text-xs text-gray-400 hover:text-white"
+                  className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => spendingTxids.filter(txid => !!transactions[txid]).forEach(txid => removeTransaction(txid))}
                 >
                   Remove All

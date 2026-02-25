@@ -200,6 +200,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
   };
 
   const anySelected = Object.values(addresses).some(d => d.isSelected);
+  const anyUnselected = Object.values(addresses).some(d => !d.isSelected);
 
   const trimmedInput = addrInput.trim();
   const existingAddr = trimmedInput ? addresses[trimmedInput] : undefined;
@@ -401,12 +402,25 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
         />
       </div>
 
-      {/* Deselect All */}
-      {anySelected && (
-        <div className="px-3 py-2 border-b border-gray-700">
-          <button className="text-xs text-gray-400 hover:text-white" onClick={handleDeselectAll}>
-            Deselect All
-          </button>
+      {/* Highlight All / Highlight None */}
+      {(anyUnselected || anySelected) && (
+        <div className="px-3 py-2 border-b border-gray-700 flex gap-3">
+          {anyUnselected && (
+            <button
+              className="text-xs text-gray-400 hover:text-white cursor-pointer"
+              onClick={() => Object.keys(addresses).forEach(addr => updateAddress(addr, { isSelected: true }))}
+            >
+              Highlight All
+            </button>
+          )}
+          {anySelected && (
+            <button
+              className="text-xs text-gray-400 hover:text-white cursor-pointer"
+              onClick={handleDeselectAll}
+            >
+              Highlight None
+            </button>
+          )}
         </div>
       )}
 
@@ -452,13 +466,13 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                   </span>
                 )}
 
-                {/* Select All / Deselect All */}
+                {/* Highlight All / Highlight None */}
                 {!isEditing && groupAddrs.length > 0 && (
                   <button
-                    className="text-xs text-gray-400 hover:text-white flex-shrink-0"
+                    className="text-xs text-gray-400 hover:text-white flex-shrink-0 cursor-pointer"
                     onClick={() => groupAddrs.forEach(a => updateAddress(a, { isSelected: !anyGroupSelected }))}
                   >
-                    {anyGroupSelected ? 'Deselect All' : 'Select All'}
+                    {anyGroupSelected ? 'Highlight None' : 'Highlight All'}
                   </button>
                 )}
 

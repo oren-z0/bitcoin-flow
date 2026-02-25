@@ -221,7 +221,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
           <div className="flex gap-3 mb-2">
             {someGroupUnchecked && (
               <button
-                className="text-xs text-gray-400 hover:text-white"
+                className="text-xs text-gray-400 hover:text-white cursor-pointer"
                 onClick={() => addTransactions(txEntries.filter(({ tx }) => !transactions[tx.txid]).map(({ tx }) => tx.txid))}
               >
                 Add All
@@ -229,7 +229,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
             )}
             {someGroupChecked && (
               <button
-                className="text-xs text-gray-400 hover:text-white"
+                className="text-xs text-gray-400 hover:text-white cursor-pointer"
                 onClick={() => txEntries.filter(({ tx }) => !!transactions[tx.txid]).forEach(({ tx }) => removeTransaction(tx.txid))}
               >
                 Remove All

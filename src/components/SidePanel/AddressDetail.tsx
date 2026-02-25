@@ -30,9 +30,6 @@ export default function AddressDetail({ address, onBack }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [hasMore, setHasMore] = useState(false);
-  const [addingAll, setAddingAll] = useState(false);
-  const [totalTxCount, setTotalTxCount] = useState(0);
-  const [confirmingAddAll, setConfirmingAddAll] = useState(false);
 
   useEffect(() => {
     setNameInput(stored.name || '');
@@ -70,12 +67,8 @@ export default function AddressDetail({ address, onBack }: Props) {
 
   useEffect(() => {
     setAddrTxs([]);
-    setTotalTxCount(0);
     setHasMore(false);
-    setConfirmingAddAll(false);
-    fetchAddressInfo(address)
-      .then(info => setTotalTxCount(info.chain_stats.tx_count + info.mempool_stats.tx_count))
-      .catch(() => {});
+    fetchAddressInfo(address).catch(() => {});
     loadTxs();
   }, [address, loadTxs]);
 
@@ -83,33 +76,6 @@ export default function AddressDetail({ address, onBack }: Props) {
     // The chain endpoint uses the last confirmed txid as cursor
     const lastConfirmed = [...addrTxs].reverse().find(tx => tx.status.confirmed);
     if (lastConfirmed) loadTxs(lastConfirmed.txid);
-  };
-
-  const handleAddAllClick = () => {
-    if (totalTxCount > 50) {
-      setConfirmingAddAll(true);
-    } else {
-      doAddAll();
-    }
-  };
-
-  const doAddAll = async () => {
-    setConfirmingAddAll(false);
-    setAddingAll(true);
-    try {
-      // Collect all txids by paginating through the full history
-      let allTxids = addrTxs.map(tx => tx.txid);
-      let lastConfirmed = [...addrTxs].reverse().find(tx => tx.status.confirmed);
-      while (lastConfirmed) {
-        const page = await fetchAddressTxsChain(address, lastConfirmed.txid);
-        if (page.length === 0) break;
-        allTxids = [...allTxids, ...page.map(tx => tx.txid)];
-        lastConfirmed = page.length === 25 ? page[page.length - 1] : undefined;
-      }
-      await addTransactions(allTxids.filter(txid => !transactions[txid]));
-    } finally {
-      setAddingAll(false);
-    }
   };
 
   const handleTxClick = async (txid: string) => {
@@ -255,7 +221,7 @@ export default function AddressDetail({ address, onBack }: Props) {
           />
           {stored.color && (
             <button
-              className="text-xs text-gray-400 hover:text-white"
+              className="text-xs text-gray-400 hover:text-white cursor-pointer"
               onClick={() => updateAddress(address, { color: undefined })}
             >
               Clear
@@ -276,7 +242,7 @@ export default function AddressDetail({ address, onBack }: Props) {
           <div className="flex gap-3 mb-2">
             {someAddrUnchecked && (
               <button
-                className="text-xs text-gray-400 hover:text-white"
+                className="text-xs text-gray-400 hover:text-white cursor-pointer"
                 onClick={() => addTransactions(addrTxs.filter(tx => !transactions[tx.txid]).map(tx => tx.txid))}
               >
                 Add All
@@ -284,7 +250,7 @@ export default function AddressDetail({ address, onBack }: Props) {
             )}
             {someAddrChecked && (
               <button
-                className="text-xs text-gray-400 hover:text-white"
+                className="text-xs text-gray-400 hover:text-white cursor-pointer"
                 onClick={() => addrTxs.filter(tx => !!transactions[tx.txid]).forEach(tx => removeTransaction(tx.txid))}
               >
                 Remove All
@@ -348,39 +314,6 @@ export default function AddressDetail({ address, onBack }: Props) {
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-700 space-y-2">
-        {totalTxCount > 0 && (
-          confirmingAddAll ? (
-            <div className="bg-gray-700 rounded p-2 space-y-2">
-              <div className="text-xs text-gray-200 text-center">
-                Add all {totalTxCount} {totalTxCount === 1 ? 'transaction' : 'transactions'}?
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className="flex-1 text-xs bg-blue-800 hover:bg-blue-700 text-white py-1.5 rounded"
-                  onClick={doAddAll}
-                >
-                  Yes, add all
-                </button>
-                <button
-                  className="flex-1 text-xs bg-gray-600 hover:bg-gray-500 text-gray-200 py-1.5 rounded"
-                  onClick={() => setConfirmingAddAll(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              className="w-full text-xs bg-blue-800 hover:bg-blue-700 text-white py-1.5 rounded disabled:opacity-50"
-              onClick={handleAddAllClick}
-              disabled={addingAll}
-            >
-              {addingAll
-                ? 'Adding...'
-                : `Add all ${totalTxCount} ${totalTxCount === 1 ? 'transaction' : 'transactions'}`}
-            </button>
-          )
-        )}
         <a
           href={`https://mempool.space/address/${address}`}
           target="_blank"

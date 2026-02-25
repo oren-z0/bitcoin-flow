@@ -96,7 +96,7 @@ export default function TransactionsTab() {
           <button
             type="submit"
             disabled={txInput.trim().length !== 64 || !/^[0-9a-fA-F]{64}$/.test(txInput.trim()) || loadingTxids.size > 0}
-            className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs px-3 py-1 rounded"
+            className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs px-3 py-1 rounded cursor-pointer"
           >
             Add
           </button>
@@ -106,13 +106,13 @@ export default function TransactionsTab() {
         {/* CSV buttons */}
         <div className="flex gap-2 mt-2">
           <button
-            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded"
+            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
             onClick={() => fileInputRef.current?.click()}
           >
             Load CSV
           </button>
           <button
-            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded"
+            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
             onClick={handleDownload}
             disabled={Object.keys(transactions).length === 0}
           >
@@ -176,7 +176,7 @@ export default function TransactionsTab() {
         {sortedTxids.length > 0 && (
           <div className="p-3 border-t border-gray-700">
             <button
-              className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded"
+              className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded cursor-pointer"
               onClick={() => sortedTxids.forEach(txid => removeTransaction(txid))}
             >
               Remove all transactions

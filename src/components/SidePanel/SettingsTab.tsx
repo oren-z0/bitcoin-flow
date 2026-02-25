@@ -131,7 +131,7 @@ export default function SettingsTab() {
         <h3 className="text-xs font-semibold text-gray-400 uppercase mb-3">Layout</h3>
         <div className="flex items-center gap-3">
           <button
-            className={`relative inline-flex h-5 w-10 rounded-full transition-colors ${autoLayout ? 'bg-blue-600' : 'bg-gray-600'}`}
+            className={`relative inline-flex h-5 w-10 rounded-full transition-colors cursor-pointer ${autoLayout ? 'bg-blue-600' : 'bg-gray-600'}`}
             onClick={() => setAutoLayout(!autoLayout)}
           >
             <span
@@ -150,20 +150,20 @@ export default function SettingsTab() {
         <h3 className="text-xs font-semibold text-gray-400 uppercase mb-3">State</h3>
         <div className="space-y-2">
           <button
-            className="w-full text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded"
+            className="w-full text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded cursor-pointer"
             onClick={handleDownloadState}
           >
             Save State
           </button>
           <button
-            className="w-full text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded disabled:opacity-50"
+            className="w-full text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 rounded disabled:opacity-50 cursor-pointer"
             onClick={() => fileInputRef.current?.click()}
             disabled={!!uploadProgress}
           >
             Load State
           </button>
           <button
-            className="w-full text-sm bg-red-900 hover:bg-red-800 text-white py-2 rounded"
+            className="w-full text-sm bg-red-900 hover:bg-red-800 text-white py-2 rounded cursor-pointer"
             onClick={handleClearState}
           >
             Clear State

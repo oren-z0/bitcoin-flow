@@ -223,7 +223,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
           <button
             type="submit"
             disabled={!trimmedInput || !!existingAddr}
-            className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs px-3 py-1 rounded"
+            className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs px-3 py-1 rounded cursor-pointer"
           >
             Add
           </button>
@@ -265,7 +265,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
               />
               <button
                 type="button"
-                className="shrink-0 px-1.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded-r transition-colors"
+                className="shrink-0 px-1.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded-r transition-colors cursor-pointer"
                 onClick={() => setShowGroupEmoji(prev => !prev)}
                 title="Insert emoji"
               >
@@ -279,7 +279,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                       <button
                         key={i}
                         type="button"
-                        className="w-7 h-7 flex items-center justify-center text-lg hover:bg-gray-600 rounded transition-colors"
+                        className="w-7 h-7 flex items-center justify-center text-lg hover:bg-gray-600 rounded transition-colors cursor-pointer"
                         onClick={() => insertGroupEmoji(emoji)}
                       >
                         {emoji}
@@ -292,7 +292,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
             <button
               type="submit"
               disabled={!newGroupName.trim()}
-              className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs px-2 py-1 rounded"
+              className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs px-2 py-1 rounded cursor-pointer"
             >
               Create
             </button>
@@ -308,7 +308,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
         ) : (
           <button
             type="button"
-            className="text-xs text-blue-400 hover:text-blue-300 underline"
+            className="text-xs text-blue-400 hover:text-blue-300 underline cursor-pointer"
             onClick={() => setAddingGroup(true)}
           >
             + Add Empty Group
@@ -322,7 +322,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
               <span className="text-xs text-gray-300 font-medium">Add Group from xpub</span>
               <button
                 type="button"
-                className="text-gray-400 hover:text-white text-xs leading-none"
+                className="text-gray-400 hover:text-white text-xs leading-none cursor-pointer"
                 title="Cancel"
                 onClick={() => { setAddingFromXpub(false); setXpubGroupName(''); setXpubInput(''); setXpubError(''); }}
               >
@@ -359,7 +359,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
             <button
               type="submit"
               disabled={!xpubGroupName.trim() || !xpubInput.trim() || xpubLoading}
-              className="w-full bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs py-1 rounded"
+              className="w-full bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs py-1 rounded cursor-pointer"
             >
               {xpubLoading ? 'Deriving addresses...' : 'Create'}
             </button>
@@ -367,7 +367,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
         ) : (
           <button
             type="button"
-            className="text-xs text-blue-400 hover:text-blue-300 underline"
+            className="text-xs text-blue-400 hover:text-blue-300 underline cursor-pointer"
             onClick={() => setAddingFromXpub(true)}
           >
             + Add Group from Extended Public Key
@@ -377,13 +377,13 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
         {/* CSV buttons */}
         <div className="flex gap-2">
           <button
-            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded"
+            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
             onClick={() => csvInputRef.current?.click()}
           >
             Load CSV
           </button>
           <button
-            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded"
+            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
             disabled={Object.keys(addresses).length === 0}
             onClick={handleDownloadCsv}
           >
@@ -440,7 +440,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
               <div className="flex items-center gap-1 px-3 py-2 bg-gray-750 select-none">
                 {/* Collapse toggle */}
                 <button
-                  className="text-gray-400 hover:text-white w-4 flex-shrink-0 text-center"
+                  className="text-gray-400 hover:text-white w-4 flex-shrink-0 text-center cursor-pointer"
                   onClick={() => setCollapsed(prev => ({ ...prev, [group.id]: !isCollapsed }))}
                 >
                   {isCollapsed ? '▶' : '▼'}
@@ -518,7 +518,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                     />
                     {group.color && (
                       <button
-                        className="text-gray-500 hover:text-white text-xs leading-none"
+                        className="text-gray-500 hover:text-white text-xs leading-none cursor-pointer"
                         title="Clear color"
                         onClick={() => updateGroup(group.id, { color: undefined })}
                       >

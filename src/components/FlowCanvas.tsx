@@ -345,7 +345,7 @@ export default function FlowCanvas() {
             <div className="text-sm mt-2">
               Or{' '}
               <button
-                className="underline hover:text-gray-300 transition-colors"
+                className="underline hover:text-gray-300 transition-colors cursor-pointer"
                 onClick={() => addTransaction('f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16')}
               >
                 click here

@@ -43,7 +43,7 @@ function ErrorToasts() {
         >
           <span>{err}</span>
           <button
-            className="text-red-300 hover:text-white ml-2"
+            className="text-red-300 hover:text-white ml-2 cursor-pointer"
             onClick={() => dismissError(i)}
           >
             ✕
@@ -105,7 +105,7 @@ function AppInner() {
         ? <SidePanel onHide={() => setSidePanelVisible(false)} />
         : (
           <button
-            className="absolute top-2 right-2 z-10 p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+            className="absolute top-2 right-2 z-10 p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors cursor-pointer"
             onClick={() => setSidePanelVisible(true)}
             title="Show panel"
           >

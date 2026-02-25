@@ -147,7 +147,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
           />
           <button
             type="button"
-            className="shrink-0 p-1.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded-r transition-colors"
+            className="shrink-0 p-1.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded-r transition-colors cursor-pointer"
             onClick={() => setShowEmojiPalette(prev => !prev)}
             title="Insert emoji"
           >
@@ -165,7 +165,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   <button
                     key={i}
                     type="button"
-                    className="w-7 h-7 flex items-center justify-center text-lg hover:bg-gray-600 rounded transition-colors"
+                    className="w-7 h-7 flex items-center justify-center text-lg hover:bg-gray-600 rounded transition-colors cursor-pointer"
                     onClick={() => insertEmoji(emoji)}
                   >
                     {emoji}

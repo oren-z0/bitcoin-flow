@@ -156,7 +156,7 @@ export default function AddressDetail({ address, onBack }: Props) {
         <div className="flex items-center gap-2 mt-2">
           <label className="text-xs text-gray-400">Selected</label>
           <button
-            className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${stored.isSelected ? 'bg-blue-600' : 'bg-gray-600'}`}
+            className={`relative inline-flex h-5 w-9 rounded-full transition-colors cursor-pointer ${stored.isSelected ? 'bg-blue-600' : 'bg-gray-600'}`}
             onClick={() => updateAddress(address, { isSelected: !stored.isSelected })}
           >
             <span
@@ -185,7 +185,7 @@ export default function AddressDetail({ address, onBack }: Props) {
           />
           <button
             type="button"
-            className="shrink-0 p-1.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded-r transition-colors"
+            className="shrink-0 p-1.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded-r transition-colors cursor-pointer"
             onClick={() => setShowEmojiPalette(prev => !prev)}
             title="Insert emoji"
           >
@@ -203,7 +203,7 @@ export default function AddressDetail({ address, onBack }: Props) {
                   <button
                     key={i}
                     type="button"
-                    className="w-7 h-7 flex items-center justify-center text-lg hover:bg-gray-600 rounded transition-colors"
+                    className="w-7 h-7 flex items-center justify-center text-lg hover:bg-gray-600 rounded transition-colors cursor-pointer"
                     onClick={() => insertEmoji(emoji)}
                   >
                     {emoji}
@@ -315,7 +315,7 @@ export default function AddressDetail({ address, onBack }: Props) {
         </div>
         {hasMore && (
           <button
-            className="w-full text-xs text-gray-400 hover:text-white mt-2 py-1"
+            className="w-full text-xs text-gray-400 hover:text-white mt-2 py-1 cursor-pointer"
             onClick={handleLoadMore}
             disabled={loading}
           >
@@ -338,7 +338,7 @@ export default function AddressDetail({ address, onBack }: Props) {
           Open on Mempool.space
         </a>
         <button
-          className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded"
+          className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded cursor-pointer"
           onClick={() => { removeAddress(address); onBack(); }}
         >
           Delete Address

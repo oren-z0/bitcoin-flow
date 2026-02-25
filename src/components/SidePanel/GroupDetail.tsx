@@ -311,7 +311,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
 
         {hasMore && (
           <button
-            className="w-full text-xs text-gray-400 hover:text-white mt-2 py-1"
+            className="w-full text-xs text-gray-400 hover:text-white mt-2 py-1 cursor-pointer"
             onClick={handleLoadMore}
             disabled={loading}
           >
@@ -333,13 +333,13 @@ export default function GroupDetail({ groupId, onBack }: Props) {
               </div>
               <div className="flex gap-2">
                 <button
-                  className="flex-1 text-xs bg-blue-800 hover:bg-blue-700 text-white py-1.5 rounded"
+                  className="flex-1 text-xs bg-blue-800 hover:bg-blue-700 text-white py-1.5 rounded cursor-pointer"
                   onClick={doAddAll}
                 >
                   Yes, add all
                 </button>
                 <button
-                  className="flex-1 text-xs bg-gray-600 hover:bg-gray-500 text-gray-200 py-1.5 rounded"
+                  className="flex-1 text-xs bg-gray-600 hover:bg-gray-500 text-gray-200 py-1.5 rounded cursor-pointer"
                   onClick={() => setConfirmingAddAll(false)}
                 >
                   Cancel
@@ -348,7 +348,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
             </div>
           ) : (
             <button
-              className="w-full text-xs bg-blue-800 hover:bg-blue-700 text-white py-1.5 rounded disabled:opacity-50"
+              className="w-full text-xs bg-blue-800 hover:bg-blue-700 text-white py-1.5 rounded disabled:opacity-50 cursor-pointer"
               onClick={() => setConfirmingAddAll(true)}
               disabled={addingAll}
             >

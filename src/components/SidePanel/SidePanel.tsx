@@ -61,7 +61,7 @@ export default function SidePanel({ onHide }: Props) {
             {tabs.map(t => (
               <button
                 key={t.id}
-                className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                className={`flex-1 py-2 text-xs font-medium transition-colors cursor-pointer ${
                   tab === t.id
                     ? 'text-white border-b-2 border-blue-500'
                     : 'text-gray-400 hover:text-gray-200'
@@ -78,7 +78,7 @@ export default function SidePanel({ onHide }: Props) {
               </button>
             ))}
             <button
-              className="px-2 py-2 text-gray-500 hover:text-white transition-colors shrink-0"
+              className="px-2 py-2 text-gray-500 hover:text-white transition-colors shrink-0 cursor-pointer"
               onClick={onHide}
               title="Hide panel"
             >

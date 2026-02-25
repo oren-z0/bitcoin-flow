@@ -189,6 +189,8 @@ export default function GroupDetail({ groupId, onBack }: Props) {
   };
 
   const visibleCount = txEntries.length;
+  const someGroupUnchecked = txEntries.some(({ tx }) => !transactions[tx.txid]);
+  const someGroupChecked = txEntries.some(({ tx }) => !!transactions[tx.txid]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -213,6 +215,26 @@ export default function GroupDetail({ groupId, onBack }: Props) {
         {txEntries.length === 0 && !loading && !loadError && paginationComplete && (
           <div className="text-gray-500 text-xs text-center p-4">
             No transactions found.
+          </div>
+        )}
+        {(someGroupUnchecked || someGroupChecked) && (
+          <div className="flex gap-3 mb-2">
+            {someGroupUnchecked && (
+              <button
+                className="text-xs text-gray-400 hover:text-white"
+                onClick={() => addTransactions(txEntries.filter(({ tx }) => !transactions[tx.txid]).map(({ tx }) => tx.txid))}
+              >
+                Add All
+              </button>
+            )}
+            {someGroupChecked && (
+              <button
+                className="text-xs text-gray-400 hover:text-white"
+                onClick={() => txEntries.filter(({ tx }) => !!transactions[tx.txid]).forEach(({ tx }) => removeTransaction(tx.txid))}
+              >
+                Remove All
+              </button>
+            )}
           </div>
         )}
         <div className="space-y-1">

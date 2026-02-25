@@ -135,6 +135,9 @@ export default function AddressDetail({ address, onBack }: Props) {
     });
   };
 
+  const someAddrUnchecked = addrTxs.some(tx => !transactions[tx.txid]);
+  const someAddrChecked = addrTxs.some(tx => !!transactions[tx.txid]);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
@@ -267,6 +270,26 @@ export default function AddressDetail({ address, onBack }: Props) {
         {addrTxs.length === 0 && !loading && !loadError && (
           <div className="text-gray-500 text-xs text-center p-4">
             No transactions found for this address.
+          </div>
+        )}
+        {(someAddrUnchecked || someAddrChecked) && (
+          <div className="flex gap-3 mb-2">
+            {someAddrUnchecked && (
+              <button
+                className="text-xs text-gray-400 hover:text-white"
+                onClick={() => addTransactions(addrTxs.filter(tx => !transactions[tx.txid]).map(tx => tx.txid))}
+              >
+                Add All
+              </button>
+            )}
+            {someAddrChecked && (
+              <button
+                className="text-xs text-gray-400 hover:text-white"
+                onClick={() => addrTxs.filter(tx => !!transactions[tx.txid]).forEach(tx => removeTransaction(tx.txid))}
+              >
+                Remove All
+              </button>
+            )}
           </div>
         )}
         <div className="space-y-1">

@@ -23,6 +23,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     updateTransaction,
     removeTransaction,
     addTransaction,
+    addTransactions,
   } = useGlobalState();
 
   const stored = selectedTxid ? transactions[selectedTxid] : undefined;
@@ -38,6 +39,16 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   if (!stored || !selectedTxid) return null;
 
   const tx = stored.data;
+
+  const nonCoinbaseVins = tx.vin.filter(vin => !vin.is_coinbase);
+  const someInputsUnchecked = nonCoinbaseVins.some(vin => !transactions[vin.txid]);
+  const someInputsChecked = nonCoinbaseVins.some(vin => !!transactions[vin.txid]);
+
+  const spendingTxids = tx.vout
+    .map((_, i) => (stored.outspends[i]?.spent ? stored.outspends[i].txid : undefined))
+    .filter((t): t is string => !!t);
+  const someOutputsUnchecked = spendingTxids.some(txid => !transactions[txid]);
+  const someOutputsChecked = spendingTxids.some(txid => !!transactions[txid]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNameInput(e.target.value);
@@ -205,9 +216,29 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
         {/* Inputs */}
         <div>
-          <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">
-            Inputs ({tx.vin.length})
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase">
+              Inputs ({tx.vin.length})
+            </h3>
+            <div className="flex gap-3">
+              {someInputsUnchecked && (
+                <button
+                  className="text-xs text-gray-400 hover:text-white"
+                  onClick={() => addTransactions(nonCoinbaseVins.filter(vin => !transactions[vin.txid]).map(vin => vin.txid))}
+                >
+                  Add All
+                </button>
+              )}
+              {someInputsChecked && (
+                <button
+                  className="text-xs text-gray-400 hover:text-white"
+                  onClick={() => nonCoinbaseVins.filter(vin => !!transactions[vin.txid]).forEach(vin => removeTransaction(vin.txid))}
+                >
+                  Remove All
+                </button>
+              )}
+            </div>
+          </div>
           <div className="space-y-2">
             {tx.vin.map((vin, i) => {
               const addr = vin.prevout?.scriptpubkey_address;
@@ -262,9 +293,29 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
         {/* Outputs */}
         <div>
-          <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">
-            Outputs ({tx.vout.length})
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase">
+              Outputs ({tx.vout.length})
+            </h3>
+            <div className="flex gap-3">
+              {someOutputsUnchecked && (
+                <button
+                  className="text-xs text-gray-400 hover:text-white"
+                  onClick={() => addTransactions(spendingTxids.filter(txid => !transactions[txid]))}
+                >
+                  Add All
+                </button>
+              )}
+              {someOutputsChecked && (
+                <button
+                  className="text-xs text-gray-400 hover:text-white"
+                  onClick={() => spendingTxids.filter(txid => !!transactions[txid]).forEach(txid => removeTransaction(txid))}
+                >
+                  Remove All
+                </button>
+              )}
+            </div>
+          </div>
           <div className="space-y-2">
             {tx.vout.map((vout, i) => {
               const outspend = stored.outspends[i];

@@ -476,15 +476,30 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                   </button>
                 )}
 
-                {/* Magnifying glass for Default group (no other right-side actions) */}
+                {/* Default group actions */}
                 {isDefault && !isEditing && (
-                  <button
-                    className="text-gray-400 hover:text-white flex-shrink-0 text-xs leading-none cursor-pointer"
-                    title="Browse group transactions"
-                    onClick={() => onOpenGroupDetail(group.id)}
-                  >
-                    🔍
-                  </button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      className="text-gray-400 hover:text-white text-xs leading-none cursor-pointer"
+                      title="Browse group transactions"
+                      onClick={() => onOpenGroupDetail(group.id)}
+                    >
+                      🔍
+                    </button>
+                    {group.addresses.length > 0 && (
+                      <button
+                        className="text-gray-400 hover:text-red-400 text-xs px-1 cursor-pointer"
+                        title="Delete all addresses in Default group"
+                        onClick={() => {
+                          if (confirm(`Delete all ${group.addresses.length} address(es) in the Default group?`)) {
+                            group.addresses.forEach(addr => removeAddress(addr));
+                          }
+                        }}
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* Non-default group actions */}

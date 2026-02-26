@@ -98,16 +98,14 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
   const isSelected = selectedTxid === txid;
   const isUnconfirmed = !tx.status.confirmed;
 
-  const loadedTxids = useMemo(() => new Set(Object.keys(transactions)), [transactions]);
-
   const inputHandles = useMemo(
-    () => computeInputHandles(tx.vin, addresses, groupMap, loadedTxids),
-    [tx.vin, addresses, groupMap, loadedTxids]
+    () => computeInputHandles(tx.vin, addresses, groupMap, new Set(Object.keys(transactions))),
+    [tx.vin, addresses, groupMap, transactions]
   );
 
   const outputHandles = useMemo(
-    () => computeOutputHandles(tx.vout, outspends, addresses, groupMap, loadedTxids),
-    [tx.vout, outspends, addresses, groupMap, loadedTxids]
+    () => computeOutputHandles(tx.vout, outspends, addresses, groupMap, new Set(Object.keys(transactions))),
+    [tx.vout, outspends, addresses, groupMap, transactions]
   );
 
   const feeRate = formatFeeRate(tx.fee, tx.weight);

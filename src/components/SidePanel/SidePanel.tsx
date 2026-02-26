@@ -14,12 +14,13 @@ interface Props {
 }
 
 export default function SidePanel({ onHide }: Props) {
-  const { selectedTxid } = useGlobalState();
+  const { selectedTxid, setSelectedTxid } = useGlobalState();
   const [tab, setTab] = useState<Tab>('transactions');
   const [addressDetailView, setAddressDetailView] = useState<string | null>(null);
   const [groupDetailView, setGroupDetailView] = useState<string | null>(null);
 
   const handleOpenAddressDetail = (address: string) => {
+    setSelectedTxid(undefined);
     setTab('addresses');
     setGroupDetailView(null);
     setAddressDetailView(address);

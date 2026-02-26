@@ -343,15 +343,23 @@ export default function FlowCanvas() {
           <div className="text-center text-gray-500 select-none">
             <div className="text-2xl font-semibold mb-2 pointer-events-none">No transactions yet</div>
             <div className="text-sm pointer-events-none">Add transaction IDs from the side panel,<br />or look up an address to explore its history.</div>
-            <div className="text-sm mt-2">
-              Or{' '}
-              <button
-                className="underline hover:text-gray-300 transition-colors cursor-pointer"
-                onClick={() => addTransaction('f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16')}
-              >
-                click here
-              </button>
-              {' '}to add the first Bitcoin transaction from<br />Satoshi Nakamoto to Hal Finney.
+            <div className="text-sm mt-4 pointer-events-none font-medium">Examples:</div>
+            <div className="text-sm mt-1 flex flex-col gap-1">
+              {[
+                { label: 'Satoshi → Hal Finney', txid: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16' },
+                { label: 'Coinjoin', txid: '353734ec9ed658b2282df9ec2cb1e5b2d56d8d4ddde12963893fb8384956dbf2' },
+                { label: 'Consolidation', txid: 'ca11d6ef802f4b3d9730cbff112655ad635500ccd657c3406184b26f74e53e15' },
+                { label: 'Lightning', txid: '57a2b2325fef1f2be48ea44c3461a1f1530ba47ee307bfc48d49d266030565fe' },
+                { label: 'PayJoin', txid: '7104bae698587b3e75563b7ea7a9aada41d9c787788bc2bf26dd201fd7eca8a2' },
+              ].map(({ label, txid }) => (
+                <button
+                  key={txid}
+                  className="underline hover:text-gray-300 transition-colors cursor-pointer"
+                  onClick={() => addTransaction(txid)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         </Panel>

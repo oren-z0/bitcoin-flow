@@ -1,18 +1,9 @@
 import type { StoredTransaction } from '../types';
 
 /**
- * Compute a sub_index for each transaction so that within the same block,
- * if transaction A has an output spent by transaction B, B gets a higher
- * sub_index than A. This gives a topological order within a block.
- *
- * Algorithm:
- * 1. Initialise every sub_index to 0.
- * 2. Put all txids in a work-set.
- * 3. Pop a txid from the set; for each of its outspends that points to
- *    another transaction in global state at the same block height:
- *      - if that transaction's sub_index <= current sub_index,
- *        bump it to current + 1 and re-add it to the work-set.
- * 4. Repeat until the work-set is empty.
+ * Compute a sub_index for each transaction so that within the same block-height
+ * bucket, if A's output is spent by B (on-chain outspend or in-graph vin, incl. PSBTs),
+ * B gets a higher sub_index than A (further right on the X axis).
  */
 export function computeSubIndexes(
   transactions: Record<string, StoredTransaction>
@@ -31,20 +22,28 @@ export function computeSubIndexes(
   while (workQueue.length > 0) {
     const txid = workQueue.shift()!;
     const tx = transactions[txid];
-    subIndexes[txid] = Math.max(...tx.data.vin.map((vin) => subIndexes[vin.txid] || 0)) + 1;
-    for (const outspend of tx.outspends) {
-      if (!outspend.spent || !outspend.txid) continue;
-      const outTx = transactions[outspend.txid];
-      if (!outTx) continue;
-      const newInputsLeft = (inputsLeft[outspend.txid] ?? 0) - 1;
-      if (newInputsLeft < 0) continue; // This should never happen, but just in case.
+    const parentSubIndexes = tx.data.vin
+      .filter(vin => vin.txid && transactions[vin.txid])
+      .map(vin => subIndexes[vin.txid] || 0);
+    subIndexes[txid] = (parentSubIndexes.length > 0 ? Math.max(...parentSubIndexes) : 0) + 1;
+
+    // Release children that spend this tx (mempool outspends and PSBT vin links).
+    for (const [childTxid, child] of Object.entries(transactions)) {
+      const waiting = inputsLeft[childTxid];
+      if (waiting === undefined) continue;
+
+      const vinsFromParent = child.data.vin.filter(
+        vin => vin.txid === txid && transactions[vin.txid]
+      ).length;
+      if (vinsFromParent === 0) continue;
+
+      const newInputsLeft = waiting - vinsFromParent;
+      if (newInputsLeft < 0) continue;
       if (newInputsLeft === 0) {
-        workQueue.push(outspend.txid);
-        delete inputsLeft[outspend.txid];
-      }
-      if (newInputsLeft > 0) {
-        inputsLeft[outspend.txid] = newInputsLeft;
-        continue;
+        workQueue.push(childTxid);
+        delete inputsLeft[childTxid];
+      } else {
+        inputsLeft[childTxid] = newInputsLeft;
       }
     }
   }

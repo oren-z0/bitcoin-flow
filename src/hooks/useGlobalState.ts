@@ -204,7 +204,10 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const existing = state.transactions[txid];
     if (existing && !existing.isPsbt) {
       if (!noFocus) {
-        layoutRef.focusNode(txid);
+        requestAnimationFrame(() => layoutRef.focusNode(txid));
+      }
+      if (!noSelect) {
+        get().setSelectedTxid(txid);
       }
       return;
     }
@@ -289,7 +292,12 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const existing = state.transactions[txid];
 
     if (existing && !existing.isPsbt) {
-      get().addError(`Transaction ${txid.slice(0, 8)}... already loaded`);
+      if (!noFocus) {
+        requestAnimationFrame(() => layoutRef.focusNode(txid));
+      }
+      if (!noSelect) {
+        get().setSelectedTxid(txid);
+      }
       return;
     }
 

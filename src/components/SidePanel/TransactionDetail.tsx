@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
 import { formatOpReturnDisplay } from '../../utils/opReturn';
-import { formatInputSequence, showsAbsoluteLocktime } from '../../utils/sequence';
+import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '../../utils/sequence';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
@@ -446,6 +446,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                 {showsAbsoluteLocktime(tx.locktime, tx.vin)
                   ? `${tx.locktime} (${formatTimestamp(tx.locktime)})`
                   : tx.locktime}
+                {isLocktimeDisabled(tx.vin) ? ' (disabled)' : ''}
               </span>
             </div>
           </div>

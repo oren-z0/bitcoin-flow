@@ -13,6 +13,11 @@ export function showsAbsoluteLocktime(locktime: number, vins: { sequence: number
   return locktime >= 500000000 && vins.some(vin => vin.sequence <= 0xfffffffe);
 }
 
+/** Locktime is not enforced when every input has nSequence 0xFFFFFFFF. */
+export function isLocktimeDisabled(vins: { sequence: number }[]): boolean {
+  return vins.length > 0 && vins.every(vin => (vin.sequence >>> 0) === 0xffffffff);
+}
+
 export function formatSequenceHex(sequence: number): string {
   return `0x${(sequence >>> 0).toString(16).toUpperCase().padStart(8, '0')}`;
 }

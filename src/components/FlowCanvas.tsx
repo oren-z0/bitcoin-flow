@@ -79,7 +79,7 @@ function buildEdges(
 
       // Find target handle id in input handles
       const spendingTx = transactions[spendingTxid];
-      const inHandles = computeInputHandles(spendingTx.data.vin, addresses, groupMap, loadedTxids);
+      const inHandles = computeInputHandles(spendingTx.data.vin, addresses, groupMap, loadedTxids, !!spendingTx.isPsbt);
       const targetHandle = inHandles.find(h => h.vinIndices?.includes(vinIdx));
       const targetHandleId = targetHandle?.id ?? `in-${vinIdx}`;
       const targetRepresentsMultiple = (targetHandle?.vinIndices?.length ?? 1) > 1;

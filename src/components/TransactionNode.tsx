@@ -160,13 +160,13 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
     setSelectedTxid,
   } = useGlobalState();
 
-  const { data: tx, outspends, name, color } = stored;
+  const { data: tx, outspends, name, color, isPsbt } = stored;
   const isSelected = selectedTxid === txid;
-  const isUnconfirmed = !tx.status.confirmed;
+  const isUnconfirmed = !tx.status.confirmed && !isPsbt;
 
   const inputHandles = useMemo(
-    () => computeInputHandles(tx.vin, addresses, groupMap, new Set(Object.keys(transactions))),
-    [tx.vin, addresses, groupMap, transactions]
+    () => computeInputHandles(tx.vin, addresses, groupMap, new Set(Object.keys(transactions)), !!isPsbt),
+    [tx.vin, addresses, groupMap, transactions, isPsbt]
   );
 
   const outputHandles = useMemo(
@@ -216,6 +216,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
   const nodeStyle: React.CSSProperties = {
     borderColor: color || (isSelected ? '#3b82f6' : '#374151'),
     borderWidth: isSelected ? 2 : 1,
+    borderStyle: isPsbt ? 'dashed' : 'solid',
     animation: isUnconfirmed ? 'blink 2s ease-in-out infinite' : undefined,
     boxShadow: hasSelectedAddress ? '0 0 12px 3px rgba(234, 179, 8, 0.7)' : undefined,
   };
@@ -323,7 +324,9 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
 
       {/* Below node: block info */}
       <div className="text-center text-xs mt-1" style={{ color: '#9ca3af' }}>
-        {isUnconfirmed ? (
+        {isPsbt ? (
+          <span>PSBT</span>
+        ) : isUnconfirmed ? (
           <span style={{ animation: 'blink 2s ease-in-out infinite' }}>
             Unconfirmed
           </span>

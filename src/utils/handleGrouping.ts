@@ -15,6 +15,21 @@ function getDisplayLabel(
   return truncateAddress(address);
 }
 
+function getInputDisplayLabel(
+  vin: MempoolVin,
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>,
+  isPsbt: boolean,
+  loadedTxids: Set<string>
+): string {
+  const address = vin.prevout?.scriptpubkey_address;
+  if (!address) {
+    if (isPsbt && vin.txid && !loadedTxids.has(vin.txid)) return 'Unknown';
+    return 'Non-Standard';
+  }
+  return getDisplayLabel(address, addresses, groupMap);
+}
+
 function hasEffectiveName(
   address: string | undefined,
   addresses: Record<string, StoredAddress>,
@@ -32,7 +47,9 @@ function buildCollapsedInputHandles(
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup>,
   placesLeft: number,
-  idPrefix: string
+  idPrefix: string,
+  isPsbt: boolean,
+  loadedTxids: Set<string>
 ): HandleDescriptor[] {
   const named = vins.filter(v => hasEffectiveName(v.prevout?.scriptpubkey_address, addresses, groupMap));
   const unnamed = vins.filter(v => !hasEffectiveName(v.prevout?.scriptpubkey_address, addresses, groupMap));
@@ -52,7 +69,7 @@ function buildCollapsedInputHandles(
   if (namedCount < placesLeft) {
     const handles: HandleDescriptor[] = named.map((vin, i) => ({
       id: `${idPrefix}-named-${i}`,
-      label: getDisplayLabel(vin.prevout?.scriptpubkey_address, addresses, groupMap),
+      label: getInputDisplayLabel(vin, addresses, groupMap, isPsbt, loadedTxids),
       amount: vin.prevout?.value || 0,
       addresses: vin.prevout?.scriptpubkey_address ? [vin.prevout.scriptpubkey_address] : [],
       txids: vin.txid ? [vin.txid] : [],
@@ -95,7 +112,7 @@ function buildCollapsedInputHandles(
       unnamed.forEach((vin, i) => {
         handles.push({
           id: `${idPrefix}-unnamed-${i}`,
-          label: getDisplayLabel(vin.prevout?.scriptpubkey_address, addresses, groupMap),
+          label: getInputDisplayLabel(vin, addresses, groupMap, isPsbt, loadedTxids),
           amount: vin.prevout?.value || 0,
           addresses: vin.prevout?.scriptpubkey_address ? [vin.prevout.scriptpubkey_address] : [],
           txids: vin.txid ? [vin.txid] : [],
@@ -234,7 +251,8 @@ export function computeInputHandles(
   vins: MempoolVin[],
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup> = {},
-  loadedTxids: Set<string> = new Set()
+  loadedTxids: Set<string> = new Set(),
+  isPsbt = false
 ): HandleDescriptor[] {
   const count = vins.length;
 
@@ -254,7 +272,7 @@ export function computeInputHandles(
   if (count <= MAX_HANDLES) {
     return vins.map((vin, i) => ({
       id: `in-${i}`,
-      label: getDisplayLabel(vin.prevout?.scriptpubkey_address, addresses, groupMap),
+      label: getInputDisplayLabel(vin, addresses, groupMap, isPsbt, loadedTxids),
       amount: vin.prevout?.value || 0,
       addresses: vin.prevout?.scriptpubkey_address ? [vin.prevout.scriptpubkey_address] : [],
       txids: vin.txid ? [vin.txid] : [],
@@ -270,7 +288,7 @@ export function computeInputHandles(
   if (connectedCount >= MAX_HANDLES) {
     // Too many connected to show individually — treat all vins as one pool.
     // Group handles carry txids for all handles they represent so edges still attach.
-    return buildCollapsedInputHandles(vins, vins, addresses, groupMap, MAX_HANDLES, 'in');
+    return buildCollapsedInputHandles(vins, vins, addresses, groupMap, MAX_HANDLES, 'in', isPsbt, loadedTxids);
   }
 
   // connectedCount < MAX_HANDLES: connected vins each get their own handle
@@ -280,7 +298,7 @@ export function computeInputHandles(
     const originalIdx = vins.indexOf(vin);
     return {
       id: `in-${originalIdx}`,
-      label: getDisplayLabel(vin.prevout?.scriptpubkey_address, addresses, groupMap),
+      label: getInputDisplayLabel(vin, addresses, groupMap, isPsbt, loadedTxids),
       amount: vin.prevout?.value || 0,
       addresses: vin.prevout?.scriptpubkey_address ? [vin.prevout.scriptpubkey_address] : [],
       txids: vin.txid ? [vin.txid] : [],
@@ -289,7 +307,7 @@ export function computeInputHandles(
   });
 
   const unconnectedHandles = buildCollapsedInputHandles(
-    unconnectedVins, vins, addresses, groupMap, placesLeft, 'in'
+    unconnectedVins, vins, addresses, groupMap, placesLeft, 'in', isPsbt, loadedTxids
   );
 
   return [...connectedHandles, ...unconnectedHandles];

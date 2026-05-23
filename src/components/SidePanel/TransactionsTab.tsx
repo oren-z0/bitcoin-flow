@@ -2,20 +2,31 @@ import React, { useRef, useState } from 'react';
 import Papa from 'papaparse';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { truncateTxid, formatTimestamp } from '../../utils/formatting';
+import { isPsbtBase64, isTxidHex } from '../../utils/psbt';
 
 export default function TransactionsTab() {
-  const { transactions, selectedTxid, setSelectedTxid, addTransaction, removeTransaction, loadingTxids } = useGlobalState();
+  const { transactions, selectedTxid, setSelectedTxid, addTransaction, addPsbt, removeTransaction, loadingTxids } = useGlobalState();
   const [txInput, setTxInput] = useState('');
   const [loadError, setLoadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const trimmedInput = txInput.trim();
+  const canAdd = isTxidHex(trimmedInput) || isPsbtBase64(trimmedInput);
+
   const handleAddTx = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const txid = txInput.trim().toLowerCase();
-    if (!txid) return;
+    const input = txInput.trim();
+    if (!input) return;
     setLoadError('');
     setTxInput('');
-    await addTransaction(txid);
+
+    if (isTxidHex(input)) {
+      await addTransaction(input.toLowerCase());
+    } else if (isPsbtBase64(input)) {
+      await addPsbt(input);
+    } else {
+      setLoadError('Enter a valid txid (64 hex chars) or PSBT (base64)');
+    }
   };
 
   const handleTxClick = (txid: string) => {
@@ -88,14 +99,14 @@ export default function TransactionsTab() {
         <form onSubmit={handleAddTx} className="flex gap-2">
           <input
             className="flex-1 bg-gray-700 text-white text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500 placeholder-gray-500"
-            placeholder="Enter txid..."
+            placeholder="Enter txid or PSBT (base64)..."
             value={txInput}
             onChange={e => setTxInput(e.target.value)}
             spellCheck={false}
           />
           <button
             type="submit"
-            disabled={txInput.trim().length !== 64 || !/^[0-9a-fA-F]{64}$/.test(txInput.trim()) || loadingTxids.size > 0}
+            disabled={!canAdd || loadingTxids.size > 0}
             className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs px-3 py-1 rounded cursor-pointer"
           >
             Add
@@ -162,7 +173,9 @@ export default function TransactionsTab() {
                     <div className="text-xs text-gray-500 font-mono truncate">{txid}</div>
                   )}
                   <div className="text-xs text-gray-400">
-                    {tx.status.confirmed
+                    {stored.isPsbt
+                      ? 'PSBT'
+                      : tx.status.confirmed
                       ? tx.status.block_time
                         ? formatTimestamp(tx.status.block_time)
                         : `Block ${tx.status.block_height}`

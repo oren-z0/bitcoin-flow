@@ -32,7 +32,7 @@ export async function computeLayout(
 
   const elkNodes = sorted.map(txid => {
     const tx = transactions[txid];
-    const inputHandles = computeInputHandles(tx.data.vin, {}, {}, loadedTxids);
+    const inputHandles = computeInputHandles(tx.data.vin, {}, {}, loadedTxids, !!tx.isPsbt);
     const outputHandles = computeOutputHandles(tx.data.vout, tx.outspends, {}, {}, loadedTxids);
 
     const ports = [
@@ -82,7 +82,7 @@ export async function computeLayout(
       const vinIdx = outspend.vin ?? 0;
 
       const spendingTx = transactions[spendingTxid];
-      const inputHandles = computeInputHandles(spendingTx.data.vin, {}, {}, loadedTxids);
+      const inputHandles = computeInputHandles(spendingTx.data.vin, {}, {}, loadedTxids, !!spendingTx.isPsbt);
 
       // Find which output handle covers this voutIdx
       let srcHandleId = `out-${voutIdx}`;

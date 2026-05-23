@@ -3,6 +3,7 @@ import type { StoredTransaction, StoredAddress, AddressGroup } from '../types';
 import { fetchTransaction, fetchOutspends } from '../api/mempool';
 import { computeLayout } from '../utils/layout';
 import { sortTxids } from '../utils/sorting';
+import { enrichPrevoutsFromGraph, parsePsbtBase64, normalizePsbtBase64 } from '../utils/psbt';
 
 const STORAGE_KEY = 'bitcoin-flow-state';
 const NODE_GAP = 400;
@@ -36,6 +37,7 @@ interface GlobalStore {
 
   // Actions
   addTransaction: (txid: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => Promise<void>;
+  addPsbt: (base64: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => Promise<void>;
   addTransactions: (txids: string[]) => Promise<void>;
   removeTransaction: (txid: string) => void;
   updateTransaction: (txid: string, patch: Partial<Pick<StoredTransaction, 'name' | 'color' | 'coordinates'>>) => void;
@@ -52,6 +54,7 @@ interface GlobalStore {
   applyLayout: (positions: Record<string, { x: number; y: number }>) => void;
   runLayout: () => Promise<void>;
   refreshTransaction: (txid: string) => Promise<void>;
+  promotePsbtIfConfirmed: (txid: string) => Promise<void>;
   mergeState: (newState: Partial<{ transactions: Record<string, StoredTransaction>; addresses: Record<string, StoredAddress> }>) => void;
   clearState: () => void;
   dismissError: (index: number) => void;
@@ -198,8 +201,8 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const noFocus = opts?.noFocus ?? false;
     const noSelect = opts?.noSelect ?? false;
     const state = get();
-    if (state.transactions[txid]) {
-      // Already exists — just focus
+    const existing = state.transactions[txid];
+    if (existing && !existing.isPsbt) {
       if (!noFocus) {
         layoutRef.focusNode(txid);
       }
@@ -216,24 +219,36 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       ]);
 
       const viewportCenter = layoutRef.getViewportCenter();
-      const y = viewportCenter.y;
+      const y = existing?.coordinates.y ?? viewportCenter.y;
+      const preserved = existing
+        ? { coordinates: existing.coordinates, name: existing.name, color: existing.color }
+        : { coordinates: { x: 0, y } };
 
-      // Add to transactions first with placeholder coords
       const newTx: StoredTransaction = {
-        coordinates: { x: 0, y },
+        ...preserved,
         data: tx,
         outspends,
       };
 
       set(s => {
         const updated = { ...s.transactions, [txid]: newTx };
-        const x = computeInitialX(txid, updated);
-        updated[txid] = { ...newTx, coordinates: { x, y } };
+        if (!existing) {
+          const x = computeInitialX(txid, updated);
+          updated[txid] = { ...newTx, coordinates: { x, y } };
+        }
         persist({ ...s, transactions: updated });
         return { transactions: updated };
       });
 
       set(s => ({ loadingTxids: new Set([...s.loadingTxids].filter(id => id !== txid)) }));
+
+      const enriched = enrichPrevoutsFromGraph(get().transactions);
+      if (enriched) {
+        set(s => {
+          persist({ ...s, transactions: enriched });
+          return { transactions: enriched };
+        });
+      }
 
       const { autoLayout } = get();
       if (autoLayout) {
@@ -241,11 +256,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       }
 
       if (!noFocus) {
-        // Focus after layout (or immediately if no layout).
-        // Use rAF to ensure the node has been rendered before centering.
         requestAnimationFrame(() => layoutRef.focusNode(txid));
-
-        // Select the new transaction
         if (!noSelect) {
           get().setSelectedTxid(txid);
         }
@@ -259,9 +270,80 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     }
   },
 
+  addPsbt: async (base64: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => {
+    const noFocus = opts?.noFocus ?? false;
+    const noSelect = opts?.noSelect ?? false;
+    const normalized = normalizePsbtBase64(base64);
+
+    let parsed;
+    try {
+      parsed = parsePsbtBase64(normalized);
+    } catch (e) {
+      get().addError('Invalid PSBT');
+      console.error('Failed to parse PSBT', e);
+      return;
+    }
+
+    const { txid, data, outspends } = parsed;
+    const state = get();
+    const existing = state.transactions[txid];
+
+    if (existing && !existing.isPsbt) {
+      get().addError(`Transaction ${txid.slice(0, 8)}... already loaded`);
+      return;
+    }
+
+    const viewportCenter = layoutRef.getViewportCenter();
+    const y = existing?.coordinates.y ?? viewportCenter.y;
+    const preserved = existing
+      ? { coordinates: existing.coordinates, name: existing.name, color: existing.color }
+      : { coordinates: { x: 0, y } };
+
+    const newTx: StoredTransaction = {
+      ...preserved,
+      data,
+      outspends,
+      isPsbt: true,
+      psbtBase64: normalized,
+    };
+
+    set(s => {
+      const updated = { ...s.transactions, [txid]: newTx };
+      if (!existing) {
+        const x = computeInitialX(txid, updated);
+        updated[txid] = { ...newTx, coordinates: { x, y } };
+      }
+      persist({ ...s, transactions: updated });
+      return { transactions: updated };
+    });
+
+    const enriched = enrichPrevoutsFromGraph(get().transactions);
+    if (enriched) {
+      set(s => {
+        persist({ ...s, transactions: enriched });
+        return { transactions: enriched };
+      });
+    }
+
+    const { autoLayout } = get();
+    if (autoLayout) {
+      await get().runLayout();
+    }
+
+    if (!noFocus) {
+      requestAnimationFrame(() => layoutRef.focusNode(txid));
+      if (!noSelect) {
+        get().setSelectedTxid(txid);
+      }
+    }
+  },
+
   addTransactions: async (txids: string[]) => {
     const state = get();
-    const toAdd = txids.filter(id => !state.transactions[id]);
+    const toAdd = txids.filter(id => {
+      const existing = state.transactions[id];
+      return !existing || existing.isPsbt;
+    });
     if (toAdd.length === 0) return;
 
     // Load all in parallel
@@ -279,8 +361,11 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       for (const result of results) {
         if (result.status === 'fulfilled') {
           const { txid, tx, outspends } = result.value;
+          const existing = updated[txid];
           updated[txid] = {
-            coordinates: { x: 0, y: viewportCenter.y },
+            coordinates: existing?.coordinates ?? { x: 0, y: viewportCenter.y },
+            name: existing?.name,
+            color: existing?.color,
             data: tx,
             outspends,
           };
@@ -290,7 +375,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       // Now recompute X for all newly added
       const sorted = sortTxids(updated);
       for (let i = 0; i < sorted.length; i++) {
-        if (toAdd.includes(sorted[i])) {
+        if (toAdd.includes(sorted[i]) && !state.transactions[sorted[i]]) {
           let x: number;
           if (sorted.length === 1) {
             x = 0;
@@ -311,6 +396,14 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       persist({ ...s, transactions: updated });
       return { transactions: updated };
     });
+
+    const enriched = enrichPrevoutsFromGraph(get().transactions);
+    if (enriched) {
+      set(s => {
+        persist({ ...s, transactions: enriched });
+        return { transactions: enriched };
+      });
+    }
 
     const { autoLayout } = get();
     if (autoLayout) {
@@ -530,23 +623,72 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
   },
 
   refreshTransaction: async (txid: string) => {
+    const existing = get().transactions[txid];
+    if (existing?.isPsbt) return;
+
     try {
       const [tx, outspends] = await Promise.all([
         fetchTransaction(txid),
         fetchOutspends(txid),
       ]);
       set(s => {
-        const existing = s.transactions[txid];
-        if (!existing) return s;
+        const stored = s.transactions[txid];
+        if (!stored) return s;
         const updated = {
           ...s.transactions,
-          [txid]: { ...existing, data: tx, outspends },
+          [txid]: { ...stored, data: tx, outspends },
         };
         persist({ ...s, transactions: updated });
         return { transactions: updated };
       });
+
+      const enriched = enrichPrevoutsFromGraph(get().transactions);
+      if (enriched) {
+        set(s => {
+          persist({ ...s, transactions: enriched });
+          return { transactions: enriched };
+        });
+      }
     } catch (e) {
       console.error('Failed to refresh transaction', txid, e);
+    }
+  },
+
+  promotePsbtIfConfirmed: async (txid: string) => {
+    const existing = get().transactions[txid];
+    if (!existing?.isPsbt) return;
+
+    try {
+      const [tx, outspends] = await Promise.all([
+        fetchTransaction(txid),
+        fetchOutspends(txid),
+      ]);
+      set(s => {
+        const stored = s.transactions[txid];
+        if (!stored?.isPsbt) return s;
+        const updated = {
+          ...s.transactions,
+          [txid]: {
+            coordinates: stored.coordinates,
+            name: stored.name,
+            color: stored.color,
+            data: tx,
+            outspends,
+          },
+        };
+        persist({ ...s, transactions: updated });
+        return { transactions: updated };
+      });
+
+      const enriched = enrichPrevoutsFromGraph(get().transactions);
+      if (enriched) {
+        set(s => {
+          persist({ ...s, transactions: enriched });
+          return { transactions: enriched };
+        });
+      }
+    } catch {
+      // Still not on chain
     }
   },
 

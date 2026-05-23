@@ -50,6 +50,8 @@ export interface StoredTransaction {
   outspends: MempoolOutspend[];
   name?: string;
   color?: string;
+  isPsbt?: boolean;
+  psbtBase64?: string;
 }
 
 export interface StoredAddress {

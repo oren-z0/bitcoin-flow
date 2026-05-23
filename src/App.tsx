@@ -67,10 +67,14 @@ function LoadingIndicator() {
 function AppInner() {
   useMempoolWebSocket();
 
-  // On mount, refresh all unconfirmed/unspent transactions
+  // On mount, refresh unconfirmed txs; try to promote PSBTs that are now on chain
   useEffect(() => {
-    const { transactions, refreshTransaction } = useGlobalState.getState();
+    const { transactions, refreshTransaction, promotePsbtIfConfirmed } = useGlobalState.getState();
     for (const [txid, stored] of Object.entries(transactions)) {
+      if (stored.isPsbt) {
+        promotePsbtIfConfirmed(txid);
+        continue;
+      }
       const needsRefresh =
         !stored.data.status.confirmed ||
         stored.outspends.some(o => !o.spent);

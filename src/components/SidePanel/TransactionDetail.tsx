@@ -203,7 +203,9 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {/* Status */}
         <div>
-          {tx.status.confirmed ? (
+          {stored.isPsbt ? (
+            <div className="text-xs text-purple-400">PSBT</div>
+          ) : tx.status.confirmed ? (
             <>
               <div className="text-xs text-green-400">
                 Confirmed — Block {tx.status.block_height}
@@ -287,8 +289,10 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         {`${i}: ${addr}`}
                       </div>
                     </div>
+                  ) : stored.isPsbt && vin.txid && !transactions[vin.txid] ? (
+                    <div className="text-gray-400 font-mono break-all">{`${i}: ${truncateTxid(vin.txid)}:${vin.vout}`}</div>
                   ) : (
-                    <div className="text-gray-400">{`${i}: Unknown`}</div>
+                    <div className="text-gray-400">{`${i}: Non-Standard`}</div>
                   )}
                   <div className="text-gray-400 font-mono">
                     {formatInputSequence(tx.version, vin.sequence)}
@@ -450,7 +454,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-700 space-y-2">
-        <OpenInExplorerButton type="tx" id={selectedTxid} />
+        {!stored.isPsbt && <OpenInExplorerButton type="tx" id={selectedTxid} />}
         <button
           className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded"
           onClick={() => removeTransaction(selectedTxid)}

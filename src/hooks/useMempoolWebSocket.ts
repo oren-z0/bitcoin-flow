@@ -63,9 +63,14 @@ export function useMempoolWebSocket() {
 }
 
 function onNewBlock() {
-  const { transactions, refreshTransaction } = useGlobalState.getState();
+  const { transactions, refreshTransaction, promotePsbtIfConfirmed } = useGlobalState.getState();
 
   for (const [txid, stored] of Object.entries(transactions)) {
+    if (stored.isPsbt) {
+      promotePsbtIfConfirmed(txid);
+      continue;
+    }
+
     const needsRefresh =
       !stored.data.status.confirmed ||
       stored.outspends.some(o => !o.spent);

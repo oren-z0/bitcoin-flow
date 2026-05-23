@@ -11,6 +11,8 @@ export interface MempoolVin {
 }
 
 export interface MempoolVout {
+  scriptpubkey?: string;
+  scriptpubkey_asm?: string;
   scriptpubkey_address?: string;
   scriptpubkey_type?: string;
   value: number;

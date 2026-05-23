@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
+import { decodeOpReturnContent } from '../../utils/opReturn';
 import { formatInputSequence, showsAbsoluteLocktime } from '../../utils/sequence';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import { EMOJI_PALETTE } from '../../utils/emoji';
@@ -332,6 +333,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               const addr = vout.scriptpubkey_address;
               const addrData = addr ? addresses[addr] : undefined;
               const isOpReturn = vout.scriptpubkey_type === 'op_return';
+              const opReturnContent = isOpReturn ? decodeOpReturnContent(vout.scriptpubkey) : '';
 
               const spendingTxid = outspend?.spent ? outspend.txid : undefined;
               const spendingInState = spendingTxid ? !!transactions[spendingTxid] : false;
@@ -371,9 +373,14 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                     )
                   )}
 
-                  {/* Address */}
+                  {/* Address / OP_RETURN */}
                   {isOpReturn ? (
-                    <div className="text-gray-400">OP_RETURN</div>
+                    <div className="space-y-0.5">
+                      <div className="text-gray-400">{`${i}: OP_RETURN`}</div>
+                      {opReturnContent && (
+                        <div className="text-gray-300 break-all">{opReturnContent}</div>
+                      )}
+                    </div>
                   ) : addr ? (
                     <div className="space-y-0.5">
                       {addrData?.name && (
@@ -390,9 +397,11 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   ) : null}
 
                   {/* Amount */}
-                  <div className="text-gray-300">
-                    {isOpReturn ? 'OP_RETURN' : `${satsToBtc(vout.value)} BTC`}
-                  </div>
+                  {!isOpReturn && (
+                    <div className="text-gray-300">
+                      {`${satsToBtc(vout.value)} BTC`}
+                    </div>
+                  )}
                 </div>
               );
             })}

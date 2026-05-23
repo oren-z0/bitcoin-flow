@@ -4,7 +4,8 @@ import { useGlobalState } from '../hooks/useGlobalState';
 import { computeInputHandles, computeOutputHandles } from '../utils/handleGrouping';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc, truncateTxid, formatFeeRate, formatTimestamp } from '../utils/formatting';
-import type { StoredTransaction, HandleDescriptor, StoredAddress, AddressGroup } from '../types';
+import { inputHasRelativeLocktime } from '../utils/sequence';
+import type { StoredTransaction, HandleDescriptor, StoredAddress, AddressGroup, MempoolVin } from '../types';
 
 interface TransactionNodeData {
   txid: string;
@@ -27,9 +28,20 @@ function getAddressColor(
   return colors[0];
 }
 
+function handleShowsTimelock(
+  txVersion: number,
+  vin: MempoolVin[],
+  handle: HandleDescriptor
+): boolean {
+  if (!handle.vinIndices?.length) return false;
+  return handle.vinIndices.some(i => inputHasRelativeLocktime(txVersion, vin[i]?.sequence ?? 0xffffffff));
+}
+
 function HandleLabel({
   handle,
   isInput,
+  txVersion,
+  vin,
   addressMap,
   groupMap,
   selectedAddresses,
@@ -37,6 +49,8 @@ function HandleLabel({
 }: {
   handle: HandleDescriptor;
   isInput: boolean;
+  txVersion: number;
+  vin: MempoolVin[];
   addressMap: Record<string, StoredAddress>;
   groupMap: Record<string, AddressGroup>;
   selectedAddresses: Set<string>;
@@ -70,6 +84,7 @@ function HandleLabel({
       }}
     >
       <span style={{ color: color || handleColor }}>
+        {isInput && handleShowsTimelock(txVersion, vin, handle) ? '⏳ ' : ''}
         {handle.isOpReturn ? 'OP_RETURN' : handle.label}
       </span>
       {!handle.isOpReturn && (
@@ -198,6 +213,8 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                 <HandleLabel
                   handle={handle}
                   isInput={true}
+                  txVersion={tx.version}
+                  vin={tx.vin}
                   addressMap={addresses}
                   groupMap={groupMap}
                   selectedAddresses={selectedAddresses}
@@ -219,6 +236,8 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                   <HandleLabel
                     handle={handle}
                     isInput={false}
+                    txVersion={tx.version}
+                    vin={tx.vin}
                     addressMap={addresses}
                     groupMap={groupMap}
                     selectedAddresses={selectedAddresses}

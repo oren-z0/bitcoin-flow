@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
+import { formatInputSequence } from '../../utils/sequence';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
 function copyToClipboard(text: string, e: React.MouseEvent) {
@@ -287,6 +288,9 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   ) : (
                     <div className="text-gray-400">{`${i}: Unknown`}</div>
                   )}
+                  <div className="text-gray-400 font-mono">
+                    {formatInputSequence(tx.version, vin.sequence)}
+                  </div>
                   <div className="text-gray-300">
                     {satsToBtc(vin.prevout?.value || 0)} BTC
                   </div>

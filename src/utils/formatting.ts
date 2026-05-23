@@ -18,6 +18,10 @@ export function formatFeeRate(fee: number, weight: number): string {
   return rate.toFixed(2);
 }
 
+export function formatFee(fee: number, weight: number): string {
+  return `${satsToBtc(fee)} BTC (${formatFeeRate(fee, weight)} sat/vB)`;
+}
+
 export function formatTimestamp(blockTime: number): string {
   return new Date(blockTime * 1000).toLocaleString();
 }

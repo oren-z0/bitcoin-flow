@@ -3,7 +3,7 @@ import { Handle, Position, type NodeProps } from 'reactflow';
 import { useGlobalState } from '../hooks/useGlobalState';
 import { computeInputHandles, computeOutputHandles } from '../utils/handleGrouping';
 import { getEffectiveColor } from '../utils/addressDisplay';
-import { satsToBtc, truncateTxid, formatFeeRate, formatTimestamp } from '../utils/formatting';
+import { satsToBtc, truncateTxid, formatFee, formatTimestamp } from '../utils/formatting';
 import { inputHasRelativeLocktime } from '../utils/sequence';
 import type { StoredTransaction, HandleDescriptor, StoredAddress, AddressGroup, MempoolVin } from '../types';
 
@@ -122,8 +122,6 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
     () => computeOutputHandles(tx.vout, outspends, addresses, groupMap, new Set(Object.keys(transactions))),
     [tx.vout, outspends, addresses, groupMap, transactions]
   );
-
-  const feeRate = formatFeeRate(tx.fee, tx.weight);
 
   const hasSelectedAddress = useMemo(() => {
     const allHandles = [...inputHandles, ...outputHandles];
@@ -267,7 +265,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
 
         {/* Fee */}
         <div className="text-center text-xs text-gray-400 mt-2 border-t border-gray-700 pt-1 px-3">
-          Fee: {feeRate} sat/vB
+          Fee: {formatFee(tx.fee, tx.weight)}
         </div>
       </div>
 

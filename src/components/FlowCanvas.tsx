@@ -348,6 +348,7 @@ export default function FlowCanvas() {
             <div className="text-sm mt-1 flex flex-col gap-1">
               {[
                 { label: 'Satoshi → Hal Finney', txid: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16' },
+                { label: 'Coinbase', txid: '8cc015e338bb71b748dd931a9ab8a244f8202eb1560dc205d610059a3ef75898' },
                 { label: 'Coinjoin', txid: '353734ec9ed658b2282df9ec2cb1e5b2d56d8d4ddde12963893fb8384956dbf2' },
                 { label: 'Consolidation', txid: 'ca11d6ef802f4b3d9730cbff112655ad635500ccd657c3406184b26f74e53e15' },
                 { label: 'Lightning', txid: '57a2b2325fef1f2be48ea44c3461a1f1530ba47ee307bfc48d49d266030565fe' },

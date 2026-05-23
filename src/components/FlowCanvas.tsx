@@ -353,6 +353,7 @@ export default function FlowCanvas() {
                 { label: 'Lightning', txid: '57a2b2325fef1f2be48ea44c3461a1f1530ba47ee307bfc48d49d266030565fe' },
                 { label: 'PayJoin', txid: '7104bae698587b3e75563b7ea7a9aada41d9c787788bc2bf26dd201fd7eca8a2' },
                 { label: 'Timelock Recovery', txids: ['8b1a59ba445220d70bb3a5bdc9dd44515f885509e9631fe409a024c483ed73b0', '526c3e7916d3d455ddd85ca520f31fca675ed7b97e4ed6e71e7090fe765b74a0'] },
+                { label: 'Absolute Locktime', txid: '648fe76b22bc1768b56facab73af046ea40fa190f2e882a7cc99a5b6fccf05de' },
               ].map(({ label, txid, txids }) => (
                 <button
                   key={txids?.join('-') ?? txid}

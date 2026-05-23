@@ -4,6 +4,7 @@ import { fetchAddressInfo, fetchAddressTxs, fetchAddressTxsChain, InvalidInputEr
 import { truncateTxid, formatTimestamp } from '../../utils/formatting';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 import type { MempoolTx } from '../../types';
+import OpenInExplorerButton from './OpenInExplorerButton';
 
 const addrTxCache = new Map<string, { txs: MempoolTx[]; hasMore: boolean }>();
 
@@ -329,14 +330,7 @@ export default function AddressDetail({ address, onBack }: Props) {
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-700 space-y-2">
-        <a
-          href={`https://mempool.space/address/${address}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full text-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1.5 rounded"
-        >
-          Open on Mempool.space
-        </a>
+        <OpenInExplorerButton type="address" id={address} />
         <button
           className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded cursor-pointer"
           onClick={() => { removeAddress(address); onBack(); }}

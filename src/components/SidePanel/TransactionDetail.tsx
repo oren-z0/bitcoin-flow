@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
 import { formatInputSequence, showsAbsoluteLocktime } from '../../utils/sequence';
+import OpenInExplorerButton from './OpenInExplorerButton';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
 function copyToClipboard(text: string, e: React.MouseEvent) {
@@ -436,14 +437,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-700 space-y-2">
-        <a
-          href={`https://mempool.space/tx/${selectedTxid}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full text-center text-xs bg-blue-700 hover:bg-blue-600 text-white py-1.5 rounded"
-        >
-          Open on Mempool.space
-        </a>
+        <OpenInExplorerButton type="tx" id={selectedTxid} />
         <button
           className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded"
           onClick={() => removeTransaction(selectedTxid)}

@@ -23,5 +23,7 @@ export function formatFee(fee: number, weight: number): string {
 }
 
 export function formatTimestamp(blockTime: number): string {
-  return new Date(blockTime * 1000).toLocaleString();
+  const d = new Date(blockTime * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }

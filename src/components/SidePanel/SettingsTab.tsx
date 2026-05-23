@@ -1,14 +1,17 @@
 import React, { useRef, useState } from 'react';
 import { useGlobalState } from '../../hooks/useGlobalState';
 import { fetchTransaction, fetchOutspends } from '../../api/mempool';
+import { parsePsbtBase64, normalizePsbtBase64, enrichPrevoutsFromGraph } from '../../utils/psbt';
 import type { StoredAddress, StoredTransaction } from '../../types';
 
-// Slim format saved to disk — no API data, just metadata + coordinates
+// Slim format saved to disk — metadata + coordinates; PSBTs include base64 (not on mempool.space)
 interface SlimState {
   transactions: Record<string, {
     coordinates: { x: number; y: number };
     name?: string;
     color?: string;
+    isPsbt?: boolean;
+    psbtBase64?: string;
   }>;
   addresses: Record<string, StoredAddress>;
   autoLayout?: boolean;
@@ -28,6 +31,10 @@ export default function SettingsTab() {
             coordinates: stored.coordinates,
             ...(stored.name && { name: stored.name }),
             ...(stored.color && { color: stored.color }),
+            ...(stored.isPsbt && stored.psbtBase64 && {
+              isPsbt: true,
+              psbtBase64: stored.psbtBase64,
+            }),
           },
         ])
       ),
@@ -65,7 +72,13 @@ export default function SettingsTab() {
 
       const txids = Object.keys(slim.transactions || {});
       const total = txids.length;
-      if (total === 0) return;
+
+      if (total === 0) {
+        if (slim.autoLayout !== undefined) {
+          await useGlobalState.getState().setAutoLayout(slim.autoLayout);
+        }
+        return;
+      }
 
       setUploadProgress({ done: 0, total });
 
@@ -75,17 +88,31 @@ export default function SettingsTab() {
         const txid = txids[i];
         const meta = slim.transactions[txid];
         try {
-          const [data, outspends] = await Promise.all([
-            fetchTransaction(txid),
-            fetchOutspends(txid),
-          ]);
-          fetched[txid] = {
-            coordinates: meta.coordinates,
-            data,
-            outspends,
-            ...(meta.name && { name: meta.name }),
-            ...(meta.color && { color: meta.color }),
-          };
+          if (meta.isPsbt && meta.psbtBase64) {
+            const normalized = normalizePsbtBase64(meta.psbtBase64);
+            const parsed = parsePsbtBase64(normalized);
+            fetched[parsed.txid] = {
+              coordinates: meta.coordinates,
+              data: parsed.data,
+              outspends: parsed.outspends,
+              isPsbt: true,
+              psbtBase64: normalized,
+              ...(meta.name && { name: meta.name }),
+              ...(meta.color && { color: meta.color }),
+            };
+          } else {
+            const [data, outspends] = await Promise.all([
+              fetchTransaction(txid),
+              fetchOutspends(txid),
+            ]);
+            fetched[txid] = {
+              coordinates: meta.coordinates,
+              data,
+              outspends,
+              ...(meta.name && { name: meta.name }),
+              ...(meta.color && { color: meta.color }),
+            };
+          }
         } catch {
           // Skip failed transactions silently
         }
@@ -93,6 +120,19 @@ export default function SettingsTab() {
       }
 
       mergeState({ transactions: fetched });
+
+      const merged = useGlobalState.getState().transactions;
+      const enriched = enrichPrevoutsFromGraph(merged);
+      if (enriched) {
+        mergeState({ transactions: enriched });
+      }
+
+      if (slim.autoLayout !== undefined) {
+        await useGlobalState.getState().setAutoLayout(slim.autoLayout);
+      } else if (useGlobalState.getState().autoLayout) {
+        await useGlobalState.getState().runLayout();
+      }
+
       setUploadProgress(null);
     };
     reader.readAsText(file);
@@ -177,7 +217,7 @@ export default function SettingsTab() {
           />
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          Upload merges with existing data. Transactions are re-fetched from mempool.space.
+          Upload merges with existing data. Mined transactions are re-fetched from mempool.space; PSBTs are restored from the saved file.
         </p>
       </div>
 

@@ -2,6 +2,8 @@ import type { MempoolVin, MempoolVout, StoredAddress, HandleDescriptor, AddressG
 import { truncateAddress } from './formatting';
 import { getEffectiveName } from './addressDisplay';
 
+const MAX_HANDLES = 8;
+
 function getDisplayLabel(
   address: string | undefined,
   addresses: Record<string, StoredAddress>,
@@ -249,7 +251,7 @@ export function computeInputHandles(
     }];
   }
 
-  if (count <= 4) {
+  if (count <= MAX_HANDLES) {
     return vins.map((vin, i) => ({
       id: `in-${i}`,
       label: getDisplayLabel(vin.prevout?.scriptpubkey_address, addresses, groupMap),
@@ -260,19 +262,19 @@ export function computeInputHandles(
     }));
   }
 
-  // More than 4 inputs
+  // More than MAX_HANDLES inputs
   const connectedVins = vins.filter(v => v.txid && loadedTxids.has(v.txid));
   const unconnectedVins = vins.filter(v => !v.txid || !loadedTxids.has(v.txid));
   const connectedCount = connectedVins.length;
 
-  if (connectedCount >= 4) {
+  if (connectedCount >= MAX_HANDLES) {
     // Too many connected to show individually — treat all vins as one pool.
     // Group handles carry txids for all handles they represent so edges still attach.
-    return buildCollapsedInputHandles(vins, vins, addresses, groupMap, 4, 'in');
+    return buildCollapsedInputHandles(vins, vins, addresses, groupMap, MAX_HANDLES, 'in');
   }
 
-  // connectedCount < 4: connected vins each get their own handle
-  const placesLeft = 4 - connectedCount;
+  // connectedCount < MAX_HANDLES: connected vins each get their own handle
+  const placesLeft = MAX_HANDLES - connectedCount;
 
   const connectedHandles: HandleDescriptor[] = connectedVins.map((vin) => {
     const originalIdx = vins.indexOf(vin);
@@ -314,11 +316,11 @@ export function computeOutputHandles(
     isOpReturn: vout.scriptpubkey_type === 'op_return',
   });
 
-  if (count <= 4) {
+  if (count <= MAX_HANDLES) {
     return vouts.map((vout, i) => makeHandle(vout, i, `out-${i}`));
   }
 
-  // More than 4 outputs
+  // More than MAX_HANDLES outputs
   const connectedVouts = vouts.filter((_, i) => {
     const spendTxid = outspends[i]?.txid;
     return !!(spendTxid && loadedTxids.has(spendTxid));
@@ -329,12 +331,12 @@ export function computeOutputHandles(
   });
   const connectedCount = connectedVouts.length;
 
-  if (connectedCount >= 4) {
-    return buildCollapsedOutputHandles(vouts, vouts, outspends, addresses, groupMap, 4, 'out');
+  if (connectedCount >= MAX_HANDLES) {
+    return buildCollapsedOutputHandles(vouts, vouts, outspends, addresses, groupMap, MAX_HANDLES, 'out');
   }
 
-  // connectedCount < 4: connected vouts each get their own handle
-  const placesLeft = 4 - connectedCount;
+  // connectedCount < MAX_HANDLES: connected vouts each get their own handle
+  const placesLeft = MAX_HANDLES - connectedCount;
 
   const connectedHandles: HandleDescriptor[] = connectedVouts.map((vout) => {
     const originalIdx = vouts.indexOf(vout);

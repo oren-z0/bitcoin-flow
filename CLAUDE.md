@@ -62,7 +62,7 @@ A global `autoLayout: boolean` controls whether the layout is recalculated when 
 
 ### Key Architectural Decisions
 
-**Node handles:** Inputs on the left, outputs on the right. At most 4 handles per side — when there are more, group them using the collapsing rules in the spec (handle input/output grouping logic is complex — read SPEC.md carefully).
+**Node handles:** Inputs on the left, outputs on the right. At most 8 handles per side — when there are more, group them using the collapsing rules in the spec (handle input/output grouping logic is complex — read SPEC.md carefully).
 
 **Edge width:** Log-scale between 2px–8px based on BTC amount relative to min/max across all edges.
 

@@ -81,7 +81,7 @@ Clicking an input/output handle should add the other transactions associated wit
 
 ## Special cases
 
-There should be at most 4 input handles. If there are more inputs, some handle might represent multiple inputs. The rules in this case are:
+There should be at most 8 input handles. If there are more inputs, some handle might represent multiple inputs. The rules in this case are:
 
 - If none of the inputs have addresses with custom names, display "X inputs" as a single handle.
 - If up to 3 inputs have addresses with custom names, display each of them as a separate handle, and the rest should be displayed as a single handle with the label "X other inputs".
@@ -93,7 +93,7 @@ The second text-line of an input-label that represnts multiple inputs should sho
 
 Typically we would want the order of the inputs to be according to their order in the vin array (from top to bottom). If multiple inputs are represented by a single handle, we can ignore this rule.
 
-Similarly, there should be at most 4 output handles. If there are more outputs, some handle might represent multiple outputs. The rules in this case are:
+Similarly, there should be at most 8 output handles. If there are more outputs, some handle might represent multiple outputs. The rules in this case are:
 - If none of the outputs have addresses with custom names, display "X outputs" as a single handle.
 - If up to 3 outputs have addresses with custom names, display each of them as a separate handle, and the rest should be displayed as a single handle with the label "X other outputs".
 - If more than 3 outputs have addresses with custom names, then:

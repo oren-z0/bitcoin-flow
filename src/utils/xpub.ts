@@ -1,22 +1,22 @@
-import { HDKey } from '@scure/bip32';
+import { HDKey, type Versions } from '@scure/bip32';
 import { p2pkh, p2wpkh, p2sh, p2tr } from '@scure/btc-signer';
-import { base58check } from '@scure/base';
-import { sha256 } from '@noble/hashes/sha2.js';
 
 export type XpubAddressFormat = 'p2pkh' | 'p2sh-p2wpkh' | 'p2wpkh' | 'p2tr';
 
-const XPUB_VERSION = new Uint8Array([0x04, 0x88, 0xb2, 0x1e]);
+// SLIP-0132 version bytes for Bitcoin mainnet extended public keys.
+const EXTENDED_KEY_VERSIONS: Record<string, Versions> = {
+  xpub: { private: 0x0488ade4, public: 0x0488b21e },
+  ypub: { private: 0x049d7838, public: 0x049d7cb2 },
+  zpub: { private: 0x04b2430c, public: 0x04b24746 },
+  Ypub: { private: 0x0295b005, public: 0x0295b43f },
+  Zpub: { private: 0x02aa7a99, public: 0x02aa7ed3 },
+};
 
-// Convert any extended public key variant (ypub, zpub, Ypub, Zpub, etc.)
-// to a standard xpub by replacing the 4-byte version prefix.
-function normalizeToXpub(key: string): string {
-  if (key.startsWith('xpub')) return key;
-  const codec = base58check(sha256);
-  const decoded = codec.decode(key); // 78 bytes
-  if (decoded.length !== 78) throw new Error('Invalid extended public key length');
-  const normalized = new Uint8Array(decoded);
-  normalized.set(XPUB_VERSION, 0);
-  return codec.encode(normalized);
+function hdKeyFromExtendedKey(key: string): HDKey {
+  const prefix = key.slice(0, 4);
+  const versions = EXTENDED_KEY_VERSIONS[prefix];
+  if (!versions) throw new Error(`Unknown extended public key prefix: ${prefix}`);
+  return HDKey.fromExtendedKey(key, versions);
 }
 
 // Recursively expand all ranges in a path template, returning every
@@ -46,8 +46,7 @@ export function deriveAddressesFromXpub(
   const pathTemplate = trimmed.slice(slashIdx + 1).trim();
   if (!pathTemplate) throw new Error('Path is empty');
 
-  const xpub = normalizeToXpub(extKey);
-  const hdKey = HDKey.fromExtendedKey(xpub);
+  const hdKey = hdKeyFromExtendedKey(extKey);
 
   // Count total addresses before expanding to guard against huge ranges
   let total = 1;

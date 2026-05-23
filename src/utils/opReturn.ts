@@ -69,10 +69,10 @@ export function formatOpReturnDisplay(scriptpubkey: string | undefined): string 
   if (!scriptpubkey?.startsWith('6a')) return '';
 
   const bytes = extractOpReturnPayload(scriptpubkey);
-  if (bytes.length === 0) return scriptpubkey.slice(2);
+  if (bytes.length === 0) return `hex: ${scriptpubkey.slice(2)}`;
 
   const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-  if (isMostlyPrintable(text)) return text;
+  if (isMostlyPrintable(text)) return `string: ${text}`;
 
-  return bytesToHex(bytes);
+  return `hex: ${bytesToHex(bytes)}`;
 }

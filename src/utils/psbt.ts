@@ -1,4 +1,4 @@
-import { Transaction, OutScript, Address, NETWORK } from '@scure/btc-signer';
+import { Transaction, OutScript, Address, NETWORK, getInputType } from '@scure/btc-signer';
 import { getPrevOut } from '@scure/btc-signer/transaction.js';
 import { base64, hex } from '@scure/base';
 import type {
@@ -71,6 +71,56 @@ export function isTxidHex(input: string): boolean {
   return /^[0-9a-f]{64}$/i.test(input.trim());
 }
 
+/** Weight (WU) per input type — standard vsize × 4 for fee display on unsigned PSBTs. */
+const INPUT_WEIGHT: Record<string, number> = {
+  legacy: 592,
+  segwit: 272,
+  wpkh: 272,
+  tr: 230,
+  pkh: 592,
+  pk: 592,
+  sh: 592,
+  wsh: 628,
+};
+
+function estimateOutputWeight(script: Uint8Array | undefined): number {
+  if (!script?.length) return 124;
+  try {
+    const decoded = OutScript.decode(script);
+    const byType: Record<string, number> = { wpkh: 124, tr: 172, pkh: 68, sh: 64 };
+    return byType[decoded.type] ?? 32 + 4 * (script.length + 1);
+  } catch {
+    return 32 + 4 * (script.length + 1);
+  }
+}
+
+/** @scure/btc-signer only exposes `weight` on finalized txs; estimate for signing PSBTs. */
+function getTransactionWeight(tx: Transaction): number {
+  if (tx.isFinal) return tx.weight;
+
+  let weight = 40; // version, counts, locktime (rough)
+  let hasWitness = false;
+
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const input = tx.getInput(i);
+    try {
+      const { txType, type } = getInputType(input, true);
+      if (txType === 'segwit') hasWitness = true;
+      weight += INPUT_WEIGHT[type] ?? INPUT_WEIGHT[txType] ?? 592;
+    } catch {
+      weight += 592;
+    }
+  }
+
+  if (hasWitness) weight += 2;
+
+  for (let i = 0; i < tx.outputsLength; i++) {
+    weight += estimateOutputWeight(tx.getOutput(i).script);
+  }
+
+  return weight;
+}
+
 export interface ParsedPsbt {
   txid: string;
   data: MempoolTx;
@@ -133,15 +183,14 @@ export function parsePsbtBase64(psbtBase64: string): ParsedPsbt {
   }
 
   const fee = hasAllInputAmounts && vin.some(v => !v.is_coinbase) ? Math.max(0, inputSum - outputSum) : 0;
-  const rawBytes = tx.toBytes(false, false);
 
   const data: MempoolTx = {
     txid,
     vin,
     vout,
     fee,
-    size: rawBytes.length,
-    weight: tx.weight,
+    size: tx.unsignedTx.length,
+    weight: getTransactionWeight(tx),
     version: tx.version,
     locktime: tx.lockTime,
     status: { confirmed: false },

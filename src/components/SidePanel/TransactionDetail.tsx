@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
-import { formatInputSequence } from '../../utils/sequence';
+import { formatInputSequence, showsAbsoluteLocktime } from '../../utils/sequence';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
 function copyToClipboard(text: string, e: React.MouseEvent) {
@@ -411,6 +411,10 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               <span>{tx.weight} WU</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-gray-400">Fee</span>
+              <span>{satsToBtc(tx.fee)} BTC</span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-gray-400">Fee rate</span>
               <span>{formatFeeRate(tx.fee, tx.weight)} sat/vB</span>
             </div>
@@ -420,7 +424,11 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Locktime</span>
-              <span>{tx.locktime}</span>
+              <span>
+                {showsAbsoluteLocktime(tx.locktime, tx.vin)
+                  ? `${tx.locktime} (${formatTimestamp(tx.locktime)})`
+                  : tx.locktime}
+              </span>
             </div>
           </div>
         </div>

@@ -161,116 +161,95 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
       {/* Main node box */}
       <div
         className="bg-gray-800 rounded-lg shadow-lg border relative"
-        style={{ ...nodeStyle, padding: '8px 16px', minWidth: 260 }}
+        style={{ ...nodeStyle, padding: '8px 0', minWidth: 260 }}
       >
         {/* Title */}
         <div
-          className="text-center text-xs font-semibold mb-2 truncate"
+          className="text-center text-xs font-semibold mb-2 truncate px-3"
           style={{ color: color || '#e5e7eb' }}
           title={txid}
         >
           {name || truncateTxid(txid)}
         </div>
 
-        {/* Handles area */}
-        <div
-          className="flex justify-between items-stretch gap-2"
-          style={{ minHeight: Math.max(inputHandles.length, outputHandles.length) * 30 }}
-        >
-          {/* Input labels */}
-          <div className="flex flex-col justify-around gap-1" style={{ flex: 1, minWidth: 0 }}>
+        {/* Handles area — each handle sits inline with its label row */}
+        <div className="flex justify-between gap-3">
+          <div className="flex flex-col gap-1 flex-1 min-w-0">
             {inputHandles.map((handle) => (
-              <HandleLabel
-                key={handle.id}
-                handle={handle}
-                isInput={true}
-                addressMap={addresses}
-                groupMap={groupMap}
-                selectedAddresses={selectedAddresses}
-                onLabelClick={handleAddressLabelClick}
-              />
+              <div key={handle.id} className="flex items-center gap-1 min-w-0">
+                <Handle
+                  type="target"
+                  position={Position.Left}
+                  id={handle.id}
+                  isConnectable={!handle.isCoinbase}
+                  className="handle-inline"
+                  style={{
+                    background: COLOR_GRAY,
+                    width: 10,
+                    height: 10,
+                    border: '2px solid #4b5563',
+                    cursor: handle.isCoinbase ? 'default' : undefined,
+                  }}
+                  onClick={handle.isCoinbase ? undefined : (e) => {
+                    e.stopPropagation();
+                    handleInputHandleClick(handle);
+                  }}
+                />
+                <HandleLabel
+                  handle={handle}
+                  isInput={true}
+                  addressMap={addresses}
+                  groupMap={groupMap}
+                  selectedAddresses={selectedAddresses}
+                  onLabelClick={handleAddressLabelClick}
+                />
+              </div>
             ))}
           </div>
 
-          {/* Output labels */}
-          <div className="flex flex-col justify-around gap-1" style={{ flex: 1, minWidth: 0 }}>
-            {outputHandles.map((handle) => (
-              <HandleLabel
-                key={handle.id}
-                handle={handle}
-                isInput={false}
-                addressMap={addresses}
-                groupMap={groupMap}
-                selectedAddresses={selectedAddresses}
-                onLabelClick={handleAddressLabelClick}
-              />
-            ))}
+          <div className="flex flex-col gap-1 flex-1 min-w-0">
+            {outputHandles.map((handle) => {
+              const handleColor = handle.isOpReturn
+                ? COLOR_GRAY
+                : handle.txids.length > 0
+                ? COLOR_RED
+                : COLOR_GREEN;
+              return (
+                <div key={handle.id} className="flex items-center gap-1 justify-end min-w-0">
+                  <HandleLabel
+                    handle={handle}
+                    isInput={false}
+                    addressMap={addresses}
+                    groupMap={groupMap}
+                    selectedAddresses={selectedAddresses}
+                    onLabelClick={handleAddressLabelClick}
+                  />
+                  <Handle
+                    type="source"
+                    position={Position.Right}
+                    id={handle.id}
+                    className="handle-inline"
+                    style={{
+                      background: handleColor,
+                      width: 10,
+                      height: 10,
+                      border: '2px solid #4b5563',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOutputHandleClick(handle);
+                    }}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Fee */}
-        <div className="text-center text-xs text-gray-400 mt-2 border-t border-gray-700 pt-1">
+        <div className="text-center text-xs text-gray-400 mt-2 border-t border-gray-700 pt-1 px-3">
           Fee: {feeRate} sat/vB
         </div>
-
-        {/* Input Handles (React Flow) */}
-        {inputHandles.map((handle, i) => {
-          const topPercent = inputHandles.length === 1
-            ? 50
-            : ((i + 1) / (inputHandles.length + 1)) * 100;
-          return (
-            <Handle
-              key={handle.id}
-              type="target"
-              position={Position.Left}
-              id={handle.id}
-              isConnectable={!handle.isCoinbase}
-              style={{
-                top: `${topPercent}%`,
-                background: COLOR_GRAY,
-                width: 10,
-                height: 10,
-                border: '2px solid #4b5563',
-                cursor: handle.isCoinbase ? 'default' : undefined,
-              }}
-              onClick={handle.isCoinbase ? undefined : (e) => {
-                e.stopPropagation();
-                handleInputHandleClick(handle);
-              }}
-            />
-          );
-        })}
-
-        {/* Output Handles (React Flow) */}
-        {outputHandles.map((handle, i) => {
-          const topPercent = outputHandles.length === 1
-            ? 50
-            : ((i + 1) / (outputHandles.length + 1)) * 100;
-          const handleColor = handle.isOpReturn
-            ? COLOR_GRAY
-            : handle.txids.length > 0
-            ? COLOR_RED
-            : COLOR_GREEN;
-          return (
-            <Handle
-              key={handle.id}
-              type="source"
-              position={Position.Right}
-              id={handle.id}
-              style={{
-                top: `${topPercent}%`,
-                background: handleColor,
-                width: 10,
-                height: 10,
-                border: '2px solid #4b5563',
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOutputHandleClick(handle);
-              }}
-            />
-          );
-        })}
       </div>
 
       {/* Below node: block info */}

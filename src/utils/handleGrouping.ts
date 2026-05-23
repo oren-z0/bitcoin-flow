@@ -1,6 +1,7 @@
-import type { MempoolVin, MempoolVout, StoredAddress, HandleDescriptor, AddressGroup } from '../types';
+import type { MempoolVin, MempoolVout, StoredAddress, HandleDescriptor, AddressGroup, StoredTransaction } from '../types';
 import { truncateAddress } from './formatting';
 import { getEffectiveName } from './addressDisplay';
+import { getSpendingTxidsForOutput } from './graphConnections';
 
 const MAX_HANDLES = 8;
 
@@ -137,14 +138,24 @@ function buildCollapsedInputHandles(
 // Collapse a subset of outputs into at most placesLeft handles.
 // allVouts is the full vout list (for indexOf lookups).
 function buildCollapsedOutputHandles(
+  parentTxid: string,
   vouts: MempoolVout[],
   allVouts: MempoolVout[],
   outspends: import('../types').MempoolOutspend[],
+  transactions: Record<string, StoredTransaction>,
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup>,
   placesLeft: number,
   idPrefix: string
 ): HandleDescriptor[] {
+  const spendingTxids = (voutIdx: number) =>
+    getSpendingTxidsForOutput(
+      parentTxid,
+      voutIdx,
+      transactions,
+      outspends[voutIdx]?.spent ? outspends[voutIdx].txid : undefined
+    );
+
   const makeHandle = (vout: MempoolVout, id: string): HandleDescriptor => {
     const i = allVouts.indexOf(vout);
     return {
@@ -154,7 +165,7 @@ function buildCollapsedOutputHandles(
         : getDisplayLabel(vout.scriptpubkey_address, addresses, groupMap),
       amount: vout.value,
       addresses: vout.scriptpubkey_address ? [vout.scriptpubkey_address] : [],
-      txids: outspends[i]?.txid ? [outspends[i].txid!] : [],
+      txids: spendingTxids(i),
       voutIndices: [i],
       isOpReturn: vout.scriptpubkey_type === 'op_return',
     };
@@ -174,10 +185,7 @@ function buildCollapsedOutputHandles(
       label: `${vouts.length} outputs`,
       amount: vouts.reduce((s, v) => s + v.value, 0),
       addresses: vouts.flatMap(v => v.scriptpubkey_address ? [v.scriptpubkey_address] : []),
-      txids: vouts.flatMap(v => {
-        const i = allVouts.indexOf(v);
-        return outspends[i]?.txid ? [outspends[i].txid!] : [];
-      }),
+      txids: vouts.flatMap(v => spendingTxids(allVouts.indexOf(v))),
       voutIndices: vouts.map(v => allVouts.indexOf(v)),
     }];
   }
@@ -193,10 +201,7 @@ function buildCollapsedOutputHandles(
         label: `${unnamed.length} other outputs`,
         amount: unnamed.reduce((s, v) => s + v.value, 0),
         addresses: unnamed.flatMap(v => v.scriptpubkey_address ? [v.scriptpubkey_address] : []),
-        txids: unnamed.flatMap(v => {
-          const i = allVouts.indexOf(v);
-          return outspends[i]?.txid ? [outspends[i].txid!] : [];
-        }),
+        txids: unnamed.flatMap(v => spendingTxids(allVouts.indexOf(v))),
         voutIndices: unnamed.map(v => allVouts.indexOf(v)),
       });
     }
@@ -217,10 +222,7 @@ function buildCollapsedOutputHandles(
     label: namedLabel,
     amount: named.reduce((s, v) => s + v.value, 0),
     addresses: namedAddresses,
-    txids: named.flatMap(v => {
-      const i = allVouts.indexOf(v);
-      return outspends[i]?.txid ? [outspends[i].txid!] : [];
-    }),
+    txids: named.flatMap(v => spendingTxids(allVouts.indexOf(v))),
     voutIndices: named.map(v => allVouts.indexOf(v)),
   });
 
@@ -235,10 +237,7 @@ function buildCollapsedOutputHandles(
         label: `${unnamed.length} other outputs`,
         amount: unnamed.reduce((s, v) => s + v.value, 0),
         addresses: unnamed.flatMap(v => v.scriptpubkey_address ? [v.scriptpubkey_address] : []),
-        txids: unnamed.flatMap(v => {
-          const i = allVouts.indexOf(v);
-          return outspends[i]?.txid ? [outspends[i].txid!] : [];
-        }),
+        txids: unnamed.flatMap(v => spendingTxids(allVouts.indexOf(v))),
         voutIndices: unnamed.map(v => allVouts.indexOf(v)),
       });
     }
@@ -314,13 +313,26 @@ export function computeInputHandles(
 }
 
 export function computeOutputHandles(
+  parentTxid: string,
   vouts: MempoolVout[],
   outspends: import('../types').MempoolOutspend[],
+  transactions: Record<string, StoredTransaction>,
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup> = {},
   loadedTxids: Set<string> = new Set()
 ): HandleDescriptor[] {
   const count = vouts.length;
+
+  const spendingTxids = (voutIdx: number) =>
+    getSpendingTxidsForOutput(
+      parentTxid,
+      voutIdx,
+      transactions,
+      outspends[voutIdx]?.spent ? outspends[voutIdx].txid : undefined
+    );
+
+  const isConnectedVout = (voutIdx: number) =>
+    spendingTxids(voutIdx).some(id => loadedTxids.has(id));
 
   const makeHandle = (vout: MempoolVout, i: number, id: string): HandleDescriptor => ({
     id,
@@ -329,7 +341,7 @@ export function computeOutputHandles(
       : getDisplayLabel(vout.scriptpubkey_address, addresses, groupMap),
     amount: vout.value,
     addresses: vout.scriptpubkey_address ? [vout.scriptpubkey_address] : [],
-    txids: outspends[i]?.txid ? [outspends[i].txid!] : [],
+    txids: spendingTxids(i),
     voutIndices: [i],
     isOpReturn: vout.scriptpubkey_type === 'op_return',
   });
@@ -339,18 +351,14 @@ export function computeOutputHandles(
   }
 
   // More than MAX_HANDLES outputs
-  const connectedVouts = vouts.filter((_, i) => {
-    const spendTxid = outspends[i]?.txid;
-    return !!(spendTxid && loadedTxids.has(spendTxid));
-  });
-  const unconnectedVouts = vouts.filter((_, i) => {
-    const spendTxid = outspends[i]?.txid;
-    return !(spendTxid && loadedTxids.has(spendTxid));
-  });
+  const connectedVouts = vouts.filter((_, i) => isConnectedVout(i));
+  const unconnectedVouts = vouts.filter((_, i) => !isConnectedVout(i));
   const connectedCount = connectedVouts.length;
 
   if (connectedCount >= MAX_HANDLES) {
-    return buildCollapsedOutputHandles(vouts, vouts, outspends, addresses, groupMap, MAX_HANDLES, 'out');
+    return buildCollapsedOutputHandles(
+      parentTxid, vouts, vouts, outspends, transactions, addresses, groupMap, MAX_HANDLES, 'out'
+    );
   }
 
   // connectedCount < MAX_HANDLES: connected vouts each get their own handle
@@ -362,7 +370,7 @@ export function computeOutputHandles(
   });
 
   const unconnectedHandles = buildCollapsedOutputHandles(
-    unconnectedVouts, vouts, outspends, addresses, groupMap, placesLeft, 'out'
+    parentTxid, unconnectedVouts, vouts, outspends, transactions, addresses, groupMap, placesLeft, 'out'
   );
 
   return [...connectedHandles, ...unconnectedHandles];

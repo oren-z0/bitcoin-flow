@@ -170,8 +170,8 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
   );
 
   const outputHandles = useMemo(
-    () => computeOutputHandles(tx.vout, outspends, addresses, groupMap, new Set(Object.keys(transactions))),
-    [tx.vout, outspends, addresses, groupMap, transactions]
+    () => computeOutputHandles(txid, tx.vout, outspends, transactions, addresses, groupMap, new Set(Object.keys(transactions))),
+    [txid, tx.vout, outspends, addresses, groupMap, transactions]
   );
 
   const hasSelectedAddress = useMemo(() => {

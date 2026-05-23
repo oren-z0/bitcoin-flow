@@ -18,6 +18,7 @@ import { useGlobalState, layoutRef } from '../hooks/useGlobalState';
 import TransactionNode from './TransactionNode';
 import { computeEdgeWidth } from '../utils/edgeStyling';
 import { computeInputHandles, computeOutputHandles } from '../utils/handleGrouping';
+import { collectGraphConnections } from '../utils/graphConnections';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc } from '../utils/formatting';
 import type { StoredTransaction, AddressGroup } from '../types';
@@ -45,71 +46,75 @@ function buildEdges(
   groupMap: Record<string, AddressGroup>
 ): Edge[] {
   const edges: Edge[] = [];
-  const allAmounts: number[] = [];
   const loadedTxids = new Set(Object.keys(transactions));
+  const connections = collectGraphConnections(transactions);
+  const allAmounts = connections.map(c => c.amount);
+  const edgeIds = new Set<string>();
 
-  // Collect all edge amounts first for log-scale
-  for (const [, stored] of Object.entries(transactions)) {
-    stored.outspends.forEach((outspend, voutIdx) => {
-      if (outspend.spent && outspend.txid && transactions[outspend.txid]) {
-        allAmounts.push(stored.data.vout[voutIdx]?.value || 0);
-      }
-    });
-  }
+  for (const conn of connections) {
+    const edgeId = `${conn.parentTxid}-${conn.voutIdx}-${conn.spendingTxid}-${conn.vinIdx}`;
+    if (edgeIds.has(edgeId)) continue;
+    edgeIds.add(edgeId);
 
-  for (const [txid, stored] of Object.entries(transactions)) {
-    const outHandles = computeOutputHandles(stored.data.vout, stored.outspends, addresses, groupMap, loadedTxids);
+    const parent = transactions[conn.parentTxid];
+    const spendingTx = transactions[conn.spendingTxid];
+    const outHandles = computeOutputHandles(
+      conn.parentTxid,
+      parent.data.vout,
+      parent.outspends,
+      transactions,
+      addresses,
+      groupMap,
+      loadedTxids
+    );
+    const inHandles = computeInputHandles(
+      spendingTx.data.vin,
+      addresses,
+      groupMap,
+      loadedTxids,
+      !!spendingTx.isPsbt
+    );
 
-    stored.outspends.forEach((outspend, voutIdx) => {
-      if (!outspend.spent || !outspend.txid || !transactions[outspend.txid]) return;
-      const spendingTxid = outspend.txid;
-      const vinIdx = outspend.vin ?? 0;
-      const amount = stored.data.vout[voutIdx]?.value || 0;
-      const voutAddress = stored.data.vout[voutIdx]?.scriptpubkey_address;
-      const edgeColor = voutAddress
-        ? (getEffectiveColor(addresses[voutAddress], groupMap) ?? '#6b7280')
-        : '#6b7280';
-      const isSelected = voutAddress ? selectedAddresses.has(voutAddress) : false;
-      const width = computeEdgeWidth(amount, allAmounts);
+    const voutAddress = parent.data.vout[conn.voutIdx]?.scriptpubkey_address;
+    const edgeColor = voutAddress
+      ? (getEffectiveColor(addresses[voutAddress], groupMap) ?? '#6b7280')
+      : '#6b7280';
+    const isSelected = voutAddress ? selectedAddresses.has(voutAddress) : false;
+    const width = computeEdgeWidth(conn.amount, allAmounts);
 
-      // Find source handle id in output handles
-      const sourceHandle = outHandles.find(h => h.voutIndices?.includes(voutIdx));
-      const sourceHandleId = sourceHandle?.id ?? `out-${voutIdx}`;
-      const sourceRepresentsMultiple = (sourceHandle?.voutIndices?.length ?? 1) > 1;
+    const sourceHandle = outHandles.find(h => h.voutIndices?.includes(conn.voutIdx));
+    const sourceHandleId = sourceHandle?.id ?? `out-${conn.voutIdx}`;
+    const sourceRepresentsMultiple = (sourceHandle?.voutIndices?.length ?? 1) > 1;
 
-      // Find target handle id in input handles
-      const spendingTx = transactions[spendingTxid];
-      const inHandles = computeInputHandles(spendingTx.data.vin, addresses, groupMap, loadedTxids, !!spendingTx.isPsbt);
-      const targetHandle = inHandles.find(h => h.vinIndices?.includes(vinIdx));
-      const targetHandleId = targetHandle?.id ?? `in-${vinIdx}`;
-      const targetRepresentsMultiple = (targetHandle?.vinIndices?.length ?? 1) > 1;
+    const targetHandle = inHandles.find(h => h.vinIndices?.includes(conn.vinIdx));
+    const targetHandleId = targetHandle?.id ?? `in-${conn.vinIdx}`;
+    const targetRepresentsMultiple = (targetHandle?.vinIndices?.length ?? 1) > 1;
 
-      const showLabel = sourceRepresentsMultiple || targetRepresentsMultiple;
+    const showLabel = sourceRepresentsMultiple || targetRepresentsMultiple;
 
-      edges.push({
-        id: `${txid}-${voutIdx}-${spendingTxid}-${vinIdx}`,
-        source: txid,
-        target: spendingTxid,
-        sourceHandle: sourceHandleId,
-        targetHandle: targetHandleId,
-        ...(showLabel && {
-          label: satsToBtc(amount) + ' BTC',
-          labelStyle: { fill: '#e5e7eb', fontSize: 10 },
-          labelShowBg: true,
-          labelBgStyle: { fill: '#1f2937', fillOpacity: 0.9 },
-          labelBgPadding: [4, 2] as [number, number],
-          labelBgBorderRadius: 4,
-        }),
-        style: {
-          strokeWidth: width,
-          stroke: edgeColor,
-          filter: isSelected
-            ? `drop-shadow(0 0 8px #facc15) drop-shadow(0 0 16px #facc15)`
-            : undefined,
-        },
-        animated: false,
-        type: 'default',
-      });
+    edges.push({
+      id: edgeId,
+      source: conn.parentTxid,
+      target: conn.spendingTxid,
+      sourceHandle: sourceHandleId,
+      targetHandle: targetHandleId,
+      ...(showLabel && {
+        label: satsToBtc(conn.amount) + ' BTC',
+        labelStyle: { fill: '#e5e7eb', fontSize: 10 },
+        labelShowBg: true,
+        labelBgStyle: { fill: '#1f2937', fillOpacity: 0.9 },
+        labelBgPadding: [4, 2] as [number, number],
+        labelBgBorderRadius: 4,
+      }),
+      style: {
+        strokeWidth: width,
+        stroke: edgeColor,
+        filter: isSelected
+          ? `drop-shadow(0 0 8px #facc15) drop-shadow(0 0 16px #facc15)`
+          : undefined,
+      },
+      animated: false,
+      type: 'default',
     });
   }
 

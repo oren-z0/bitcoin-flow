@@ -33,7 +33,7 @@ export async function computeLayout(
   const elkNodes = sorted.map(txid => {
     const tx = transactions[txid];
     const inputHandles = computeInputHandles(tx.data.vin, {}, {}, loadedTxids, !!tx.isPsbt);
-    const outputHandles = computeOutputHandles(tx.data.vout, tx.outspends, {}, {}, loadedTxids);
+    const outputHandles = computeOutputHandles(txid, tx.data.vout, tx.outspends, transactions, {}, {}, loadedTxids);
 
     const ports = [
       ...inputHandles.map((h, i) => ({
@@ -74,7 +74,7 @@ export async function computeLayout(
   const elkEdges: { id: string; sources: string[]; targets: string[] }[] = [];
   for (const txid of sorted) {
     const tx = transactions[txid];
-    const outputHandles = computeOutputHandles(tx.data.vout, tx.outspends, {}, {}, loadedTxids);
+    const outputHandles = computeOutputHandles(txid, tx.data.vout, tx.outspends, transactions, {}, {}, loadedTxids);
 
     tx.outspends.forEach((outspend, voutIdx) => {
       if (!outspend.spent || !outspend.txid || !transactions[outspend.txid]) return;

@@ -4,7 +4,7 @@ import { useGlobalState } from '../hooks/useGlobalState';
 import { computeInputHandles, computeOutputHandles } from '../utils/handleGrouping';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc, truncateTxid, formatFee, formatTimestamp } from '../utils/formatting';
-import { inputHasRelativeLocktime } from '../utils/sequence';
+import { inputHasRelativeLocktime, showsAbsoluteLocktime } from '../utils/sequence';
 import type { StoredTransaction, HandleDescriptor, StoredAddress, AddressGroup, MempoolVin } from '../types';
 
 interface TransactionNodeData {
@@ -35,6 +35,31 @@ function HourglassIcon() {
       <path d="M5 2h14" />
       <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
       <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+    </svg>
+  );
+}
+
+function AlarmClockIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="13" r="8" />
+      <path d="M12 9v4l2 2" />
+      <path d="M5 3 2 6" />
+      <path d="m22 6-3-3" />
+      <path d="M6.38 18.7 4 21" />
+      <path d="M17.64 18.67 20 21" />
     </svg>
   );
 }
@@ -290,8 +315,9 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
         </div>
 
         {/* Fee */}
-        <div className="text-center text-xs text-gray-400 mt-2 border-t border-gray-700 pt-1 px-3">
-          Fee: {formatFee(tx.fee, tx.weight)}
+        <div className="flex items-center justify-center gap-0.5 text-xs text-gray-400 mt-2 border-t border-gray-700 pt-1 px-3">
+          {showsAbsoluteLocktime(tx.locktime, tx.vin) && <AlarmClockIcon />}
+          <span>Fee: {formatFee(tx.fee, tx.weight)}</span>
         </div>
       </div>
 

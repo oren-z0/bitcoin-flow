@@ -9,6 +9,10 @@ export function inputHasRelativeLocktime(txVersion: number, sequence: number): b
   return txVersion >= 2 && isRelativeLocktimeSequence(sequence);
 }
 
+export function showsAbsoluteLocktime(locktime: number, vins: { sequence: number }[]): boolean {
+  return locktime >= 500000000 && vins.some(vin => vin.sequence <= 0xfffffffe);
+}
+
 export function formatSequenceHex(sequence: number): string {
   return `0x${(sequence >>> 0).toString(16).toUpperCase().padStart(8, '0')}`;
 }

@@ -109,6 +109,7 @@ function buildEdges(
       style: {
         strokeWidth: width,
         stroke: edgeColor,
+        ...(spendingTx.isPsbt && { strokeDasharray: '6 4' }),
         filter: isSelected
           ? `drop-shadow(0 0 8px #facc15) drop-shadow(0 0 16px #facc15)`
           : undefined,

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
-import { satsToBtc, truncateTxid, truncateAddress, formatTimestamp, formatFeeRate } from '../../utils/formatting';
+import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
 function copyToClipboard(text: string, e: React.MouseEvent) {
@@ -243,7 +243,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             {tx.vin.map((vin, i) => {
               const addr = vin.prevout?.scriptpubkey_address;
               const addrData = addr ? addresses[addr] : undefined;
-              const addrLabel = addrData?.name || (addr ? truncateAddress(addr) : 'Unknown');
               const vinTxLabel = transactions[vin.txid]
                 ? (transactions[vin.txid].name || truncateTxid(vin.txid))
                 : truncateTxid(vin.txid);
@@ -272,15 +271,21 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       {vinTxLabel}
                     </div>
                   </div>
-                  {addr && (
-                    <div
-                      className="cursor-pointer hover:text-white truncate"
-                      style={{ color: addrData?.color || '#9ca3af' }}
-                      onClick={() => handleAddressClick(addr)}
-                      title={addr}
-                    >
-                      {addrLabel}
+                  {addr ? (
+                    <div className="space-y-0.5">
+                      {addrData?.name && (
+                        <div className="text-gray-400">{addrData.name}</div>
+                      )}
+                      <div
+                        className="cursor-pointer hover:text-white font-mono break-all"
+                        style={{ color: addrData?.color || '#9ca3af' }}
+                        onClick={() => handleAddressClick(addr)}
+                      >
+                        {`${i}: ${addr}`}
+                      </div>
                     </div>
+                  ) : (
+                    <div className="text-gray-400">{`${i}: Unknown`}</div>
                   )}
                   <div className="text-gray-300">
                     {satsToBtc(vin.prevout?.value || 0)} BTC
@@ -321,7 +326,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               const outspend = stored.outspends[i];
               const addr = vout.scriptpubkey_address;
               const addrData = addr ? addresses[addr] : undefined;
-              const addrLabel = addrData?.name || (addr ? truncateAddress(addr) : undefined);
               const isOpReturn = vout.scriptpubkey_type === 'op_return';
 
               const spendingTxid = outspend?.spent ? outspend.txid : undefined;
@@ -366,13 +370,17 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   {isOpReturn ? (
                     <div className="text-gray-400">OP_RETURN</div>
                   ) : addr ? (
-                    <div
-                      className="cursor-pointer hover:text-white truncate"
-                      style={{ color: addrData?.color || '#9ca3af' }}
-                      onClick={() => handleAddressClick(addr)}
-                      title={addr}
-                    >
-                      {addrLabel || truncateAddress(addr)}
+                    <div className="space-y-0.5">
+                      {addrData?.name && (
+                        <div className="text-gray-400">{addrData.name}</div>
+                      )}
+                      <div
+                        className="cursor-pointer hover:text-white font-mono break-all"
+                        style={{ color: addrData?.color || '#9ca3af' }}
+                        onClick={() => handleAddressClick(addr)}
+                      >
+                        {`${i}: ${addr}`}
+                      </div>
                     </div>
                   ) : null}
 

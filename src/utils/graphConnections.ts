@@ -37,7 +37,7 @@ export function collectGraphConnections(
   return connections;
 }
 
-/** Spending txids for a parent output (mempool outspend + in-graph PSBT/unconfirmed children). */
+/** Spending txids for a parent output (mempool outspend + in-graph children, incl. PSBTs). Used for handle layout grouping, not red/green color. */
 export function getSpendingTxidsForOutput(
   parentTxid: string,
   voutIdx: number,

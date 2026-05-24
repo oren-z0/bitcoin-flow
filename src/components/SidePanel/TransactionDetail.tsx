@@ -6,6 +6,8 @@ import { formatOpReturnDisplay } from '../../utils/opReturn';
 import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '../../utils/sequence';
 import { isKnownTxid } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
+import PsbtDerivationFields from './PsbtDerivationFields';
+import PsbtAdvancedSection from './PsbtAdvancedSection';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
 const iconClass = 'shrink-0';
@@ -56,6 +58,8 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     removeTransaction,
     addTransaction,
     addTransactions,
+    replacePsbtNode,
+    addError,
   } = useGlobalState();
 
   const stored = selectedTxid ? transactions[selectedTxid] : undefined;
@@ -155,6 +159,11 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const handleCopyPsbt = () => {
     if (!stored.psbtBase64) return;
     copyToClipboard(stored.psbtBase64, 'PSBT copied to clipboard');
+  };
+
+  const handlePsbtDerivationUpdated = (newBase64: string) => {
+    if (!stored.psbtBase64) return;
+    replacePsbtNode(selectedTxid, newBase64);
   };
 
   return (
@@ -358,6 +367,15 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   <div className="text-gray-300">
                     {satsToBtc(vin.prevout?.value || 0)} BTC
                   </div>
+                  {stored.isPsbt && stored.psbtBase64 && (
+                    <PsbtDerivationFields
+                      psbtBase64={stored.psbtBase64}
+                      kind="input"
+                      index={i}
+                      onPsbtUpdated={handlePsbtDerivationUpdated}
+                      onError={addError}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -468,11 +486,25 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       {`${satsToBtc(vout.value)} BTC`}
                     </div>
                   )}
+                  {stored.isPsbt && stored.psbtBase64 && !isOpReturn && (
+                    <PsbtDerivationFields
+                      psbtBase64={stored.psbtBase64}
+                      kind="output"
+                      index={i}
+                      showOptionalLabel
+                      onPsbtUpdated={handlePsbtDerivationUpdated}
+                      onError={addError}
+                    />
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
+
+        {stored.isPsbt && stored.psbtBase64 && (
+          <PsbtAdvancedSection psbtBase64={stored.psbtBase64} />
+        )}
 
         {/* Details */}
         <div>

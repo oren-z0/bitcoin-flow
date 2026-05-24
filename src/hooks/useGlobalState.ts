@@ -62,6 +62,7 @@ interface GlobalStore {
   runLayout: () => Promise<void>;
   refreshTransaction: (txid: string) => Promise<void>;
   promotePsbtIfConfirmed: (txid: string) => Promise<void>;
+  replacePsbtNode: (oldNodeId: string, psbtBase64: string) => void;
   mergeState: (newState: Partial<{ transactions: Record<string, StoredTransaction>; addresses: Record<string, StoredAddress> }>) => void;
   clearState: () => void;
   dismissError: (index: number) => void;
@@ -689,6 +690,54 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       }
     } catch (e) {
       console.error('Failed to refresh transaction', txid, e);
+    }
+  },
+
+  replacePsbtNode: (oldNodeId, psbtBase64) => {
+    const normalized = normalizePsbtBase64(psbtBase64);
+    let parsed;
+    try {
+      parsed = parsePsbtBase64(normalized);
+    } catch (e) {
+      get().addError('Invalid PSBT');
+      console.error('Failed to update PSBT', e);
+      return;
+    }
+
+    const existing = get().transactions[oldNodeId];
+    if (!existing?.isPsbt) return;
+
+    const newTx: StoredTransaction = {
+      coordinates: existing.coordinates,
+      name: existing.name,
+      color: existing.color,
+      data: parsed.data,
+      outspends: parsed.outspends,
+      isPsbt: true,
+      psbtBase64: normalized,
+    };
+
+    const newNodeId = parsed.nodeId;
+
+    set(s => {
+      const updated = { ...s.transactions };
+      delete updated[oldNodeId];
+      updated[newNodeId] = newTx;
+      const selectedTxid = s.selectedTxid === oldNodeId ? newNodeId : s.selectedTxid;
+      persist({ ...s, transactions: updated, selectedTxid });
+      return { transactions: updated, selectedTxid };
+    });
+
+    const enriched = enrichPrevoutsFromGraph(get().transactions);
+    if (enriched) {
+      set(s => {
+        persist({ ...s, transactions: enriched });
+        return { transactions: enriched };
+      });
+    }
+
+    if (newNodeId !== oldNodeId) {
+      requestAnimationFrame(() => layoutRef.focusNode(newNodeId));
     }
   },
 

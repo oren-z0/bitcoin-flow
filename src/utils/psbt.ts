@@ -189,6 +189,93 @@ export function propagatePsbtNodeIdChange(
   return { transactions: result, rewrites };
 }
 
+/** Update one input's prevout index (vout) in PSBT bytes. */
+export function remapPsbtInputVout(
+  psbtBase64: string,
+  inputIndex: number,
+  newVout: number
+): string {
+  const normalized = normalizePsbtBase64(psbtBase64);
+  const tx = Transaction.fromPSBT(base64.decode(normalized));
+  tx.updateInput(inputIndex, { index: newVout });
+  return base64.encode(tx.toPSBT());
+}
+
+/**
+ * After swapping two outputs on a parent PSBT, update child PSBT inputs that spent them.
+ */
+export function propagatePsbtOutputSwap(
+  transactions: Record<string, StoredTransaction>,
+  parentNodeId: string,
+  fromIndex: number,
+  toIndex: number
+): { transactions: Record<string, StoredTransaction>; rewrites: Map<string, string> } {
+  const rewrites = new Map<string, string>();
+  let result = { ...transactions };
+
+  const mapVout = (vout: number): number | undefined => {
+    if (vout === fromIndex) return toIndex;
+    if (vout === toIndex) return fromIndex;
+    return undefined;
+  };
+
+  for (const [childKey, stored] of Object.entries(result)) {
+    if (!stored.isPsbt || !stored.psbtBase64) continue;
+
+    const updates: { inputIndex: number; newVout: number }[] = [];
+    stored.data.vin.forEach((vin, inputIndex) => {
+      if (vin.is_coinbase || !vin.txid) return;
+      if (!inputTxidMatchesNodeRef(vin.txid, parentNodeId)) return;
+      const newVout = mapVout(vin.vout);
+      if (newVout !== undefined && newVout !== vin.vout) {
+        updates.push({ inputIndex, newVout });
+      }
+    });
+    if (updates.length === 0) continue;
+
+    let newBase64 = stored.psbtBase64;
+    try {
+      for (const { inputIndex, newVout } of updates) {
+        newBase64 = remapPsbtInputVout(newBase64, inputIndex, newVout);
+      }
+    } catch (e) {
+      console.error('Failed to remap child PSBT input vout', childKey, e);
+      continue;
+    }
+
+    let parsed: ParsedPsbt;
+    try {
+      parsed = parsePsbtBase64(newBase64);
+    } catch (e) {
+      console.error('Invalid PSBT after vout remap', childKey, e);
+      continue;
+    }
+
+    const newChildKey = parsed.nodeId;
+    const next = { ...result };
+    delete next[childKey];
+    next[newChildKey] = {
+      ...stored,
+      data: parsed.data,
+      outspends: stored.outspends,
+      isPsbt: true,
+      psbtBase64: newBase64,
+    };
+    result = next;
+
+    if (newChildKey !== childKey) {
+      recordIdRewrite(rewrites, childKey, newChildKey);
+      const idProp = propagatePsbtNodeIdChange(result, childKey, newChildKey);
+      result = idProp.transactions;
+      for (const [k, v] of idProp.rewrites) {
+        recordIdRewrite(rewrites, k, v);
+      }
+    }
+  }
+
+  return { transactions: result, rewrites };
+}
+
 const PSBT_MAGIC = new Uint8Array([0x70, 0x73, 0x62, 0x74, 0xff]);
 
 const addrCodec = Address(NETWORK);

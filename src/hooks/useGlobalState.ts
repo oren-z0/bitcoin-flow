@@ -10,6 +10,7 @@ import {
   isKnownTxid,
   movePsbtIo,
   propagatePsbtNodeIdChange,
+  propagatePsbtOutputSwap,
   resolveNodeIdAfterRewrites,
   resolveParentNodeId,
 } from '../utils/psbt';
@@ -767,13 +768,18 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const newNodeId = parsed.nodeId;
 
     set(s => {
-      const { transactions, selectedTxid } = applyPsbtNodeIdRemap(
+      let { transactions, selectedTxid } = applyPsbtNodeIdRemap(
         s.transactions,
         s.selectedTxid,
         nodeId,
         newNodeId,
         newTx
       );
+      if (kind === 'output') {
+        const swapped = propagatePsbtOutputSwap(transactions, newNodeId, index, newIndex);
+        transactions = swapped.transactions;
+        selectedTxid = resolveNodeIdAfterRewrites(selectedTxid, swapped.rewrites);
+      }
       persist({ ...s, transactions, selectedTxid });
       return { transactions, selectedTxid };
     });

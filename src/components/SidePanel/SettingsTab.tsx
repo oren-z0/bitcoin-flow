@@ -233,7 +233,7 @@ export default function SettingsTab() {
           <div className="flex gap-2">
             <button className={stateButtonClass} onClick={handleCopyToClipboard}>
               <CopyIcon />
-              Copy to clipboard
+              Copy State JSON to Clipboard
             </button>
             <button
               className={stateButtonClass}
@@ -241,12 +241,12 @@ export default function SettingsTab() {
               disabled={loading}
             >
               <ClipboardIcon />
-              Load from clipboard
+              Load State JSON from Clipboard
             </button>
           </div>
           <button className={`w-full ${stateButtonClass}`} onClick={handleShareLink}>
             <LinkIcon />
-            Share Link
+            Copy Shareable Link to Clipboard
           </button>
           {gistFormOpen ? (
             <div className="rounded border border-gray-600 bg-gray-800/80 p-3 space-y-2">

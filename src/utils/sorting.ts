@@ -1,4 +1,5 @@
 import type { StoredTransaction } from '../types';
+import { inputTxidMatchesNodeRef, resolveParentNodeId } from './psbt';
 
 /**
  * Compute a sub_index for each transaction so that within the same block-height
@@ -12,7 +13,9 @@ export function computeSubIndexes(
   const workQueue: string[] = [];
   const inputsLeft: Record<string, number> = {};
   for (const [txid, tx] of Object.entries(transactions)) {
-    const expectedInputs = tx.data.vin.filter(vin => vin.txid && transactions[vin.txid]).length;
+    const expectedInputs = tx.data.vin.filter(
+      vin => vin.txid && resolveParentNodeId(transactions, vin.txid)
+    ).length;
     if (expectedInputs === 0) {
       workQueue.push(txid);
     } else {
@@ -23,8 +26,8 @@ export function computeSubIndexes(
     const txid = workQueue.shift()!;
     const tx = transactions[txid];
     const parentSubIndexes = tx.data.vin
-      .filter(vin => vin.txid && transactions[vin.txid])
-      .map(vin => subIndexes[vin.txid] || 0);
+      .filter(vin => vin.txid && resolveParentNodeId(transactions, vin.txid))
+      .map(vin => subIndexes[resolveParentNodeId(transactions, vin.txid!)!] || 0);
     subIndexes[txid] = (parentSubIndexes.length > 0 ? Math.max(...parentSubIndexes) : 0) + 1;
 
     // Release children that spend this tx (mempool outspends and PSBT vin links).
@@ -33,7 +36,7 @@ export function computeSubIndexes(
       if (waiting === undefined) continue;
 
       const vinsFromParent = child.data.vin.filter(
-        vin => vin.txid === txid && transactions[vin.txid]
+        vin => vin.txid && inputTxidMatchesNodeRef(vin.txid, txid)
       ).length;
       if (vinsFromParent === 0) continue;
 

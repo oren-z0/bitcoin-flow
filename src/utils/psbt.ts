@@ -12,6 +12,183 @@ import type {
   StoredTransaction,
 } from '../types';
 
+/** Display-order txid (mempool / node id) ↔ internal bytes in unsigned tx inputs. */
+function reverseTxidHex(txid: string): string {
+  const bytes = hex.decode(txid.toLowerCase());
+  return hex.encode(bytes.slice().reverse());
+}
+
+/** Whether a vin/outspend txid refers to a graph node id (incl. `psbt_` prefix and endian variants). */
+export function inputTxidMatchesNodeRef(vinTxid: string, nodeRef: string): boolean {
+  const a = vinTxid.toLowerCase();
+  const b = nodeRef.toLowerCase();
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  const aBare = a.startsWith('psbt_') ? a.slice(5) : a;
+  const bBare = b.startsWith('psbt_') ? b.slice(5) : b;
+  if (aBare === bBare) return true;
+
+  if (/^[0-9a-f]{64}$/.test(aBare) && /^[0-9a-f]{64}$/.test(bBare)) {
+    if (aBare === reverseTxidHex(bBare) || bBare === reverseTxidHex(aBare)) return true;
+  }
+  return false;
+}
+
+/** 32-byte prevout txid for `updateInput`, from a graph node id or 64-char hex. */
+export function nodeRefToPsbtInputTxidBytes(nodeRef: string): Uint8Array {
+  const bare = nodeRef.toLowerCase().startsWith('psbt_') ? nodeRef.slice(5) : nodeRef;
+  if (!/^[0-9a-f]{64}$/i.test(bare)) {
+    throw new Error(`Invalid node id for PSBT input: ${nodeRef}`);
+  }
+  return hex.decode(bare.toLowerCase());
+}
+
+/** Vin/outspend txid string to use after a parent node id change. */
+export function nodeRefToVinTxidString(nodeRef: string): string {
+  if (isPsbtNodeId(nodeRef)) return nodeRef.slice(5).toLowerCase();
+  return nodeRef.toLowerCase();
+}
+
+/** Graph node key for a vin prevout txid (matches `psbt_` ids and endian variants). */
+export function resolveParentNodeId(
+  transactions: Record<string, StoredTransaction>,
+  vinTxid: string
+): string | undefined {
+  if (transactions[vinTxid]) return vinTxid;
+  for (const nodeId of Object.keys(transactions)) {
+    if (inputTxidMatchesNodeRef(vinTxid, nodeId)) return nodeId;
+  }
+  return undefined;
+}
+
+/** Rewrite parent references in a PSBT when a parent node's graph id changes. */
+export function remapPsbtInputParentRefs(
+  psbtBase64: string,
+  oldNodeId: string,
+  newNodeId: string
+): string {
+  const normalized = normalizePsbtBase64(psbtBase64);
+  const tx = Transaction.fromPSBT(base64.decode(normalized));
+  const newTxidBytes = nodeRefToPsbtInputTxidBytes(newNodeId);
+  let changed = false;
+
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const input = tx.getInput(i);
+    const vinTxid = input.txid?.length ? bytesToHex(input.txid) : '';
+    if (vinTxid && inputTxidMatchesNodeRef(vinTxid, oldNodeId)) {
+      tx.updateInput(i, { txid: newTxidBytes });
+      changed = true;
+    }
+  }
+
+  return changed ? base64.encode(tx.toPSBT()) : normalized;
+}
+
+function recordIdRewrite(rewrites: Map<string, string>, oldId: string, newId: string): void {
+  for (const [key, value] of rewrites) {
+    if (value === oldId) rewrites.set(key, newId);
+  }
+  rewrites.set(oldId, newId);
+}
+
+export function resolveNodeIdAfterRewrites(
+  txid: string | undefined,
+  rewrites: Map<string, string>
+): string | undefined {
+  if (!txid) return undefined;
+  let cur = txid;
+  const seen = new Set<string>();
+  while (rewrites.has(cur)) {
+    if (seen.has(cur)) break;
+    seen.add(cur);
+    cur = rewrites.get(cur)!;
+  }
+  return cur;
+}
+
+/**
+ * When a PSBT node's graph id changes, update child PSBT inputs (and outspends) recursively.
+ */
+export function propagatePsbtNodeIdChange(
+  transactions: Record<string, StoredTransaction>,
+  oldNodeId: string,
+  newNodeId: string
+): { transactions: Record<string, StoredTransaction>; rewrites: Map<string, string> } {
+  const rewrites = new Map<string, string>();
+  if (oldNodeId === newNodeId) {
+    return { transactions, rewrites };
+  }
+
+  recordIdRewrite(rewrites, oldNodeId, newNodeId);
+  let result = { ...transactions };
+  const pending: [string, string][] = [[oldNodeId, newNodeId]];
+
+  while (pending.length > 0) {
+    const [oldId, newId] = pending.shift()!;
+    const newVinTxid = nodeRefToVinTxidString(newId);
+
+    for (const [txKey, stored] of Object.entries(result)) {
+      let outChanged = false;
+      const newOutspends = stored.outspends.map((o: MempoolOutspend) => {
+        if (o.txid && inputTxidMatchesNodeRef(o.txid, oldId)) {
+          outChanged = true;
+          return { ...o, txid: newVinTxid };
+        }
+        return o;
+      });
+      if (outChanged) {
+        result = { ...result, [txKey]: { ...stored, outspends: newOutspends } };
+      }
+    }
+
+    for (const [childKey, stored] of Object.entries(result)) {
+      if (!stored.isPsbt || !stored.psbtBase64) continue;
+      const referencesParent = stored.data.vin.some(
+        vin => !vin.is_coinbase && vin.txid && inputTxidMatchesNodeRef(vin.txid, oldId)
+      );
+      if (!referencesParent) continue;
+
+      let newBase64: string;
+      try {
+        newBase64 = remapPsbtInputParentRefs(stored.psbtBase64, oldId, newId);
+      } catch (e) {
+        console.error('Failed to remap PSBT parent input', childKey, e);
+        continue;
+      }
+
+      let parsed: ParsedPsbt;
+      try {
+        parsed = parsePsbtBase64(newBase64);
+      } catch (e) {
+        console.error('Invalid PSBT after parent id remap', childKey, e);
+        continue;
+      }
+
+      const newChildKey = parsed.nodeId;
+      const updatedChild: StoredTransaction = {
+        ...result[childKey],
+        data: parsed.data,
+        outspends: result[childKey].outspends,
+        isPsbt: true,
+        psbtBase64: newBase64,
+      };
+
+      const next = { ...result };
+      delete next[childKey];
+      next[newChildKey] = updatedChild;
+      result = next;
+
+      if (newChildKey !== childKey) {
+        recordIdRewrite(rewrites, childKey, newChildKey);
+        pending.push([childKey, newChildKey]);
+      }
+    }
+  }
+
+  return { transactions: result, rewrites };
+}
+
 const PSBT_MAGIC = new Uint8Array([0x70, 0x73, 0x62, 0x74, 0xff]);
 
 const addrCodec = Address(NETWORK);
@@ -241,7 +418,8 @@ export function enrichPrevoutsFromGraph(
       if (vin.is_coinbase || !vin.txid) return vin;
       if (vin.prevout?.scriptpubkey_address && (vin.prevout?.value ?? 0) > 0) return vin;
 
-      const parent = transactions[vin.txid];
+      const parentKey = resolveParentNodeId(transactions, vin.txid);
+      const parent = parentKey ? transactions[parentKey] : undefined;
       if (!parent) return vin;
 
       const parentOut = parent.data.vout[vin.vout];

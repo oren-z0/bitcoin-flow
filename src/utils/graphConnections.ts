@@ -1,4 +1,5 @@
 import type { StoredTransaction } from '../types';
+import { resolveParentNodeId } from './psbt';
 
 export interface GraphConnection {
   parentTxid: string;
@@ -12,15 +13,14 @@ export interface GraphConnection {
 export function collectGraphConnections(
   transactions: Record<string, StoredTransaction>
 ): GraphConnection[] {
-  const loaded = new Set(Object.keys(transactions));
   const connections: GraphConnection[] = [];
 
   for (const [spendingTxid, stored] of Object.entries(transactions)) {
     stored.data.vin.forEach((vin, vinIdx) => {
       if (vin.is_coinbase || !vin.txid) return;
-      if (!loaded.has(vin.txid)) return;
 
-      const parentTxid = vin.txid;
+      const parentTxid = resolveParentNodeId(transactions, vin.txid);
+      if (!parentTxid) return;
       const voutIdx = vin.vout;
       const parentOut = transactions[parentTxid].data.vout[voutIdx];
 

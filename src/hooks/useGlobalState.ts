@@ -9,6 +9,9 @@ import {
   normalizePsbtBase64,
   isKnownTxid,
   movePsbtIo,
+  propagatePsbtNodeIdChange,
+  resolveNodeIdAfterRewrites,
+  resolveParentNodeId,
 } from '../utils/psbt';
 
 const STORAGE_KEY = 'bitcoin-flow-state';
@@ -182,8 +185,8 @@ function computeInitialX(
   // 2. Input-connected nodes (nodes whose outputs this tx spends).
   //    This tx must appear to the RIGHT of them.
   const inputTxids = stored.data.vin
-    .map(vin => vin.txid)
-    .filter((id): id is string => !!id && !!transactions[id]);
+    .map(vin => (vin.txid ? resolveParentNodeId(transactions, vin.txid) : undefined))
+    .filter((id): id is string => !!id);
   if (inputTxids.length > 0) {
     const maxX = Math.max(...inputTxids.map(id => transactions[id].coordinates.x));
     const limit = maxX + NODE_WIDTH + SMALL_GAP;
@@ -191,6 +194,26 @@ function computeInitialX(
   }
 
   return x;
+}
+
+function applyPsbtNodeIdRemap(
+  transactions: Record<string, StoredTransaction>,
+  selectedTxid: string | undefined,
+  oldNodeId: string,
+  newNodeId: string,
+  node: StoredTransaction
+): { transactions: Record<string, StoredTransaction>; selectedTxid?: string } {
+  const merged = { ...transactions, [newNodeId]: node };
+  delete merged[oldNodeId];
+  const { transactions: propagated, rewrites } = propagatePsbtNodeIdChange(
+    merged,
+    oldNodeId,
+    newNodeId
+  );
+  return {
+    transactions: propagated,
+    selectedTxid: resolveNodeIdAfterRewrites(selectedTxid, rewrites),
+  };
 }
 
 const storedState = loadFromStorage();
@@ -744,12 +767,15 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const newNodeId = parsed.nodeId;
 
     set(s => {
-      const updated = { ...s.transactions };
-      delete updated[nodeId];
-      updated[newNodeId] = newTx;
-      const selectedTxid = s.selectedTxid === nodeId ? newNodeId : s.selectedTxid;
-      persist({ ...s, transactions: updated, selectedTxid });
-      return { transactions: updated, selectedTxid };
+      const { transactions, selectedTxid } = applyPsbtNodeIdRemap(
+        s.transactions,
+        s.selectedTxid,
+        nodeId,
+        newNodeId,
+        newTx
+      );
+      persist({ ...s, transactions, selectedTxid });
+      return { transactions, selectedTxid };
     });
 
     const enriched = enrichPrevoutsFromGraph(get().transactions);
@@ -788,12 +814,15 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const newNodeId = parsed.nodeId;
 
     set(s => {
-      const updated = { ...s.transactions };
-      delete updated[oldNodeId];
-      updated[newNodeId] = newTx;
-      const selectedTxid = s.selectedTxid === oldNodeId ? newNodeId : s.selectedTxid;
-      persist({ ...s, transactions: updated, selectedTxid });
-      return { transactions: updated, selectedTxid };
+      const { transactions, selectedTxid } = applyPsbtNodeIdRemap(
+        s.transactions,
+        s.selectedTxid,
+        oldNodeId,
+        newNodeId,
+        newTx
+      );
+      persist({ ...s, transactions, selectedTxid });
+      return { transactions, selectedTxid };
     });
 
     const enriched = enrichPrevoutsFromGraph(get().transactions);
@@ -831,12 +860,15 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
           data: tx,
           outspends,
         };
-        const updated = { ...s.transactions };
-        delete updated[nodeId];
-        updated[chainTxid] = promoted;
-        const selectedTxid = s.selectedTxid === nodeId ? chainTxid : s.selectedTxid;
-        persist({ ...s, transactions: updated, selectedTxid });
-        return { transactions: updated, selectedTxid };
+        const { transactions, selectedTxid } = applyPsbtNodeIdRemap(
+          s.transactions,
+          s.selectedTxid,
+          nodeId,
+          chainTxid,
+          promoted
+        );
+        persist({ ...s, transactions, selectedTxid });
+        return { transactions, selectedTxid };
       });
 
       const enriched = enrichPrevoutsFromGraph(get().transactions);

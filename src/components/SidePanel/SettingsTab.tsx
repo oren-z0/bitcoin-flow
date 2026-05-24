@@ -175,7 +175,7 @@ export default function SettingsTab() {
     const url = buildGistShareUrl(parsed.ref);
     try {
       await navigator.clipboard.writeText(url);
-      addSuccess('Gist share link copied to clipboard — paste it to share your graph');
+      addSuccess('Gist share link copied to clipboard');
       setGistFormOpen(false);
       setGistUrlInput('');
     } catch {

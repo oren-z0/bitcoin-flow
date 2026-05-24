@@ -308,7 +308,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => addTransactions(nonCoinbaseVins.filter(vin => !transactions[vin.txid]).map(vin => vin.txid))}
                 >
-                  Add All
+                  Show All
                 </button>
               )}
               {someInputsChecked && (
@@ -316,7 +316,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => nonCoinbaseVins.filter(vin => !!transactions[vin.txid]).forEach(vin => removeTransaction(vin.txid))}
                 >
-                  Remove All
+                  Hide All
                 </button>
               )}
             </div>
@@ -325,9 +325,11 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             {tx.vin.map((vin, i) => {
               const addr = vin.prevout?.scriptpubkey_address;
               const addrData = addr ? addresses[addr] : undefined;
-              const vinTxLabel = transactions[vin.txid]
+              const vinTxBase = transactions[vin.txid]
                 ? (transactions[vin.txid].name || truncateTxid(vin.txid))
                 : truncateTxid(vin.txid);
+              const vinTxLabel =
+                !vin.is_coinbase && vin.txid ? `${vinTxBase} : ${vin.vout}` : vinTxBase;
 
               const vinInState = !!transactions[vin.txid];
 
@@ -373,9 +375,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         {`${i}: ${addr}`}
                       </div>
                     </div>
-                  ) : stored.isPsbt && vin.txid && !transactions[vin.txid] ? (
-                    <div className="text-gray-400 font-mono break-all">{`${i}: ${truncateTxid(vin.txid)}:${vin.vout}`}</div>
-                  ) : (
+                  ) : stored.isPsbt && vin.txid && !transactions[vin.txid] ? null : (
                     <div className="text-gray-400">{`${i}: Non-Standard`}</div>
                   )}
                   <div className="text-gray-400 font-mono">
@@ -411,7 +411,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => addTransactions(spendingTxids.filter(txid => !transactions[txid]))}
                 >
-                  Add All
+                  Show All
                 </button>
               )}
               {someOutputsChecked && (
@@ -419,7 +419,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => spendingTxids.filter(txid => !!transactions[txid]).forEach(txid => removeTransaction(txid))}
                 >
-                  Remove All
+                  Hide All
                 </button>
               )}
             </div>

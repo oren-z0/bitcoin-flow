@@ -380,14 +380,14 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
             className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
             onClick={() => csvInputRef.current?.click()}
           >
-            Load CSV
+            Load CSV file
           </button>
           <button
             className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
             disabled={Object.keys(addresses).length === 0}
             onClick={handleDownloadCsv}
           >
-            Download CSV
+            Download CSV file
           </button>
         </div>
         <div className="text-xs text-gray-500">

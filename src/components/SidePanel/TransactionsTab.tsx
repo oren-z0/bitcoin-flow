@@ -196,7 +196,7 @@ export default function TransactionsTab() {
             onClick={() => fileInputRef.current?.click()}
           >
             <FileOpenIcon />
-            Load CSV
+            Load CSV file
           </button>
           <button
             type="button"
@@ -204,7 +204,7 @@ export default function TransactionsTab() {
             onClick={() => psbtInputRef.current?.click()}
           >
             <FileOpenIcon />
-            Load PSBT
+            Load PSBT file
           </button>
           <button
             type="button"
@@ -213,7 +213,7 @@ export default function TransactionsTab() {
             disabled={Object.keys(transactions).length === 0}
           >
             <SaveIcon />
-            Download CSV
+            Download CSV file
           </button>
         </div>
         <div className="text-xs text-gray-500 mt-1">

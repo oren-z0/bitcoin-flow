@@ -7,8 +7,11 @@ import {
 } from '../../utils/stateFile';
 import { loadSlimState, type LoadProgress } from '../../utils/loadSlimState';
 import {
+  buildGistShareUrl,
   buildShareUrl,
+  GITHUB_GIST_URL,
   MAX_SHARE_URL_LENGTH,
+  parseGistReference,
   SHARE_LINK_TOO_LONG_ERROR,
 } from '../../utils/shareState';
 import StateLoadProgress from '../StateLoadProgress';
@@ -63,6 +66,14 @@ function LinkIcon() {
   );
 }
 
+function GithubIcon() {
+  return (
+    <svg className={iconClass} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+    </svg>
+  );
+}
+
 const stateButtonClass =
   'flex flex-1 items-center justify-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-2 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -71,6 +82,8 @@ export default function SettingsTab() {
     useGlobalState();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<LoadProgress>(null);
+  const [gistFormOpen, setGistFormOpen] = useState(false);
+  const [gistUrlInput, setGistUrlInput] = useState('');
 
   const loadStateFromText = async (text: string) => {
     let raw: unknown;
@@ -157,6 +170,25 @@ export default function SettingsTab() {
     reader.readAsText(file);
   };
 
+  const handleCreateGistLink = async (e: React.MouseEvent) => {
+    const parsed = parseGistReference(gistUrlInput);
+    if (!parsed.ok) {
+      addError(parsed.error);
+      return;
+    }
+    const url = buildGistShareUrl(parsed.ref);
+    try {
+      await navigator.clipboard.writeText(url);
+      window.dispatchEvent(
+        new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } })
+      );
+      setGistFormOpen(false);
+      setGistUrlInput('');
+    } catch {
+      addError('Could not copy to clipboard');
+    }
+  };
+
   const handleClearState = () => {
     if (confirm('Are you sure you want to clear all state? This cannot be undone.')) {
       clearState();
@@ -222,6 +254,57 @@ export default function SettingsTab() {
             <LinkIcon />
             Share Link
           </button>
+          {gistFormOpen ? (
+            <div className="rounded border border-gray-600 bg-gray-800/80 p-3 space-y-2">
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Save the state json in a public{' '}
+                <a
+                  href={GITHUB_GIST_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 underline"
+                >
+                  Github Gist
+                </a>{' '}
+                and enter the github gist link below.
+              </p>
+              <input
+                type="text"
+                value={gistUrlInput}
+                onChange={(e) => setGistUrlInput(e.target.value)}
+                placeholder={`${GITHUB_GIST_URL}...`}
+                className="w-full text-sm bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={`flex-1 ${stateButtonClass}`}
+                  onClick={handleCreateGistLink}
+                >
+                  <LinkIcon />
+                  Create Link
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-gray-400 hover:text-gray-200 px-2 cursor-pointer"
+                  onClick={() => {
+                    setGistFormOpen(false);
+                    setGistUrlInput('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              className={`w-full ${stateButtonClass}`}
+              onClick={() => setGistFormOpen(true)}
+            >
+              <GithubIcon />
+              Share via Github Gist
+            </button>
+          )}
           <button
             className="w-full text-sm bg-red-900 hover:bg-red-800 text-white py-2 rounded cursor-pointer"
             onClick={handleClearState}
@@ -237,7 +320,7 @@ export default function SettingsTab() {
           />
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          Upload merges with existing data. Mined transactions are re-fetched from mempool.space; PSBTs are restored from the saved file. Share Link copies a URL with your graph embedded in the hash.
+          Upload merges with existing data. Mined transactions are re-fetched from mempool.space; PSBTs are restored from the saved file. Share Link embeds your graph in the URL; Share via Github Gist uses a public gist for larger states.
         </p>
       </div>
 

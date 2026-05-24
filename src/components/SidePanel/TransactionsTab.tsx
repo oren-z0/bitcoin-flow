@@ -4,6 +4,16 @@ import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { truncateTxid, formatTimestamp } from '../../utils/formatting';
 import { isKnownTxid, isPsbtBase64, isTxidHex } from '../../utils/psbt';
 
+function TrashIcon() {
+  return (
+    <svg className="shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  );
+}
+
 export default function TransactionsTab() {
   const { transactions, selectedTxid, setSelectedTxid, addTransaction, addPsbt, removeTransaction, loadingTxids } = useGlobalState();
   const [txInput, setTxInput] = useState('');
@@ -196,9 +206,10 @@ export default function TransactionsTab() {
         {sortedTxids.length > 0 && (
           <div className="p-3 border-t border-gray-700">
             <button
-              className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded cursor-pointer"
               onClick={() => sortedTxids.forEach(txid => removeTransaction(txid))}
             >
+              <TrashIcon />
               Remove all transactions
             </button>
           </div>

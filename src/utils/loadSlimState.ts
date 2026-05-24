@@ -38,7 +38,7 @@ export async function loadSlimState(
       if (meta.isPsbt && meta.psbtBase64) {
         const normalized = normalizePsbtBase64(meta.psbtBase64);
         const parsed = parsePsbtBase64(normalized);
-        fetched[parsed.txid] = {
+        fetched[parsed.nodeId] = {
           coordinates: meta.coordinates,
           data: parsed.data,
           outspends: parsed.outspends,

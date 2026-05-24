@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import Papa from 'papaparse';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { truncateTxid, formatTimestamp } from '../../utils/formatting';
-import { isPsbtBase64, isTxidHex } from '../../utils/psbt';
+import { isKnownTxid, isPsbtBase64, isTxidHex } from '../../utils/psbt';
 
 export default function TransactionsTab() {
   const { transactions, selectedTxid, setSelectedTxid, addTransaction, addPsbt, removeTransaction, loadingTxids } = useGlobalState();
@@ -166,11 +166,18 @@ export default function TransactionsTab() {
                     className="text-sm font-medium truncate"
                     style={{ color: stored.color || '#e5e7eb' }}
                   >
-                    {stored.name || truncateTxid(txid)}
+                    {stored.name ||
+                      (stored.isPsbt && !isKnownTxid(tx.txid)
+                        ? 'Unknown id'
+                        : truncateTxid(isKnownTxid(tx.txid) ? tx.txid : txid))}
                     {isLoading && <span className="text-xs text-gray-400 ml-1">(loading...)</span>}
                   </div>
                   {stored.name && (
-                    <div className="text-xs text-gray-500 font-mono truncate">{txid}</div>
+                    <div className="text-xs text-gray-500 font-mono truncate">
+                      {stored.isPsbt && !isKnownTxid(tx.txid)
+                        ? 'Unknown id'
+                        : truncateTxid(isKnownTxid(tx.txid) ? tx.txid : txid)}
+                    </div>
                   )}
                   <div className="text-xs text-gray-400">
                     {stored.isPsbt

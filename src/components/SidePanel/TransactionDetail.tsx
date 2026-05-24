@@ -1,15 +1,41 @@
 import React, { useRef, useState } from 'react';
+import { base64 } from '@scure/base';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
 import { formatOpReturnDisplay } from '../../utils/opReturn';
 import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '../../utils/sequence';
+import { isKnownTxid } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
-function copyToClipboard(text: string) {
+const iconClass = 'shrink-0';
+
+function SaveIcon() {
+  return (
+    <svg className={iconClass} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg className={iconClass} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
+  );
+}
+
+const psbtActionClass =
+  'w-full flex items-center justify-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-2 rounded cursor-pointer';
+
+function copyToClipboard(text: string, successMessage = 'Copied to clipboard') {
   const { addSuccess, addError } = useGlobalState.getState();
   navigator.clipboard.writeText(text).then(() => {
-    addSuccess('Copied to clipboard');
+    addSuccess(successMessage);
   }).catch(() => {
     addError('Could not copy to clipboard');
   });
@@ -106,6 +132,31 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     onOpenAddressDetail(address);
   };
 
+  const showUnknownTxid = stored.isPsbt && !isKnownTxid(tx.txid);
+  const displayTxid = isKnownTxid(tx.txid) ? tx.txid : selectedTxid;
+
+  const handleSavePsbt = () => {
+    if (!stored.psbtBase64) return;
+    try {
+      const bytes = base64.decode(stored.psbtBase64);
+      const blob = new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const baseName = stored.name?.replace(/[^\w.-]+/g, '_') || 'transaction';
+      a.download = `${baseName}.psbt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      useGlobalState.getState().addError('Could not save PSBT file');
+    }
+  };
+
+  const handleCopyPsbt = () => {
+    if (!stored.psbtBase64) return;
+    copyToClipboard(stored.psbtBase64, 'PSBT copied to clipboard');
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
@@ -131,13 +182,17 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
         </div>
 
         {/* Txid */}
-        <div
-          className="text-xs text-gray-400 font-mono cursor-pointer hover:text-white truncate"
-          title="Click to copy"
-          onClick={() => copyToClipboard(selectedTxid)}
-        >
-          {selectedTxid}
-        </div>
+        {showUnknownTxid ? (
+          <div className="text-xs text-gray-500 italic">Unknown id</div>
+        ) : (
+          <div
+            className="text-xs text-gray-400 font-mono cursor-pointer hover:text-white truncate"
+            title="Click to copy"
+            onClick={() => copyToClipboard(displayTxid)}
+          >
+            {displayTxid}
+          </div>
+        )}
 
         {/* Name input */}
         <div className="mt-2 relative flex items-center gap-1 bg-gray-700 rounded border border-gray-600 focus-within:border-blue-500">
@@ -458,7 +513,21 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-700 space-y-2">
-        {!stored.isPsbt && <OpenInExplorerButton type="tx" id={selectedTxid} />}
+        {stored.isPsbt && stored.psbtBase64 && (
+          <>
+            <button type="button" className={psbtActionClass} onClick={handleSavePsbt}>
+              <SaveIcon />
+              Save PSBT as…
+            </button>
+            <button type="button" className={psbtActionClass} onClick={handleCopyPsbt}>
+              <CopyIcon />
+              Copy PSBT to Clipboard
+            </button>
+          </>
+        )}
+        {!stored.isPsbt && isKnownTxid(displayTxid) && (
+          <OpenInExplorerButton type="tx" id={displayTxid} />
+        )}
         <button
           className="w-full text-xs bg-red-900 hover:bg-red-800 text-white py-1.5 rounded"
           onClick={() => removeTransaction(selectedTxid)}

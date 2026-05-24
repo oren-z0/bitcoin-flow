@@ -3,7 +3,12 @@ import type { StoredTransaction, StoredAddress, AddressGroup } from '../types';
 import { fetchTransaction, fetchOutspends } from '../api/mempool';
 import { computeLayout } from '../utils/layout';
 import { sortTxids } from '../utils/sorting';
-import { enrichPrevoutsFromGraph, parsePsbtBase64, normalizePsbtBase64 } from '../utils/psbt';
+import {
+  enrichPrevoutsFromGraph,
+  parsePsbtBase64,
+  normalizePsbtBase64,
+  isKnownTxid,
+} from '../utils/psbt';
 
 const STORAGE_KEY = 'bitcoin-flow-state';
 const NODE_GAP = 400;
@@ -308,19 +313,23 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       return;
     }
 
-    const { txid, data, outspends } = parsed;
+    const { nodeId, data, outspends } = parsed;
     const state = get();
-    const existing = state.transactions[txid];
 
-    if (existing && !existing.isPsbt) {
-      if (!noFocus) {
-        requestAnimationFrame(() => layoutRef.focusNode(txid));
+    if (isKnownTxid(data.txid)) {
+      const mined = state.transactions[data.txid];
+      if (mined && !mined.isPsbt) {
+        if (!noFocus) {
+          requestAnimationFrame(() => layoutRef.focusNode(data.txid));
+        }
+        if (!noSelect) {
+          get().setSelectedTxid(data.txid);
+        }
+        return;
       }
-      if (!noSelect) {
-        get().setSelectedTxid(txid);
-      }
-      return;
     }
+
+    const existing = state.transactions[nodeId];
 
     const viewportCenter = layoutRef.getViewportCenter();
     const y = existing?.coordinates.y ?? viewportCenter.y;
@@ -337,10 +346,10 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     };
 
     set(s => {
-      const updated = { ...s.transactions, [txid]: newTx };
+      const updated = { ...s.transactions, [nodeId]: newTx };
       if (!existing) {
-        const x = computeInitialX(txid, updated);
-        updated[txid] = { ...newTx, coordinates: { x, y } };
+        const x = computeInitialX(nodeId, updated);
+        updated[nodeId] = { ...newTx, coordinates: { x, y } };
       }
       persist({ ...s, transactions: updated });
       return { transactions: updated };
@@ -360,9 +369,9 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     }
 
     if (!noFocus) {
-      requestAnimationFrame(() => layoutRef.focusNode(txid));
+      requestAnimationFrame(() => layoutRef.focusNode(nodeId));
       if (!noSelect) {
-        get().setSelectedTxid(txid);
+        get().setSelectedTxid(nodeId);
       }
     }
   },
@@ -683,30 +692,34 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     }
   },
 
-  promotePsbtIfConfirmed: async (txid: string) => {
-    const existing = get().transactions[txid];
+  promotePsbtIfConfirmed: async (nodeId: string) => {
+    const existing = get().transactions[nodeId];
     if (!existing?.isPsbt) return;
+
+    const chainTxid = existing.data.txid;
+    if (!isKnownTxid(chainTxid)) return;
 
     try {
       const [tx, outspends] = await Promise.all([
-        fetchTransaction(txid),
-        fetchOutspends(txid),
+        fetchTransaction(chainTxid),
+        fetchOutspends(chainTxid),
       ]);
       set(s => {
-        const stored = s.transactions[txid];
+        const stored = s.transactions[nodeId];
         if (!stored?.isPsbt) return s;
-        const updated = {
-          ...s.transactions,
-          [txid]: {
-            coordinates: stored.coordinates,
-            name: stored.name,
-            color: stored.color,
-            data: tx,
-            outspends,
-          },
+        const promoted = {
+          coordinates: stored.coordinates,
+          name: stored.name,
+          color: stored.color,
+          data: tx,
+          outspends,
         };
-        persist({ ...s, transactions: updated });
-        return { transactions: updated };
+        const updated = { ...s.transactions };
+        delete updated[nodeId];
+        updated[chainTxid] = promoted;
+        const selectedTxid = s.selectedTxid === nodeId ? chainTxid : s.selectedTxid;
+        persist({ ...s, transactions: updated, selectedTxid });
+        return { transactions: updated, selectedTxid };
       });
 
       const enriched = enrichPrevoutsFromGraph(get().transactions);

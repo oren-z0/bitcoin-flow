@@ -1,5 +1,7 @@
 import { Transaction, OutScript, Address, NETWORK, getInputType } from '@scure/btc-signer';
 import { getPrevOut } from '@scure/btc-signer/transaction.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
 import { base64, hex } from '@scure/base';
 import type {
   MempoolTx,
@@ -71,6 +73,20 @@ export function isTxidHex(input: string): boolean {
   return /^[0-9a-f]{64}$/i.test(input.trim());
 }
 
+/** True when the PSBT/tx has a finalized 64-char hex txid (not empty / all-zero). */
+export function isKnownTxid(txid: string): boolean {
+  return /^[0-9a-f]{64}$/i.test(txid) && txid.toLowerCase() !== '0'.repeat(64);
+}
+
+export function isPsbtNodeId(id: string): boolean {
+  return /^psbt_[0-9a-f]{64}$/i.test(id);
+}
+
+export function psbtNodeIdFromBase64(normalizedBase64: string): string {
+  const hash = sha256(utf8ToBytes(normalizedBase64));
+  return `psbt_${hex.encode(hash)}`;
+}
+
 /** Weight (WU) per input type — standard vsize × 4 for fee display on unsigned PSBTs. */
 const INPUT_WEIGHT: Record<string, number> = {
   legacy: 592,
@@ -122,7 +138,8 @@ function getTransactionWeight(tx: Transaction): number {
 }
 
 export interface ParsedPsbt {
-  txid: string;
+  /** Key in `transactions` — real txid when known, else `psbt_<sha256(base64)>`. */
+  nodeId: string;
   data: MempoolTx;
   outspends: MempoolOutspend[];
 }
@@ -131,7 +148,16 @@ export function parsePsbtBase64(psbtBase64: string): ParsedPsbt {
   const normalized = normalizePsbtBase64(psbtBase64);
   const bytes = base64.decode(normalized);
   const tx = Transaction.fromPSBT(bytes);
-  const txid = tx.id;
+
+  let chainTxid = '';
+  try {
+    const id = tx.id;
+    if (isKnownTxid(id)) chainTxid = id.toLowerCase();
+  } catch {
+    // Unsigned PSBT — no tx id yet
+  }
+
+  const nodeId = chainTxid || psbtNodeIdFromBase64(normalized);
 
   const vin: MempoolVin[] = [];
   let inputSum = 0;
@@ -185,7 +211,7 @@ export function parsePsbtBase64(psbtBase64: string): ParsedPsbt {
   const fee = hasAllInputAmounts && vin.some(v => !v.is_coinbase) ? Math.max(0, inputSum - outputSum) : 0;
 
   const data: MempoolTx = {
-    txid,
+    txid: chainTxid,
     vin,
     vout,
     fee,
@@ -198,7 +224,7 @@ export function parsePsbtBase64(psbtBase64: string): ParsedPsbt {
 
   const outspends: MempoolOutspend[] = vout.map(() => ({ spent: false }));
 
-  return { txid, data, outspends };
+  return { nodeId, data, outspends };
 }
 
 /** Copy prevout from a loaded parent tx output when vin lacks an address. */

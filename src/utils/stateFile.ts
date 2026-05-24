@@ -27,6 +27,11 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 const TXID_RE = /^[0-9a-f]{64}$/i;
+const PSBT_NODE_ID_RE = /^psbt_[0-9a-f]{64}$/i;
+
+function isValidTransactionKey(key: string): boolean {
+  return TXID_RE.test(key) || PSBT_NODE_ID_RE.test(key);
+}
 
 function parseCoordinates(
   value: unknown,
@@ -151,7 +156,7 @@ export function parseStateFile(data: unknown): { ok: true; state: SlimState } | 
       return { ok: false, error: 'transactions must be an object' };
     }
     for (const [txid, raw] of Object.entries(data.transactions)) {
-      if (!TXID_RE.test(txid)) {
+      if (!isValidTransactionKey(txid)) {
         return { ok: false, error: `Invalid transaction id "${txid}"` };
       }
       const parsed = parseTransactionMeta(txid, raw);

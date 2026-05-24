@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import FlowCanvas from './components/FlowCanvas';
 import SidePanel from './components/SidePanel/SidePanel';
+import StateLoadProgress from './components/StateLoadProgress';
 import { useGlobalState } from './hooks/useGlobalState';
 import { useMempoolWebSocket } from './hooks/useMempoolWebSocket';
+import { useShareLinkFromHash } from './hooks/useShareLinkFromHash';
+import type { LoadProgress } from './utils/loadSlimState';
 
 function CopiedToast() {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -66,6 +69,8 @@ function LoadingIndicator() {
 
 function AppInner() {
   useMempoolWebSocket();
+  const [shareLoadProgress, setShareLoadProgress] = useState<LoadProgress>(null);
+  useShareLinkFromHash(setShareLoadProgress);
 
   // On mount, refresh unconfirmed txs; try to promote PSBTs that are now on chain
   useEffect(() => {
@@ -122,6 +127,7 @@ function AppInner() {
       }
 
       {/* Overlays */}
+      <StateLoadProgress progress={shareLoadProgress} />
       <ErrorToasts />
       <LoadingIndicator />
       <CopiedToast />

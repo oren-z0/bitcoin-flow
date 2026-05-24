@@ -22,6 +22,44 @@ export function formatSequenceHex(sequence: number): string {
   return `0x${(sequence >>> 0).toString(16).toUpperCase().padStart(8, '0')}`;
 }
 
+export function parseSequenceValue(input: string): number {
+  const s = input.trim();
+  if (/^0x[0-9a-f]+$/i.test(s)) {
+    const n = Number.parseInt(s.slice(2), 16);
+    if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) {
+      throw new Error('Sequence must be a 32-bit value');
+    }
+    return n >>> 0;
+  }
+  if (!/^\d+$/.test(s)) {
+    throw new Error('Sequence must be 0x… hex or a decimal integer');
+  }
+  const n = Number(s);
+  if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) {
+    throw new Error('Sequence must be a 32-bit value');
+  }
+  return n >>> 0;
+}
+
+export function parseLocktimeValue(input: string): number {
+  const s = input.trim();
+  if (!/^\d+$/.test(s)) {
+    throw new Error('Locktime must be a non-negative integer');
+  }
+  const n = Number(s);
+  if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) {
+    throw new Error('Locktime must be a 32-bit value');
+  }
+  return n;
+}
+
+/** Text after the hex in `formatInputSequence` (e.g. relative locktime hint). */
+export function inputSequenceHintSuffix(txVersion: number, sequence: number): string {
+  const full = formatInputSequence(txVersion, sequence);
+  const prefix = `Sequence: ${formatSequenceHex(sequence)}`;
+  return full.length > prefix.length ? full.slice(prefix.length) : '';
+}
+
 function formatDurationParts(totalSeconds: number): string {
   let remaining = totalSeconds;
   const days = Math.floor(remaining / 86400);

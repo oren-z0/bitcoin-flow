@@ -774,6 +774,25 @@ export function updatePsbtIoDerivation(
   return base64.encode(tx.toPSBT());
 }
 
+export function updatePsbtInputSequence(
+  psbtBase64: string,
+  inputIndex: number,
+  sequence: number
+): string {
+  const normalized = normalizePsbtBase64(psbtBase64);
+  const tx = Transaction.fromPSBT(base64.decode(normalized));
+  tx.updateInput(inputIndex, { sequence: sequence >>> 0 });
+  return base64.encode(tx.toPSBT());
+}
+
+export function updatePsbtLocktime(psbtBase64: string, locktime: number): string {
+  const normalized = normalizePsbtBase64(psbtBase64);
+  const tx = Transaction.fromPSBT(base64.decode(normalized));
+  (tx as unknown as { global: { fallbackLocktime?: number } }).global.fallbackLocktime =
+    locktime >>> 0;
+  return base64.encode(tx.toPSBT());
+}
+
 export function readPsbtIoPubkey(
   psbtBase64: string,
   kind: 'input' | 'output',

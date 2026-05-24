@@ -7,6 +7,8 @@ import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '
 import { isKnownTxid } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import PsbtDerivationFields from './PsbtDerivationFields';
+import PsbtEditableSequence from './PsbtEditableSequence';
+import PsbtEditableLocktime from './PsbtEditableLocktime';
 import PsbtAdvancedSection from './PsbtAdvancedSection';
 import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
@@ -389,7 +391,18 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                     <div className="text-gray-400">{`${i}: Non-Standard`}</div>
                   )}
                   <div className="text-gray-400 font-mono">
-                    {formatInputSequence(tx.version, vin.sequence)}
+                    {stored.isPsbt && stored.psbtBase64 ? (
+                      <PsbtEditableSequence
+                        psbtBase64={stored.psbtBase64}
+                        inputIndex={i}
+                        txVersion={tx.version}
+                        sequence={vin.sequence}
+                        onPsbtUpdated={handlePsbtDerivationUpdated}
+                        onError={addError}
+                      />
+                    ) : (
+                      formatInputSequence(tx.version, vin.sequence)
+                    )}
                   </div>
                   <div className="text-gray-300">
                     {satsToBtc(vin.prevout?.value || 0)} BTC
@@ -585,14 +598,24 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               <span className="text-gray-400">Version</span>
               <span>{tx.version}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Locktime</span>
-              <span>
-                {showsAbsoluteLocktime(tx.locktime, tx.vin)
-                  ? `${tx.locktime} (${formatTimestamp(tx.locktime)})`
-                  : tx.locktime}
-                {isLocktimeDisabled(tx.vin) ? ' (disabled)' : ''}
-              </span>
+            <div className="flex justify-between gap-2">
+              <span className="text-gray-400 shrink-0">Locktime</span>
+              {stored.isPsbt && stored.psbtBase64 ? (
+                <PsbtEditableLocktime
+                  psbtBase64={stored.psbtBase64}
+                  locktime={tx.locktime}
+                  vin={tx.vin}
+                  onPsbtUpdated={handlePsbtDerivationUpdated}
+                  onError={addError}
+                />
+              ) : (
+                <span>
+                  {showsAbsoluteLocktime(tx.locktime, tx.vin)
+                    ? `${tx.locktime} (${formatTimestamp(tx.locktime)})`
+                    : tx.locktime}
+                  {isLocktimeDisabled(tx.vin) ? ' (disabled)' : ''}
+                </span>
+              )}
             </div>
           </div>
         </div>

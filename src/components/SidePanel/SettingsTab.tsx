@@ -78,7 +78,7 @@ const stateButtonClass =
   'flex flex-1 items-center justify-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-2 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
 export default function SettingsTab() {
-  const { autoLayout, setAutoLayout, transactions, addresses, clearState, addError } =
+  const { autoLayout, setAutoLayout, transactions, addresses, clearState, addError, addSuccess } =
     useGlobalState();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<LoadProgress>(null);
@@ -114,19 +114,17 @@ export default function SettingsTab() {
     URL.revokeObjectURL(url);
   };
 
-  const handleCopyToClipboard = async (e: React.MouseEvent) => {
+  const handleCopyToClipboard = async () => {
     const slim = buildSlimState(transactions, addresses, autoLayout);
     try {
       await navigator.clipboard.writeText(serializeStateFile(slim));
-      window.dispatchEvent(
-        new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } })
-      );
+      addSuccess('State JSON copied to clipboard');
     } catch {
       addError('Could not copy to clipboard');
     }
   };
 
-  const handleShareLink = async (e: React.MouseEvent) => {
+  const handleShareLink = async () => {
     const slim = buildSlimState(transactions, addresses, autoLayout);
     const url = buildShareUrl(slim);
     if (url.length > MAX_SHARE_URL_LENGTH) {
@@ -135,9 +133,7 @@ export default function SettingsTab() {
     }
     try {
       await navigator.clipboard.writeText(url);
-      window.dispatchEvent(
-        new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } })
-      );
+      addSuccess('Share link copied to clipboard');
     } catch {
       addError('Could not copy to clipboard');
     }
@@ -170,7 +166,7 @@ export default function SettingsTab() {
     reader.readAsText(file);
   };
 
-  const handleCreateGistLink = async (e: React.MouseEvent) => {
+  const handleCreateGistLink = async () => {
     const parsed = parseGistReference(gistUrlInput);
     if (!parsed.ok) {
       addError(parsed.error);
@@ -179,9 +175,7 @@ export default function SettingsTab() {
     const url = buildGistShareUrl(parsed.ref);
     try {
       await navigator.clipboard.writeText(url);
-      window.dispatchEvent(
-        new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } })
-      );
+      addSuccess('Gist share link copied to clipboard — paste it to share your graph');
       setGistFormOpen(false);
       setGistUrlInput('');
     } catch {

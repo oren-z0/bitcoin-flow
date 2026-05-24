@@ -6,10 +6,13 @@ import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '
 import OpenInExplorerButton from './OpenInExplorerButton';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
-function copyToClipboard(text: string, e: React.MouseEvent) {
+function copyToClipboard(text: string) {
+  const { addSuccess, addError } = useGlobalState.getState();
   navigator.clipboard.writeText(text).then(() => {
-    window.dispatchEvent(new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } }));
-  }).catch(() => {});
+    addSuccess('Copied to clipboard');
+  }).catch(() => {
+    addError('Could not copy to clipboard');
+  });
 }
 
 interface Props {
@@ -131,7 +134,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
         <div
           className="text-xs text-gray-400 font-mono cursor-pointer hover:text-white truncate"
           title="Click to copy"
-          onClick={e => copyToClipboard(selectedTxid, e)}
+          onClick={() => copyToClipboard(selectedTxid)}
         >
           {selectedTxid}
         </div>

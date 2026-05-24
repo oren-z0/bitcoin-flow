@@ -8,37 +8,42 @@ import { useMempoolWebSocket } from './hooks/useMempoolWebSocket';
 import { useShareLinkFromHash } from './hooks/useShareLinkFromHash';
 import type { LoadProgress } from './utils/loadSlimState';
 
-function CopiedToast() {
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+function NotificationToasts() {
+  const { errors, successes, dismissError, dismissSuccess } = useGlobalState();
+  if (errors.length === 0 && successes.length === 0) return null;
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const handler = (e: Event) => {
-      const { x, y } = (e as CustomEvent<{ x: number; y: number }>).detail;
-      setPos({ x, y });
-      clearTimeout(timer);
-      timer = setTimeout(() => setPos(null), 1500);
-    };
-    window.addEventListener('copy-success', handler);
-    return () => { window.removeEventListener('copy-success', handler); clearTimeout(timer); };
-  }, []);
-
-  if (!pos) return null;
   return (
-    <div
-      className="fixed z-50 bg-gray-700 text-white text-xs px-2 py-1 rounded shadow pointer-events-none -translate-x-1/2 -translate-y-full -mt-1"
-      style={{ left: pos.x, top: pos.y - 6 }}
-    >
-      Copied to clipboard!
-    </div>
-  );
-}
-
-function ErrorToasts() {
-  const { errors, dismissError } = useGlobalState();
-  if (errors.length === 0) return null;
-  return (
-    <div className="fixed bottom-4 left-4 z-50 space-y-2">
+    <div className="fixed bottom-4 left-4 z-50 flex flex-col gap-2 max-w-md">
+      {successes.map(({ id, message }) => (
+        <div
+          key={id}
+          className="flex items-start gap-2 bg-green-900 border border-green-600 text-white text-sm px-3 py-2 rounded shadow"
+        >
+          <svg
+            className="shrink-0 mt-0.5 text-green-300"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          <span className="flex-1">{message}</span>
+          <button
+            type="button"
+            className="text-green-300 hover:text-white shrink-0 cursor-pointer"
+            onClick={() => dismissSuccess(id)}
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
       {errors.map((err, i) => (
         <div
           key={i}
@@ -46,8 +51,10 @@ function ErrorToasts() {
         >
           <span>{err}</span>
           <button
+            type="button"
             className="text-red-300 hover:text-white ml-2 cursor-pointer"
             onClick={() => dismissError(i)}
+            aria-label="Dismiss"
           >
             ✕
           </button>
@@ -128,9 +135,8 @@ function AppInner() {
 
       {/* Overlays */}
       <StateLoadProgress progress={shareLoadProgress} />
-      <ErrorToasts />
+      <NotificationToasts />
       <LoadingIndicator />
-      <CopiedToast />
     </div>
   );
 }

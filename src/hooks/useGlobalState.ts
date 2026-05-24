@@ -34,6 +34,8 @@ interface GlobalStore {
   autoLayout: boolean;
   loadingTxids: Set<string>;
   errors: string[];
+  successes: { id: number; message: string }[];
+  nextSuccessId: number;
 
   // Actions
   addTransaction: (txid: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => Promise<void>;
@@ -59,7 +61,11 @@ interface GlobalStore {
   clearState: () => void;
   dismissError: (index: number) => void;
   addError: (msg: string) => void;
+  dismissSuccess: (id: number) => void;
+  addSuccess: (msg: string) => void;
 }
+
+const SUCCESS_TOAST_MS = 5000;
 
 function buildGroupMap(groups: AddressGroup[]): Record<string, AddressGroup> {
   const map: Record<string, AddressGroup> = {};
@@ -188,6 +194,8 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
   autoLayout: storedState.autoLayout ?? true,
   loadingTxids: new Set(),
   errors: [],
+  successes: [],
+  nextSuccessId: 0,
 
   addError: (msg: string) => {
     set(s => ({ errors: [...s.errors, msg] }));
@@ -195,6 +203,19 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
 
   dismissError: (index: number) => {
     set(s => ({ errors: s.errors.filter((_, i) => i !== index) }));
+  },
+
+  addSuccess: (message: string) => {
+    const id = get().nextSuccessId;
+    set(s => ({
+      successes: [...s.successes, { id, message }],
+      nextSuccessId: s.nextSuccessId + 1,
+    }));
+    setTimeout(() => get().dismissSuccess(id), SUCCESS_TOAST_MS);
+  },
+
+  dismissSuccess: (id: number) => {
+    set(s => ({ successes: s.successes.filter(t => t.id !== id) }));
   },
 
   addTransaction: async (txid: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => {

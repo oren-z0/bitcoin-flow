@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { fetchAddressInfo, fetchAddressTxs, fetchAddressTxsChain, InvalidInputError } from '../../api/mempool';
 import { truncateTxid, formatTimestamp } from '../../utils/formatting';
@@ -8,10 +8,13 @@ import OpenInExplorerButton from './OpenInExplorerButton';
 
 const addrTxCache = new Map<string, { txs: MempoolTx[]; hasMore: boolean }>();
 
-function copyToClipboard(text: string, e: React.MouseEvent) {
+function copyToClipboard(text: string) {
+  const { addSuccess, addError } = useGlobalState.getState();
   navigator.clipboard.writeText(text).then(() => {
-    window.dispatchEvent(new CustomEvent('copy-success', { detail: { x: e.clientX, y: e.clientY } }));
-  }).catch(() => {});
+    addSuccess('Copied to clipboard');
+  }).catch(() => {
+    addError('Could not copy to clipboard');
+  });
 }
 
 interface Props {
@@ -134,7 +137,7 @@ export default function AddressDetail({ address, onBack }: Props) {
         <div
           className="text-xs font-mono text-gray-300 cursor-pointer hover:text-white truncate"
           title="Click to copy"
-          onClick={e => copyToClipboard(address, e)}
+          onClick={() => copyToClipboard(address)}
         >
           {address}
         </div>

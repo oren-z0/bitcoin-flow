@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { readPsbtIoDerivation, readPsbtIoPubkey, updatePsbtIoDerivation } from '../../utils/psbt';
-import PsbtReadOnlyField from './PsbtReadOnlyField';
 
 const fieldClass =
   'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500 font-mono';
@@ -24,28 +23,41 @@ export default function PsbtDerivationFields({
 }: Props) {
   const derivationKey = `${psbtBase64}:${kind}:${index}`;
   const initial = readPsbtIoDerivation(psbtBase64, kind, index);
-  const pubkey = readPsbtIoPubkey(psbtBase64, kind, index);
+  const initialPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
 
   const [fingerprint, setFingerprint] = useState(initial.fingerprint);
   const [path, setPath] = useState(initial.path);
+  const [pubkey, setPubkey] = useState(initialPubkey);
 
   useEffect(() => {
     const next = readPsbtIoDerivation(psbtBase64, kind, index);
     setFingerprint(next.fingerprint);
     setPath(next.path);
+    setPubkey(readPsbtIoPubkey(psbtBase64, kind, index) ?? '');
   }, [derivationKey, psbtBase64, kind, index]);
 
   const commit = () => {
     const current = readPsbtIoDerivation(psbtBase64, kind, index);
-    if (fingerprint === current.fingerprint && path === current.path) return;
+    const currentPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
+    if (fingerprint === current.fingerprint && path === current.path && pubkey === currentPubkey) {
+      return;
+    }
 
     try {
-      const updated = updatePsbtIoDerivation(psbtBase64, kind, index, fingerprint, path);
+      const updated = updatePsbtIoDerivation(
+        psbtBase64,
+        kind,
+        index,
+        fingerprint,
+        path,
+        pubkey.trim() || undefined
+      );
       onPsbtUpdated(updated);
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Failed to update PSBT');
       setFingerprint(current.fingerprint);
       setPath(current.path);
+      setPubkey(currentPubkey);
     }
   };
 
@@ -88,7 +100,22 @@ export default function PsbtDerivationFields({
           }}
         />
       </div>
-      {pubkey && <PsbtReadOnlyField label="Public key" value={pubkey} />}
+      <div>
+        <label className="text-[10px] text-gray-500 block mb-0.5">Public key</label>
+        <input
+          type="text"
+          className={fieldClass}
+          value={pubkey}
+          placeholder="33-byte compressed pubkey (hex)"
+          onChange={(e) => setPubkey(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      </div>
     </div>
   );
 }

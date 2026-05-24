@@ -315,6 +315,14 @@ export function parseFingerprintHex(input: string): number | undefined {
   return new DataView(buf.buffer, buf.byteOffset, buf.byteLength).getUint32(0, false);
 }
 
+export function parsePubkeyHex(input: string): Uint8Array {
+  const s = input.trim().replace(/^0x/i, '');
+  if (!/^[0-9a-f]{64}$|^[0-9a-f]{66}$/i.test(s)) {
+    throw new Error('Public key must be 32 or 33 bytes (64 or 66 hex characters)');
+  }
+  return hex.decode(s);
+}
+
 function normalizePathInput(path: string): string {
   const t = path.trim();
   if (!t) return '';
@@ -384,45 +392,89 @@ function resolvePubkeyForDerivation(io: PsbtIo, isInput: boolean): Uint8Array | 
   return undefined;
 }
 
+type Bip32Der = { fingerprint: number; path: number[] };
+
+// updateInput merges keymaps; `undefined` values remove an entry (undocumented in types).
+type KeymapPatchEntry<T> = [Uint8Array, T | undefined];
+
+/** scure merges keymap fields; same pubkey with a new value throws unless the old entry is cleared first. */
+function keymapClears<T>(existing: readonly [Uint8Array, T][] | undefined): KeymapPatchEntry<T>[] {
+  return (existing ?? []).map(([pk]) => [pk, undefined]);
+}
+
+function keymapReplace<T>(
+  existing: readonly [Uint8Array, T][] | undefined,
+  pubkey: Uint8Array,
+  value: T
+): KeymapPatchEntry<T>[] {
+  const pkHex = hex.encode(pubkey);
+  const inPlace = (existing ?? []).some(([pk]) => hex.encode(pk) === pkHex);
+  const clears = inPlace ? [[pubkey, undefined] as KeymapPatchEntry<T>] : keymapClears(existing);
+  return [...clears, [pubkey, value]];
+}
+
 function buildDerivationPatch(
   io: PsbtIo,
   isInput: boolean,
   fingerprintHex: string,
-  pathStr: string
+  pathStr: string,
+  pubkeyHex?: string
 ): Partial<PsbtIo> {
   const path = parsePathInput(pathStr);
   const fingerprint = parseFingerprintHex(fingerprintHex);
 
+  const useTap =
+    ('tapBip32Derivation' in io && io.tapBip32Derivation?.length) ||
+    ('tapInternalKey' in io && io.tapInternalKey?.length);
+
   if (fingerprint === undefined && path.length === 0) {
-    return { bip32Derivation: [], tapBip32Derivation: [] };
+    if (useTap) {
+      return {
+        tapBip32Derivation: keymapClears(
+          'tapBip32Derivation' in io ? io.tapBip32Derivation : undefined
+        ) as Partial<PsbtIo>['tapBip32Derivation'],
+        bip32Derivation: keymapClears(io.bip32Derivation) as Partial<PsbtIo>['bip32Derivation'],
+      };
+    }
+    return {
+      bip32Derivation: keymapClears(io.bip32Derivation) as Partial<PsbtIo>['bip32Derivation'],
+      tapBip32Derivation: keymapClears(
+        'tapBip32Derivation' in io ? io.tapBip32Derivation : undefined
+      ) as Partial<PsbtIo>['tapBip32Derivation'],
+    };
   }
   if (fingerprint === undefined) {
     throw new Error('Master fingerprint is required when a derivation path is set');
   }
 
-  const pubkey = resolvePubkeyForDerivation(io, isInput);
+  const pubkey = pubkeyHex
+    ? parsePubkeyHex(pubkeyHex)
+    : resolvePubkeyForDerivation(io, isInput);
   if (!pubkey) {
     throw new Error(
-      'Cannot determine a public key for this item — add partial signatures or a tap internal key in the PSBT first'
+      'Cannot determine a public key for this item — enter one below or add partial signatures / a tap internal key in the PSBT first'
     );
   }
 
-  const der = { fingerprint, path };
-  const useTap =
-    ('tapBip32Derivation' in io && io.tapBip32Derivation?.length) ||
-    ('tapInternalKey' in io && io.tapInternalKey?.length);
+  const der: Bip32Der = { fingerprint, path };
 
   if (useTap) {
     const existing = 'tapBip32Derivation' in io ? io.tapBip32Derivation?.[0] : undefined;
     return {
-      tapBip32Derivation: [[pubkey, { hashes: existing?.[1]?.hashes ?? [], der }]],
-      bip32Derivation: [],
+      tapBip32Derivation: keymapReplace(
+        'tapBip32Derivation' in io ? io.tapBip32Derivation : undefined,
+        pubkey,
+        { hashes: existing?.[1]?.hashes ?? [], der }
+      ) as Partial<PsbtIo>['tapBip32Derivation'],
+      bip32Derivation: keymapClears(io.bip32Derivation) as Partial<PsbtIo>['bip32Derivation'],
     };
   }
 
   return {
-    bip32Derivation: [[pubkey, der]],
-    tapBip32Derivation: [],
+    bip32Derivation: keymapReplace(io.bip32Derivation, pubkey, der) as Partial<PsbtIo>['bip32Derivation'],
+    tapBip32Derivation: keymapClears(
+      'tapBip32Derivation' in io ? io.tapBip32Derivation : undefined
+    ) as Partial<PsbtIo>['tapBip32Derivation'],
   };
 }
 
@@ -442,12 +494,13 @@ export function updatePsbtIoDerivation(
   kind: 'input' | 'output',
   index: number,
   fingerprintHex: string,
-  pathStr: string
+  pathStr: string,
+  pubkeyHex?: string
 ): string {
   const normalized = normalizePsbtBase64(psbtBase64);
   const tx = Transaction.fromPSBT(base64.decode(normalized));
   const io = kind === 'input' ? tx.getInput(index) : tx.getOutput(index);
-  const patch = buildDerivationPatch(io, kind === 'input', fingerprintHex, pathStr);
+  const patch = buildDerivationPatch(io, kind === 'input', fingerprintHex, pathStr, pubkeyHex);
   if (kind === 'input') {
     tx.updateInput(index, patch);
   } else {

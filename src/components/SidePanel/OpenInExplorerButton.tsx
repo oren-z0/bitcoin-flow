@@ -6,6 +6,46 @@ interface Props {
   id: string;
 }
 
+function ExternalLinkIcon() {
+  return (
+    <svg
+      className="shrink-0"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
 export default function OpenInExplorerButton({ type, id }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,10 +65,14 @@ export default function OpenInExplorerButton({ type, id }: Props) {
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        className="w-full text-xs bg-blue-700 hover:bg-blue-600 text-white py-1.5 rounded cursor-pointer"
+        className="w-full flex items-center justify-center gap-1.5 text-xs bg-blue-700 hover:bg-blue-600 text-white py-1.5 rounded cursor-pointer"
         onClick={() => setOpen(o => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
-        Open in...
+        <ExternalLinkIcon />
+        <span>Open in...</span>
+        <ChevronDownIcon open={open} />
       </button>
       {open && (
         <div className="absolute bottom-full left-0 right-0 mb-1 bg-gray-700 border border-gray-600 rounded shadow-lg overflow-hidden z-10">

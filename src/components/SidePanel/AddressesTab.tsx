@@ -5,6 +5,7 @@ import { truncateAddress } from '../../utils/formatting';
 import { getEffectiveName, getEffectiveColor } from '../../utils/addressDisplay';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 import { deriveAddressesFromXpub, type XpubAddressFormat } from '../../utils/xpub';
+import { DownloadIcon, fileButtonClass, UploadFileIcon } from './icons';
 
 interface Props {
   onOpenAddressDetail: (address: string) => void;
@@ -377,16 +378,20 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
         {/* CSV buttons */}
         <div className="flex gap-2">
           <button
-            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
+            type="button"
+            className={`flex-1 ${fileButtonClass}`}
             onClick={() => csvInputRef.current?.click()}
           >
+            <UploadFileIcon />
             Load CSV file
           </button>
           <button
-            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
+            type="button"
+            className={`flex-1 ${fileButtonClass}`}
             disabled={Object.keys(addresses).length === 0}
             onClick={handleDownloadCsv}
           >
+            <DownloadIcon />
             Download CSV file
           </button>
         </div>

@@ -8,6 +8,7 @@ import {
   parsePsbtBase64,
   normalizePsbtBase64,
   isKnownTxid,
+  movePsbtIo,
 } from '../utils/psbt';
 
 const STORAGE_KEY = 'bitcoin-flow-state';
@@ -63,6 +64,12 @@ interface GlobalStore {
   refreshTransaction: (txid: string) => Promise<void>;
   promotePsbtIfConfirmed: (txid: string) => Promise<void>;
   replacePsbtNode: (oldNodeId: string, psbtBase64: string) => void;
+  movePsbtIo: (
+    nodeId: string,
+    kind: 'input' | 'output',
+    index: number,
+    direction: 'up' | 'down'
+  ) => void;
   mergeState: (newState: Partial<{ transactions: Record<string, StoredTransaction>; addresses: Record<string, StoredAddress> }>) => void;
   clearState: () => void;
   dismissError: (index: number) => void;
@@ -690,6 +697,67 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       }
     } catch (e) {
       console.error('Failed to refresh transaction', txid, e);
+    }
+  },
+
+  movePsbtIo: (nodeId, kind, index, direction) => {
+    const stored = get().transactions[nodeId];
+    if (!stored?.isPsbt || !stored.psbtBase64) return;
+
+    const count = kind === 'input' ? stored.data.vin.length : stored.data.vout.length;
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (count <= 1 || newIndex < 0 || newIndex >= count) return;
+
+    let normalized: string;
+    try {
+      normalized = normalizePsbtBase64(movePsbtIo(stored.psbtBase64, kind, index, direction));
+    } catch (e) {
+      get().addError('Failed to reorder PSBT');
+      console.error('Failed to move PSBT io', e);
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = parsePsbtBase64(normalized);
+    } catch {
+      get().addError('Invalid PSBT after reorder');
+      return;
+    }
+
+    let outspends = stored.outspends;
+    if (kind === 'output') {
+      outspends = [...stored.outspends];
+      [outspends[index], outspends[newIndex]] = [outspends[newIndex], outspends[index]];
+    }
+
+    const newTx: StoredTransaction = {
+      coordinates: stored.coordinates,
+      name: stored.name,
+      color: stored.color,
+      data: parsed.data,
+      outspends,
+      isPsbt: true,
+      psbtBase64: normalized,
+    };
+
+    const newNodeId = parsed.nodeId;
+
+    set(s => {
+      const updated = { ...s.transactions };
+      delete updated[nodeId];
+      updated[newNodeId] = newTx;
+      const selectedTxid = s.selectedTxid === nodeId ? newNodeId : s.selectedTxid;
+      persist({ ...s, transactions: updated, selectedTxid });
+      return { transactions: updated, selectedTxid };
+    });
+
+    const enriched = enrichPrevoutsFromGraph(get().transactions);
+    if (enriched) {
+      set(s => {
+        persist({ ...s, transactions: enriched });
+        return { transactions: enriched };
+      });
     }
   },
 

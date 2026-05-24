@@ -588,6 +588,29 @@ export function readPsbtAdvancedMeta(psbtBase64: string): PsbtAdvancedMeta {
   };
 }
 
+export function movePsbtIo(
+  psbtBase64: string,
+  kind: 'input' | 'output',
+  index: number,
+  direction: 'up' | 'down'
+): string {
+  const newIndex = direction === 'up' ? index - 1 : index + 1;
+  const normalized = normalizePsbtBase64(psbtBase64);
+  const tx = Transaction.fromPSBT(base64.decode(normalized));
+  const mutable = tx as unknown as { inputs: unknown[]; outputs: unknown[] };
+
+  const list = kind === 'input' ? mutable.inputs : mutable.outputs;
+  if (newIndex < 0 || newIndex >= list.length) {
+    throw new Error(`Cannot move ${kind} ${direction}`);
+  }
+
+  const tmp = list[index];
+  list[index] = list[newIndex];
+  list[newIndex] = tmp;
+
+  return base64.encode(tx.toPSBT());
+}
+
 export function psbtAdvancedHasContent(meta: PsbtAdvancedMeta): boolean {
   if (meta.globalXpubs.length > 0) return true;
   if (meta.inputs.some(hasIoAdvancedContent)) return true;

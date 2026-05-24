@@ -8,6 +8,7 @@ import { isKnownTxid } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import PsbtDerivationFields from './PsbtDerivationFields';
 import PsbtAdvancedSection from './PsbtAdvancedSection';
+import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 
 const iconClass = 'shrink-0';
@@ -59,6 +60,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     addTransaction,
     addTransactions,
     replacePsbtNode,
+    movePsbtIo: movePsbtIoInState,
     addError,
   } = useGlobalState();
 
@@ -165,6 +167,14 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     if (!stored.psbtBase64) return;
     replacePsbtNode(selectedTxid, newBase64);
   };
+
+  const handlePsbtMove = (kind: 'input' | 'output', index: number, direction: 'up' | 'down') => {
+    movePsbtIoInState(selectedTxid, kind, index, direction);
+  };
+
+  const inputCount = tx.vin.length;
+  const outputCount = tx.vout.length;
+  const showPsbtMove = stored.isPsbt && !!stored.psbtBase64;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -337,11 +347,18 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       className="shrink-0 cursor-pointer accent-blue-500"
                     />
                     <div
-                      className="text-blue-400 cursor-pointer hover:text-blue-300 font-mono truncate"
+                      className="text-blue-400 cursor-pointer hover:text-blue-300 font-mono truncate min-w-0 flex-1"
                       onClick={() => handleInputTxClick(vin)}
                     >
                       {vinTxLabel}
                     </div>
+                    {showPsbtMove && (
+                      <PsbtMoveControls
+                        count={inputCount}
+                        index={i}
+                        onMove={(direction) => handlePsbtMove('input', i, direction)}
+                      />
+                    )}
                   </div>
                   {addr ? (
                     <div className="space-y-0.5">
@@ -439,7 +456,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                           className="shrink-0 cursor-pointer accent-blue-500"
                         />
                         <div
-                          className="cursor-pointer hover:opacity-80 font-mono truncate"
+                          className="cursor-pointer hover:opacity-80 font-mono truncate min-w-0 flex-1"
                           style={{ color: 'rgb(10, 171, 47)' }}
                           onClick={() => handleOutputTxClick(spendingTxid)}
                         >
@@ -447,10 +464,29 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                             ? (transactions[spendingTxid].name || truncateTxid(spendingTxid))
                             : truncateTxid(spendingTxid)}
                         </div>
+                        {showPsbtMove && (
+                          <PsbtMoveControls
+                            count={outputCount}
+                            index={i}
+                            onMove={(direction) => handlePsbtMove('output', i, direction)}
+                          />
+                        )}
                       </div>
                     ) : (
-                      <div style={{ color: 'rgb(255, 61, 0)' }} className="font-semibold">
-                        UTXO
+                      <div className="flex items-center gap-2">
+                        <div
+                          style={{ color: 'rgb(255, 61, 0)' }}
+                          className="font-semibold flex-1 min-w-0"
+                        >
+                          UTXO
+                        </div>
+                        {showPsbtMove && (
+                          <PsbtMoveControls
+                            count={outputCount}
+                            index={i}
+                            onMove={(direction) => handlePsbtMove('output', i, direction)}
+                          />
+                        )}
                       </div>
                     )
                   )}
@@ -458,7 +494,16 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   {/* Address / OP_RETURN */}
                   {isOpReturn ? (
                     <div className="space-y-0.5">
-                      <div className="text-gray-400">{`${i}: OP_RETURN`}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-gray-400 flex-1 min-w-0">{`${i}: OP_RETURN`}</div>
+                        {showPsbtMove && (
+                          <PsbtMoveControls
+                            count={outputCount}
+                            index={i}
+                            onMove={(direction) => handlePsbtMove('output', i, direction)}
+                          />
+                        )}
+                      </div>
                       {opReturnContent ? (
                         <div className="text-gray-300 break-all whitespace-pre-wrap font-mono text-[11px]">
                           {opReturnContent}

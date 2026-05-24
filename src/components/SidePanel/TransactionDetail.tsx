@@ -627,7 +627,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
           <>
             <button type="button" className={psbtActionClass} onClick={handleSavePsbt}>
               <SaveIcon />
-              Save PSBT as…
+              Save PSBT
             </button>
             <button type="button" className={psbtActionClass} onClick={handleCopyPsbt}>
               <CopyIcon />

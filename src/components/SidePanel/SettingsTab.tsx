@@ -229,7 +229,7 @@ export default function SettingsTab() {
           <div className="flex gap-2">
             <button className={stateButtonClass} onClick={handleSaveAs}>
               <SaveIcon />
-              Save as…
+              Download
             </button>
             <button
               className={stateButtonClass}
@@ -237,7 +237,7 @@ export default function SettingsTab() {
               disabled={loading}
             >
               <FileOpenIcon />
-              Load file…
+              Load file
             </button>
           </div>
           <div className="flex gap-2">

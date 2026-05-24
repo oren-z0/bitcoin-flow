@@ -1,8 +1,34 @@
 import React, { useRef, useState } from 'react';
+import { base64 } from '@scure/base';
 import Papa from 'papaparse';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { truncateTxid, formatTimestamp } from '../../utils/formatting';
 import { isKnownTxid, isPsbtBase64, isTxidHex } from '../../utils/psbt';
+
+const iconClass = 'shrink-0';
+const fileButtonClass =
+  'flex items-center justify-center gap-1.5 text-xs bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-200 py-1 rounded cursor-pointer';
+
+function FileOpenIcon() {
+  return (
+    <svg className={iconClass} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+      <path d="M12 18v-6" />
+      <path d="m9 15 3 3 3-3" />
+    </svg>
+  );
+}
+
+function SaveIcon() {
+  return (
+    <svg className={iconClass} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
 
 function TrashIcon() {
   return (
@@ -19,6 +45,7 @@ export default function TransactionsTab() {
   const [txInput, setTxInput] = useState('');
   const [loadError, setLoadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const psbtInputRef = useRef<HTMLInputElement>(null);
 
   const trimmedInput = txInput.trim();
   const canAdd = isTxidHex(trimmedInput) || isPsbtBase64(trimmedInput);
@@ -94,6 +121,43 @@ export default function TransactionsTab() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handlePsbtUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (psbtInputRef.current) psbtInputRef.current.value = '';
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const result = ev.target?.result;
+      if (!(result instanceof ArrayBuffer)) {
+        setLoadError('Could not read PSBT file');
+        return;
+      }
+      setLoadError('');
+      const bytes = new Uint8Array(result);
+
+      const isBinaryPsbt =
+        bytes.length >= 5 &&
+        bytes[0] === 0x70 &&
+        bytes[1] === 0x73 &&
+        bytes[2] === 0x62 &&
+        bytes[3] === 0x74 &&
+        bytes[4] === 0xff;
+      if (isBinaryPsbt) {
+        await addPsbt(base64.encode(bytes));
+        return;
+      }
+
+      const text = new TextDecoder().decode(bytes).trim();
+      if (isPsbtBase64(text)) {
+        await addPsbt(text);
+      } else {
+        setLoadError('Invalid PSBT file');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const sortedTxids = Object.keys(transactions).sort((a, b) => {
     const ta = transactions[a];
     const tb = transactions[b];
@@ -124,19 +188,31 @@ export default function TransactionsTab() {
         </form>
         {loadError && <div className="text-red-400 text-xs mt-1">{loadError}</div>}
 
-        {/* CSV buttons */}
-        <div className="flex gap-2 mt-2">
+        {/* File buttons */}
+        <div className="grid grid-cols-2 gap-2 mt-2">
           <button
-            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
+            type="button"
+            className={fileButtonClass}
             onClick={() => fileInputRef.current?.click()}
           >
+            <FileOpenIcon />
             Load CSV
           </button>
           <button
-            className="flex-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 py-1 rounded cursor-pointer"
+            type="button"
+            className={fileButtonClass}
+            onClick={() => psbtInputRef.current?.click()}
+          >
+            <FileOpenIcon />
+            Load PSBT
+          </button>
+          <button
+            type="button"
+            className={fileButtonClass}
             onClick={handleDownload}
             disabled={Object.keys(transactions).length === 0}
           >
+            <SaveIcon />
             Download CSV
           </button>
         </div>
@@ -149,6 +225,13 @@ export default function TransactionsTab() {
           accept=".csv"
           className="hidden"
           onChange={handleUpload}
+        />
+        <input
+          ref={psbtInputRef}
+          type="file"
+          accept=".psbt"
+          className="hidden"
+          onChange={handlePsbtUpload}
         />
       </div>
 

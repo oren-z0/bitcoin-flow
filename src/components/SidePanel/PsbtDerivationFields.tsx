@@ -1,22 +1,46 @@
-import { useEffect, useState } from 'react';
-import { readPsbtIoDerivation, readPsbtIoPubkey, updatePsbtIoDerivation } from '../../utils/psbt';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  PSBT_INPUT_SCRIPT_TYPES,
+  PSBT_OUTPUT_SCRIPT_TYPES,
+  PSBT_SCRIPT_TYPE_LABELS,
+  readPsbtIoDerivation,
+  readPsbtIoPubkey,
+  readPsbtIoScriptType,
+  updatePsbtIoDerivation,
+  type PsbtScriptKind,
+} from '../../utils/psbt';
 
 const fieldClass =
   'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500 font-mono';
+
+const selectClass =
+  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-gray-500 cursor-pointer';
 
 interface Props {
   psbtBase64: string;
   kind: 'input' | 'output';
   index: number;
+  /** When true, only script type is shown (e.g. OP_RETURN outputs). */
+  hideDerivation?: boolean;
   showOptionalLabel?: boolean;
   onPsbtUpdated: (newBase64: string) => void;
   onError: (message: string) => void;
+}
+
+function scriptTypeOptions(
+  kind: 'input' | 'output',
+  current: PsbtScriptKind
+): PsbtScriptKind[] {
+  const base = kind === 'input' ? PSBT_INPUT_SCRIPT_TYPES : PSBT_OUTPUT_SCRIPT_TYPES;
+  if (base.includes(current)) return base;
+  return [current, ...base];
 }
 
 export default function PsbtDerivationFields({
   psbtBase64,
   kind,
   index,
+  hideDerivation = false,
   showOptionalLabel,
   onPsbtUpdated,
   onError,
@@ -24,22 +48,47 @@ export default function PsbtDerivationFields({
   const derivationKey = `${psbtBase64}:${kind}:${index}`;
   const initial = readPsbtIoDerivation(psbtBase64, kind, index);
   const initialPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
+  const initialScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
 
   const [fingerprint, setFingerprint] = useState(initial.fingerprint);
   const [path, setPath] = useState(initial.path);
   const [pubkey, setPubkey] = useState(initialPubkey);
+  const [scriptType, setScriptType] = useState<PsbtScriptKind>(initialScriptType);
+
+  const typeOptions = useMemo(
+    () => scriptTypeOptions(kind, scriptType),
+    [kind, scriptType]
+  );
 
   useEffect(() => {
     const next = readPsbtIoDerivation(psbtBase64, kind, index);
     setFingerprint(next.fingerprint);
     setPath(next.path);
     setPubkey(readPsbtIoPubkey(psbtBase64, kind, index) ?? '');
+    setScriptType(readPsbtIoScriptType(psbtBase64, kind, index));
   }, [derivationKey, psbtBase64, kind, index]);
 
-  const commit = () => {
+  const commit = (overrides?: {
+    fingerprint?: string;
+    path?: string;
+    pubkey?: string;
+    scriptType?: PsbtScriptKind;
+  }) => {
+    const nextFingerprint = overrides?.fingerprint ?? fingerprint;
+    const nextPath = overrides?.path ?? path;
+    const nextPubkey = overrides?.pubkey ?? pubkey;
+    const nextScriptType = overrides?.scriptType ?? scriptType;
+
     const current = readPsbtIoDerivation(psbtBase64, kind, index);
     const currentPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
-    if (fingerprint === current.fingerprint && path === current.path && pubkey === currentPubkey) {
+    const currentScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
+
+    if (
+      nextFingerprint === current.fingerprint &&
+      nextPath === current.path &&
+      nextPubkey === currentPubkey &&
+      nextScriptType === currentScriptType
+    ) {
       return;
     }
 
@@ -48,9 +97,10 @@ export default function PsbtDerivationFields({
         psbtBase64,
         kind,
         index,
-        fingerprint,
-        path,
-        pubkey.trim() || undefined
+        nextFingerprint,
+        nextPath,
+        nextPubkey.trim() || undefined,
+        nextScriptType
       );
       onPsbtUpdated(updated);
     } catch (e) {
@@ -58,64 +108,92 @@ export default function PsbtDerivationFields({
       setFingerprint(current.fingerprint);
       setPath(current.path);
       setPubkey(currentPubkey);
+      setScriptType(currentScriptType);
     }
+  };
+
+  const handleScriptTypeChange = (next: PsbtScriptKind) => {
+    setScriptType(next);
+    commit({ scriptType: next });
   };
 
   return (
     <div className="space-y-1.5 pt-1.5 border-t border-gray-600">
-      {showOptionalLabel && (
-        <div className="text-[10px] text-gray-500 italic">Optional — for change addresses</div>
+      <div>
+        <label className="text-[10px] text-gray-500 block mb-0.5">Script type</label>
+        <select
+          className={selectClass}
+          value={scriptType}
+          aria-label={`${kind} ${index} script type`}
+          onChange={(e) => handleScriptTypeChange(e.target.value as PsbtScriptKind)}
+        >
+          {typeOptions.map(t => (
+            <option key={t} value={t}>
+              {PSBT_SCRIPT_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {!hideDerivation && (
+        <>
+          {showOptionalLabel && (
+            <div className="text-[10px] text-gray-500 italic">
+              Optional — for change addresses
+            </div>
+          )}
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-0.5">
+              Master Public Key Fingerprint
+            </label>
+            <input
+              type="text"
+              className={fieldClass}
+              value={fingerprint}
+              placeholder="8 hex chars"
+              onChange={(e) => setFingerprint(e.target.value)}
+              onBlur={() => commit()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-0.5">Derivation Path</label>
+            <input
+              type="text"
+              className={fieldClass}
+              value={path}
+              placeholder="i.e. m/0h/0/0"
+              onChange={(e) => setPath(e.target.value)}
+              onBlur={() => commit()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-0.5">Public key</label>
+            <input
+              type="text"
+              className={fieldClass}
+              value={pubkey}
+              placeholder="33-byte compressed pubkey (hex)"
+              onChange={(e) => setPubkey(e.target.value)}
+              onBlur={() => commit()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
+            />
+          </div>
+        </>
       )}
-      <div>
-        <label className="text-[10px] text-gray-500 block mb-0.5">
-          Master Public Key Fingerprint
-        </label>
-        <input
-          type="text"
-          className={fieldClass}
-          value={fingerprint}
-          placeholder="8 hex chars"
-          onChange={(e) => setFingerprint(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.currentTarget.blur();
-            }
-          }}
-        />
-      </div>
-      <div>
-        <label className="text-[10px] text-gray-500 block mb-0.5">Derivation Path</label>
-        <input
-          type="text"
-          className={fieldClass}
-          value={path}
-          placeholder="i.e. m/0h/0/0"
-          onChange={(e) => setPath(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.currentTarget.blur();
-            }
-          }}
-        />
-      </div>
-      <div>
-        <label className="text-[10px] text-gray-500 block mb-0.5">Public key</label>
-        <input
-          type="text"
-          className={fieldClass}
-          value={pubkey}
-          placeholder="33-byte compressed pubkey (hex)"
-          onChange={(e) => setPubkey(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.currentTarget.blur();
-            }
-          }}
-        />
-      </div>
     </div>
   );
 }

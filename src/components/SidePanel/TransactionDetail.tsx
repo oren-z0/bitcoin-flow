@@ -661,12 +661,13 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       )}
                     </div>
                   )}
-                  {stored.isPsbt && stored.psbtBase64 && !isOpReturn && (
+                  {stored.isPsbt && stored.psbtBase64 && (
                     <PsbtDerivationFields
                       psbtBase64={stored.psbtBase64}
                       kind="output"
                       index={i}
-                      showOptionalLabel
+                      hideDerivation={isOpReturn}
+                      showOptionalLabel={!isOpReturn}
                       onPsbtUpdated={handlePsbtDerivationUpdated}
                       onError={addError}
                     />

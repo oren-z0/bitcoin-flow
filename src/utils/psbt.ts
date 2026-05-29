@@ -804,28 +804,132 @@ export function readPsbtIoDerivation(
   return extractDerivationDisplay(io);
 }
 
-/** Re-encode output script from a pubkey when the script type supports it (wpkh, pkh, tr, pk). */
+export type PsbtScriptKind =
+  | 'wpkh'
+  | 'pkh'
+  | 'tr'
+  | 'pk'
+  | 'op_return'
+  | 'sh'
+  | 'wsh'
+  | 'ms'
+  | 'unknown';
+
+export const PSBT_SCRIPT_TYPE_LABELS: Record<PsbtScriptKind, string> = {
+  wpkh: 'v0_p2wpkh',
+  pkh: 'p2pkh',
+  tr: 'v1_p2tr',
+  pk: 'p2pk',
+  op_return: 'op_return',
+  sh: 'p2sh',
+  wsh: 'v0_p2wsh',
+  ms: 'multisig',
+  unknown: 'unknown',
+};
+
+export const PSBT_INPUT_SCRIPT_TYPES: PsbtScriptKind[] = ['wpkh', 'pkh', 'tr', 'pk'];
+export const PSBT_OUTPUT_SCRIPT_TYPES: PsbtScriptKind[] = [
+  'wpkh',
+  'pkh',
+  'tr',
+  'pk',
+  'op_return',
+];
+
+function isEditableScriptKind(kind: PsbtScriptKind): boolean {
+  return kind === 'wpkh' || kind === 'pkh' || kind === 'tr' || kind === 'pk' || kind === 'op_return';
+}
+
+function getIoScript(io: PsbtIo, isInput: boolean): Uint8Array | undefined {
+  if (isInput) {
+    const inp = io as PSBTInputs;
+    if (inp.witnessUtxo?.script?.length) return inp.witnessUtxo.script;
+    const idx = inp.index ?? 0;
+    return inp.nonWitnessUtxo?.outputs[idx]?.script;
+  }
+  return (io as PSBTOutputs).script;
+}
+
+export function readScriptKindFromScript(script: Uint8Array | undefined): PsbtScriptKind {
+  if (!script?.length) return 'unknown';
+  if (script[0] === 0x6a) return 'op_return';
+  try {
+    const decoded = OutScript.decode(script);
+    const t = decoded.type;
+    if (
+      t === 'wpkh' ||
+      t === 'pkh' ||
+      t === 'tr' ||
+      t === 'pk' ||
+      t === 'sh' ||
+      t === 'wsh' ||
+      t === 'ms'
+    ) {
+      return t;
+    }
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+export function readPsbtIoScriptType(
+  psbtBase64: string,
+  kind: 'input' | 'output',
+  index: number
+): PsbtScriptKind {
+  const tx = openPsbtForEdit(psbtBase64);
+  const io = kind === 'input' ? tx.getInput(index) : tx.getOutput(index);
+  return readScriptKindFromScript(getIoScript(io, kind === 'input'));
+}
+
+function scriptBytesForKind(kind: PsbtScriptKind, pubkey: Uint8Array | undefined): Uint8Array {
+  if (kind === 'op_return') return hex.decode('6a00');
+  if (!pubkey) {
+    throw new Error('Public key is required for this script type');
+  }
+  switch (kind) {
+    case 'wpkh':
+      return p2wpkh(pubkey).script!;
+    case 'pkh':
+      return p2pkh(pubkey).script!;
+    case 'tr': {
+      const xonly = pubkey.length === 33 && pubkey[0] !== 0x04 ? pubkey.slice(1) : pubkey;
+      return p2tr(xonly).script!;
+    }
+    case 'pk':
+      return OutScript.encode({ type: 'pk', pubkey });
+    default:
+      throw new Error(`Script type "${PSBT_SCRIPT_TYPE_LABELS[kind]}" cannot be set from a public key`);
+  }
+}
+
+function applyScriptToIo(
+  tx: Transaction,
+  kind: 'input' | 'output',
+  index: number,
+  script: Uint8Array
+): void {
+  if (kind === 'input') {
+    const inp = tx.getInput(index);
+    const amount = inp.witnessUtxo?.amount ?? 0n;
+    tx.updateInput(index, { witnessUtxo: { script, amount } }, true);
+  } else {
+    const out = tx.getOutput(index);
+    tx.updateOutput(index, { script, amount: out.amount }, true);
+  }
+}
+
+/** Re-encode script from a pubkey for a given script kind (wpkh, pkh, tr, pk). */
 function outputScriptFromPubkey(
   currentScript: Uint8Array | undefined,
   pubkey: Uint8Array
 ): Uint8Array | null {
   if (!currentScript?.length || currentScript[0] === 0x6a) return null;
+  const kind = readScriptKindFromScript(currentScript);
+  if (!isEditableScriptKind(kind) || kind === 'op_return') return null;
   try {
-    const decoded = OutScript.decode(currentScript);
-    switch (decoded.type) {
-      case 'wpkh':
-        return p2wpkh(pubkey).script!;
-      case 'pkh':
-        return p2pkh(pubkey).script!;
-      case 'tr': {
-        const xonly = pubkey.length === 33 && pubkey[0] !== 0x04 ? pubkey.slice(1) : pubkey;
-        return p2tr(xonly).script!;
-      }
-      case 'pk':
-        return OutScript.encode({ type: 'pk', pubkey });
-      default:
-        return null;
-    }
+    return scriptBytesForKind(kind, pubkey);
   } catch {
     return null;
   }
@@ -872,24 +976,59 @@ export function updatePsbtIoDerivation(
   index: number,
   fingerprintHex: string,
   pathStr: string,
-  pubkeyHex?: string
+  pubkeyHex?: string,
+  scriptType?: PsbtScriptKind
 ): string {
   const tx = openPsbtForEdit(psbtBase64);
-  const io = kind === 'input' ? tx.getInput(index) : tx.getOutput(index);
-  const patch = buildDerivationPatch(io, kind === 'input', fingerprintHex, pathStr, pubkeyHex);
-  if (kind === 'input') {
+  const isInput = kind === 'input';
+  let io = isInput ? tx.getInput(index) : tx.getOutput(index);
+  const currentKind = readScriptKindFromScript(getIoScript(io, isInput));
+  const targetKind = scriptType ?? currentKind;
+
+  if (targetKind !== currentKind) {
+    if (!isEditableScriptKind(targetKind)) {
+      throw new Error(`Cannot change script type to ${PSBT_SCRIPT_TYPE_LABELS[targetKind]}`);
+    }
+    if (isInput && targetKind === 'op_return') {
+      throw new Error('OP_RETURN is not valid for inputs');
+    }
+    const pubkey = pubkeyHex?.trim()
+      ? parsePubkeyHex(pubkeyHex)
+      : resolvePubkeyForDerivation(io, isInput);
+    const script = scriptBytesForKind(targetKind, targetKind === 'op_return' ? undefined : pubkey);
+    applyScriptToIo(tx, kind, index, script);
+    io = isInput ? tx.getInput(index) : tx.getOutput(index);
+  }
+
+  const patch = buildDerivationPatch(io, isInput, fingerprintHex, pathStr, pubkeyHex);
+  if (isInput) {
     tx.updateInput(index, patch);
   } else {
     tx.updateOutput(index, patch);
-    if (pubkeyHex?.trim()) {
-      const pubkey = parsePubkeyHex(pubkeyHex);
-      const out = tx.getOutput(index);
-      const newScript = outputScriptFromPubkey(out.script, pubkey);
-      if (newScript) {
-        tx.updateOutput(index, { script: newScript, amount: out.amount }, true);
+  }
+
+  if (!isInput && targetKind !== 'op_return' && pubkeyHex?.trim()) {
+    const pubkey = parsePubkeyHex(pubkeyHex);
+    const out = tx.getOutput(index);
+    try {
+      const newScript = scriptBytesForKind(targetKind, pubkey);
+      tx.updateOutput(index, { script: newScript, amount: out.amount }, true);
+    } catch {
+      const fallback = outputScriptFromPubkey(out.script, pubkey);
+      if (fallback) {
+        tx.updateOutput(index, { script: fallback, amount: out.amount }, true);
       }
     }
+  } else if (isInput && pubkeyHex?.trim() && isEditableScriptKind(targetKind)) {
+    const pubkey = parsePubkeyHex(pubkeyHex);
+    try {
+      const script = scriptBytesForKind(targetKind, pubkey);
+      applyScriptToIo(tx, kind, index, script);
+    } catch {
+      // keep witness utxo from prior step
+    }
   }
+
   return base64.encode(tx.toPSBT());
 }
 

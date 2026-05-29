@@ -12,6 +12,7 @@ import PsbtEditableLocktime from './PsbtEditableLocktime';
 import PsbtAdvancedSection from './PsbtAdvancedSection';
 import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
+import { EyeIcon, EyeOffIcon } from './icons';
 
 const iconClass = 'shrink-0';
 
@@ -46,6 +47,26 @@ function TrashIcon() {
 
 const psbtActionClass =
   'w-full flex items-center justify-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-2 rounded cursor-pointer';
+
+function LinkedTransactionVisibilityButton({
+  visible,
+  onToggle,
+}: {
+  visible: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="shrink-0 p-0.5 text-gray-400 hover:text-white cursor-pointer"
+      title={visible ? 'Hide transaction' : 'Show transaction'}
+      aria-label={visible ? 'Hide transaction' : 'Show transaction'}
+      onClick={onToggle}
+    >
+      {visible ? <EyeIcon /> : <EyeOffIcon />}
+    </button>
+  );
+}
 
 function copyToClipboard(text: string, successMessage = 'Copied to clipboard') {
   const { addSuccess, addError } = useGlobalState.getState();
@@ -364,18 +385,18 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               return (
                 <div key={i} className="bg-gray-700 rounded p-2 text-xs space-y-1">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={vinInState}
-                      onChange={() => {
-                        if (vinInState) {
-                          removeTransaction(vin.txid);
-                        } else {
-                          addTransaction(vin.txid, { noFocus: true });
-                        }
-                      }}
-                      className="shrink-0 cursor-pointer accent-blue-500"
-                    />
+                    {!vin.is_coinbase && vin.txid && (
+                      <LinkedTransactionVisibilityButton
+                        visible={vinInState}
+                        onToggle={() => {
+                          if (vinInState) {
+                            removeTransaction(vin.txid);
+                          } else {
+                            addTransaction(vin.txid, { noFocus: true });
+                          }
+                        }}
+                      />
+                    )}
                     <div
                       className="text-blue-400 cursor-pointer hover:text-blue-300 font-mono truncate min-w-0 flex-1"
                       onClick={() => handleInputTxClick(vin)}
@@ -484,17 +505,15 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   {!isOpReturn && (
                     spendingTxid ? (
                       <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={spendingInState}
-                          onChange={() => {
+                        <LinkedTransactionVisibilityButton
+                          visible={spendingInState}
+                          onToggle={() => {
                             if (spendingInState) {
                               removeTransaction(spendingTxid);
                             } else {
                               addTransaction(spendingTxid, { noFocus: true });
                             }
                           }}
-                          className="shrink-0 cursor-pointer accent-blue-500"
                         />
                         <div
                           className="cursor-pointer hover:opacity-80 font-mono truncate min-w-0 flex-1"

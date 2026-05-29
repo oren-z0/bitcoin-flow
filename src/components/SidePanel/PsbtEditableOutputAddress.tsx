@@ -74,40 +74,43 @@ export default function PsbtEditableOutputAddress({
   const canOpenInfo = !!trimmed && !!onAddressInfo;
 
   return (
-    <div className="flex items-start gap-1">
-      <input
-        type="text"
-        className={inputClass}
-        value={draft}
-        spellCheck={false}
-        placeholder="Bitcoin address"
-        aria-label={`Output ${outputIndex} address`}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.currentTarget.blur();
-          }
-          if (e.key === 'Escape') {
-            setDraft(address);
-            e.currentTarget.blur();
-          }
-        }}
-      />
-      {onAddressInfo && (
-        <button
-          type="button"
-          className="shrink-0 p-1 mt-0.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-          title="Address details"
-          aria-label="Open address details"
-          disabled={!canOpenInfo}
-          onClick={() => {
-            if (canOpenInfo) onAddressInfo(trimmed);
+    <div>
+      <label className="text-[10px] text-gray-500 block mb-0.5">Address</label>
+      <div className="flex items-start gap-1">
+        <input
+          type="text"
+          className={inputClass}
+          value={draft}
+          spellCheck={false}
+          placeholder="Bitcoin address"
+          aria-label={`Output ${outputIndex} address`}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur();
+            }
+            if (e.key === 'Escape') {
+              setDraft(address);
+              e.currentTarget.blur();
+            }
           }}
-        >
-          <InfoIcon />
-        </button>
-      )}
+        />
+        {onAddressInfo && (
+          <button
+            type="button"
+            className="shrink-0 p-1 mt-0.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            title="Address details"
+            aria-label="Open address details"
+            disabled={!canOpenInfo}
+            onClick={() => {
+              if (canOpenInfo) onAddressInfo(trimmed);
+            }}
+          >
+            <InfoIcon />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

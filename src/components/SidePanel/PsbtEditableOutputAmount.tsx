@@ -29,13 +29,14 @@ export default function PsbtEditableOutputAmount({
 
   const commit = () => {
     const currentBtc = satsToBtc(valueSats);
-    if (draft.trim() === currentBtc) return;
-
     try {
       const nextSats = btcToSats(draft);
       if (nextSats < 0) throw new Error('Output amount cannot be negative');
-      if (nextSats === valueSats) return;
-      onPsbtUpdated(updatePsbtOutputAmount(psbtBase64, outputIndex, nextSats));
+      const formatted = satsToBtc(nextSats);
+      setDraft(formatted);
+      if (nextSats !== valueSats) {
+        onPsbtUpdated(updatePsbtOutputAmount(psbtBase64, outputIndex, nextSats));
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Invalid amount');
       setDraft(currentBtc);

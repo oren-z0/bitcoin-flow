@@ -17,6 +17,7 @@ import ReactFlow, {
 import {
   isOutputHandleId,
   isPsbtInputHandleId,
+  isPsbtOutputHandleId,
   isUtxoOutputHandle,
 } from '../utils/handleGrouping';
 import 'reactflow/dist/style.css';
@@ -73,7 +74,8 @@ function buildEdges(
       transactions,
       addresses,
       groupMap,
-      loadedTxids
+      loadedTxids,
+      !!parent.isPsbt
     );
     const inHandles = computeInputHandles(
       spendingTx.data.vin,
@@ -144,6 +146,7 @@ export default function FlowCanvas() {
     addTransactions,
     createPsbt,
     connectPsbtInputFromOutput,
+    connectPsbtOutputFromOutput,
   } = useGlobalState();
 
   const { setCenter, getViewport, fitView } = useReactFlow();
@@ -317,7 +320,10 @@ export default function FlowCanvas() {
   const isValidConnection = useCallback((connection: Connection) => {
     const { source, target, sourceHandle, targetHandle } = connection;
     if (!source || !target || !sourceHandle || !targetHandle) return false;
-    if (!isOutputHandleId(sourceHandle) || !isPsbtInputHandleId(targetHandle)) return false;
+    if (!isOutputHandleId(sourceHandle)) return false;
+    if (!isPsbtInputHandleId(targetHandle) && !isPsbtOutputHandleId(targetHandle)) {
+      return false;
+    }
 
     const { transactions, addresses, groupMap } = useGlobalState.getState();
     const sourceTx = transactions[source];
@@ -338,9 +344,13 @@ export default function FlowCanvas() {
     (connection: Connection) => {
       const { source, target, sourceHandle, targetHandle } = connection;
       if (!source || !target || !sourceHandle || !targetHandle) return;
-      connectPsbtInputFromOutput(source, sourceHandle, target, targetHandle);
+      if (isPsbtOutputHandleId(targetHandle)) {
+        connectPsbtOutputFromOutput(source, sourceHandle, target, targetHandle);
+      } else {
+        connectPsbtInputFromOutput(source, sourceHandle, target, targetHandle);
+      }
     },
-    [connectPsbtInputFromOutput]
+    [connectPsbtInputFromOutput, connectPsbtOutputFromOutput]
   );
 
   // Keyboard shortcuts

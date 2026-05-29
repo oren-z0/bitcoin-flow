@@ -1268,11 +1268,28 @@ function splicePsbtIoList(
   list.splice(index, 1);
 }
 
+/** Move the last input/output (just appended) to `insertAtIndex`. */
+function moveLastPsbtIoToIndex(
+  tx: Transaction,
+  kind: 'input' | 'output',
+  insertAtIndex: number
+): void {
+  const mutable = tx as unknown as { inputs: unknown[]; outputs: unknown[] };
+  const list = kind === 'input' ? mutable.inputs : mutable.outputs;
+  if (list.length < 2) return;
+  const lastIdx = list.length - 1;
+  const at = Math.max(0, Math.min(insertAtIndex, lastIdx));
+  if (at === lastIdx) return;
+  const item = list.pop()!;
+  list.splice(at, 0, item);
+}
+
 export function addPsbtInputFromPrevout(
   psbtBase64: string,
   parentNodeId: string,
   voutIndex: number,
-  parentVout: MempoolVout
+  parentVout: MempoolVout,
+  insertAtIndex?: number
 ): string {
   if (!parentVout.scriptpubkey?.length) {
     throw new Error('Parent output has no script');
@@ -1305,6 +1322,31 @@ export function addPsbtInputFromPrevout(
     },
     true
   );
+  if (insertAtIndex !== undefined) {
+    moveLastPsbtIoToIndex(tx, 'input', insertAtIndex);
+  }
+  return base64.encode(tx.toPSBT());
+}
+
+/** Add a payment output cloned from a parent UTXO (script + amount). */
+export function addPsbtOutputFromPrevout(
+  psbtBase64: string,
+  parentVout: MempoolVout,
+  insertAtIndex?: number
+): string {
+  if (!parentVout.scriptpubkey?.length) {
+    throw new Error('Parent output has no script');
+  }
+  if (parentVout.scriptpubkey_type === 'op_return') {
+    throw new Error('Cannot add OP_RETURN as a payment output this way');
+  }
+
+  const tx = openPsbtForEdit(psbtBase64);
+  const script = hex.decode(parentVout.scriptpubkey);
+  tx.addOutput({ script, amount: BigInt(parentVout.value) }, true);
+  if (insertAtIndex !== undefined) {
+    moveLastPsbtIoToIndex(tx, 'output', insertAtIndex);
+  }
   return base64.encode(tx.toPSBT());
 }
 

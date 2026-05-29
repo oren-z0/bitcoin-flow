@@ -5,6 +5,7 @@ import { computeLayout } from '../utils/layout';
 import { sortTxids } from '../utils/sorting';
 import {
   addPsbtInputFromPrevout,
+  addPsbtOutputFromPrevout,
   createNewPsbtV2Base64,
   enrichPrevoutsFromGraph,
   parsePsbtBase64,
@@ -21,8 +22,11 @@ import { connectWouldCreateCycle } from '../utils/graphConnections';
 import {
   isOutputHandleId,
   isPsbtInputHandleId,
+  isPsbtOutputHandleId,
   isUtxoOutputHandle,
   resolveOutputVoutIndexFromHandle,
+  resolvePsbtInputInsertIndexFromHandle,
+  resolvePsbtOutputInsertIndexFromHandle,
 } from '../utils/handleGrouping';
 
 const STORAGE_KEY = 'bitcoin-flow-state';
@@ -80,6 +84,12 @@ interface GlobalStore {
   promotePsbtIfConfirmed: (txid: string) => Promise<void>;
   replacePsbtNode: (oldNodeId: string, psbtBase64: string) => void;
   connectPsbtInputFromOutput: (
+    sourceNodeId: string,
+    sourceHandleId: string,
+    targetPsbtNodeId: string,
+    targetHandleId: string
+  ) => void;
+  connectPsbtOutputFromOutput: (
     sourceNodeId: string,
     sourceHandleId: string,
     targetPsbtNodeId: string,
@@ -951,17 +961,103 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       return;
     }
 
+    const insertAtIndex = resolvePsbtInputInsertIndexFromHandle(
+      targetHandleId,
+      target,
+      transactions,
+      addresses,
+      groupMap
+    );
+
     try {
       const updated = addPsbtInputFromPrevout(
         target.psbtBase64,
         sourceNodeId,
         voutIdx,
-        parentVout
+        parentVout,
+        insertAtIndex
       );
       get().replacePsbtNode(targetPsbtNodeId, updated);
     } catch (e) {
       get().addError(e instanceof Error ? e.message : 'Failed to add PSBT input');
       console.error('connectPsbtInputFromOutput', e);
+    }
+  },
+
+  connectPsbtOutputFromOutput: (
+    sourceNodeId,
+    sourceHandleId,
+    targetPsbtNodeId,
+    targetHandleId
+  ) => {
+    const state = get();
+    const { transactions, addresses, groupMap } = state;
+
+    const target = transactions[targetPsbtNodeId];
+    if (!target?.isPsbt || !target.psbtBase64) {
+      get().addError('Drop onto a PSBT output handle to add an output');
+      return;
+    }
+
+    const source = transactions[sourceNodeId];
+    if (!source) return;
+
+    if (!isOutputHandleId(sourceHandleId) || !isPsbtOutputHandleId(targetHandleId)) {
+      get().addError('Drag from an output handle to a PSBT output handle');
+      return;
+    }
+
+    const voutIdx = resolveOutputVoutIndexFromHandle(
+      sourceNodeId,
+      sourceHandleId,
+      source,
+      transactions,
+      addresses,
+      groupMap
+    );
+    if (voutIdx === null) {
+      get().addError('Drag from a single output handle (not a grouped handle)');
+      return;
+    }
+
+    if (
+      !isUtxoOutputHandle(
+        sourceNodeId,
+        sourceHandleId,
+        source,
+        transactions,
+        addresses,
+        groupMap
+      )
+    ) {
+      get().addError('Only unspent outputs (green UTXO handles) can be connected to a PSBT');
+      return;
+    }
+
+    const parentVout = source.data.vout[voutIdx];
+    if (!parentVout) {
+      get().addError('Invalid output');
+      return;
+    }
+
+    const insertAtIndex = resolvePsbtOutputInsertIndexFromHandle(
+      targetHandleId,
+      target,
+      transactions,
+      addresses,
+      groupMap
+    );
+
+    try {
+      const updated = addPsbtOutputFromPrevout(
+        target.psbtBase64,
+        parentVout,
+        insertAtIndex
+      );
+      get().replacePsbtNode(targetPsbtNodeId, updated);
+    } catch (e) {
+      get().addError(e instanceof Error ? e.message : 'Failed to add PSBT output');
+      console.error('connectPsbtOutputFromOutput', e);
     }
   },
 

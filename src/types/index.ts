@@ -87,4 +87,6 @@ export interface HandleDescriptor {
   voutIndices?: number[]; // for outputs
   isOpReturn?: boolean;
   isCoinbase?: boolean;
+  /** PSBT with zero inputs/outputs — connect affordance only. */
+  isDropPlaceholder?: boolean;
 }

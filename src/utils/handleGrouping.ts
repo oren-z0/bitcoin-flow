@@ -245,6 +245,26 @@ function buildCollapsedOutputHandles(
   return handles;
 }
 
+const PSBT_INPUT_DROP_HANDLE: HandleDescriptor = {
+  id: 'in-drop',
+  label: '',
+  amount: 0,
+  addresses: [],
+  txids: [],
+  vinIndices: [],
+  isDropPlaceholder: true,
+};
+
+const PSBT_OUTPUT_DROP_HANDLE: HandleDescriptor = {
+  id: 'out-drop',
+  label: '',
+  amount: 0,
+  addresses: [],
+  txids: [],
+  voutIndices: [],
+  isDropPlaceholder: true,
+};
+
 export function computeInputHandles(
   vins: MempoolVin[],
   addresses: Record<string, StoredAddress>,
@@ -253,6 +273,10 @@ export function computeInputHandles(
   isPsbt = false
 ): HandleDescriptor[] {
   const count = vins.length;
+
+  if (isPsbt && count === 0) {
+    return [PSBT_INPUT_DROP_HANDLE];
+  }
 
   // Coinbase transaction: single vin with is_coinbase flag (or no prevout/txid)
   if (count === 1 && vins[0].is_coinbase) {
@@ -318,9 +342,14 @@ export function computeOutputHandles(
   transactions: Record<string, StoredTransaction>,
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup> = {},
-  loadedTxids: Set<string> = new Set()
+  loadedTxids: Set<string> = new Set(),
+  isPsbt = false
 ): HandleDescriptor[] {
   const count = vouts.length;
+
+  if (isPsbt && count === 0) {
+    return [PSBT_OUTPUT_DROP_HANDLE];
+  }
 
   const isConnectedVout = (voutIdx: number) =>
     getSpendingTxidsForOutput(
@@ -387,15 +416,90 @@ export function resolveOutputVoutIndexFromHandle(
     transactions,
     addresses,
     groupMap,
-    loadedTxids
+    loadedTxids,
+    !!stored.isPsbt
   );
   const handle = handles.find(h => h.id === handleId);
   if (!handle?.voutIndices || handle.voutIndices.length !== 1) return null;
   return handle.voutIndices[0];
 }
 
+/**
+ * Index at which to insert a new PSBT input when a connection lands on `targetHandleId`
+ * (insert immediately after the handle's position).
+ */
+export function resolvePsbtInputInsertIndexFromHandle(
+  targetHandleId: string,
+  stored: StoredTransaction,
+  transactions: Record<string, StoredTransaction>,
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>
+): number {
+  if (targetHandleId === 'in-drop') return 0;
+
+  const loadedTxids = new Set(Object.keys(transactions));
+  const handles = computeInputHandles(
+    stored.data.vin,
+    addresses,
+    groupMap,
+    loadedTxids,
+    true
+  );
+  const handle = handles.find(h => h.id === targetHandleId);
+  if (handle) {
+    if (handle.isDropPlaceholder) return 0;
+    const indices = handle.vinIndices ?? [];
+    if (indices.length > 0) return Math.max(...indices) + 1;
+  }
+
+  const m = /^in-(\d+)$/.exec(targetHandleId);
+  if (m) return Number(m[1]) + 1;
+
+  return stored.data.vin.length;
+}
+
+/**
+ * Index at which to insert a new PSBT output when a connection lands on `targetHandleId`.
+ */
+export function resolvePsbtOutputInsertIndexFromHandle(
+  targetHandleId: string,
+  stored: StoredTransaction,
+  transactions: Record<string, StoredTransaction>,
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>
+): number {
+  if (targetHandleId === 'out-drop') return 0;
+
+  const loadedTxids = new Set(Object.keys(transactions));
+  const handles = computeOutputHandles(
+    stored.data.txid,
+    stored.data.vout,
+    stored.outspends,
+    transactions,
+    addresses,
+    groupMap,
+    loadedTxids,
+    true
+  );
+  const handle = handles.find(h => h.id === targetHandleId);
+  if (handle) {
+    if (handle.isDropPlaceholder) return 0;
+    const indices = handle.voutIndices ?? [];
+    if (indices.length > 0) return Math.max(...indices) + 1;
+  }
+
+  const m = /^out-(\d+)$/.exec(targetHandleId);
+  if (m) return Number(m[1]) + 1;
+
+  return stored.data.vout.length;
+}
+
 export function isPsbtInputHandleId(handleId: string | null | undefined): boolean {
   return !!handleId && /^in-/.test(handleId);
+}
+
+export function isPsbtOutputHandleId(handleId: string | null | undefined): boolean {
+  return !!handleId && /^out-/.test(handleId);
 }
 
 export function isOutputHandleId(handleId: string | null | undefined): boolean {

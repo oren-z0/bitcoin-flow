@@ -191,8 +191,18 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
   );
 
   const outputHandles = useMemo(
-    () => computeOutputHandles(txid, tx.vout, outspends, transactions, addresses, groupMap, new Set(Object.keys(transactions))),
-    [txid, tx.vout, outspends, addresses, groupMap, transactions]
+    () =>
+      computeOutputHandles(
+        txid,
+        tx.vout,
+        outspends,
+        transactions,
+        addresses,
+        groupMap,
+        new Set(Object.keys(transactions)),
+        !!isPsbt
+      ),
+    [txid, tx.vout, outspends, addresses, groupMap, transactions, isPsbt]
   );
 
   const hasSelectedAddress = useMemo(() => {
@@ -300,22 +310,26 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                     }}
                   />
                 )}
-                <HandleLabel
-                  handle={handle}
-                  isInput={true}
-                  txVersion={tx.version}
-                  vin={tx.vin}
-                  addressMap={addresses}
-                  groupMap={groupMap}
-                  selectedAddresses={selectedAddresses}
-                  onLabelClick={handleAddressLabelClick}
-                />
+                {!handle.isDropPlaceholder && (
+                  <HandleLabel
+                    handle={handle}
+                    isInput={true}
+                    txVersion={tx.version}
+                    vin={tx.vin}
+                    addressMap={addresses}
+                    groupMap={groupMap}
+                    selectedAddresses={selectedAddresses}
+                    onLabelClick={handleAddressLabelClick}
+                  />
+                )}
               </div>
             ))}
           </div>
 
           <div className="flex flex-col gap-1 flex-1 min-w-0">
             {outputHandles.map((handle) => {
+              const isPsbtOutputConnect =
+                isPsbt && !handle.isOpReturn;
               const isUtxo = isUtxoOutputHandleDescriptor(handle, outspends);
               const isSpent =
                 !handle.isOpReturn &&
@@ -328,17 +342,35 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                   key={handle.id}
                   className="relative flex items-center gap-1 justify-end min-w-0 min-h-[22px]"
                 >
-                  <HandleLabel
-                    handle={handle}
-                    isInput={false}
-                    txVersion={tx.version}
-                    vin={tx.vin}
-                    addressMap={addresses}
-                    groupMap={groupMap}
-                    selectedAddresses={selectedAddresses}
-                    onLabelClick={handleAddressLabelClick}
-                  />
-                  {isUtxo ? (
+                  {!handle.isDropPlaceholder && (
+                    <HandleLabel
+                      handle={handle}
+                      isInput={false}
+                      txVersion={tx.version}
+                      vin={tx.vin}
+                      addressMap={addresses}
+                      groupMap={groupMap}
+                      selectedAddresses={selectedAddresses}
+                      onLabelClick={handleAddressLabelClick}
+                    />
+                  )}
+                  {isPsbtOutputConnect ? (
+                    <>
+                      <Handle
+                        type="target"
+                        position={Position.Right}
+                        id={handle.id}
+                        isConnectable
+                        isConnectableEnd
+                        className="psbt-connect-handle nodrag"
+                        style={{ top: '50%' }}
+                      />
+                      <div
+                        className="shrink-0 rounded-full mr-[-5px]"
+                        style={{ ...HANDLE_DOT_STYLE, background: COLOR_GRAY }}
+                      />
+                    </>
+                  ) : isUtxo ? (
                     <>
                       <Handle
                         type="source"

@@ -17,6 +17,7 @@ import PsbtEditableSequence from './PsbtEditableSequence';
 import PsbtEditableLocktime from './PsbtEditableLocktime';
 import PsbtEditableOutputAmount from './PsbtEditableOutputAmount';
 import PsbtEditableOutputAddress from './PsbtEditableOutputAddress';
+import PsbtEditableOpReturn from './PsbtEditableOpReturn';
 import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 import PsbtAdvancedSection from './PsbtAdvancedSection';
 import PsbtMoveControls from './PsbtMoveControls';
@@ -609,7 +610,15 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                           />
                         )}
                       </div>
-                      {opReturnContent ? (
+                      {stored.isPsbt && stored.psbtBase64 ? (
+                        <PsbtEditableOpReturn
+                          psbtBase64={stored.psbtBase64}
+                          outputIndex={i}
+                          scriptpubkey={vout.scriptpubkey}
+                          onPsbtUpdated={handlePsbtDerivationUpdated}
+                          onError={addError}
+                        />
+                      ) : opReturnContent ? (
                         <div className="text-gray-300 break-all whitespace-pre-wrap font-mono text-[11px]">
                           {opReturnContent}
                         </div>

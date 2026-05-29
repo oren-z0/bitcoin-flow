@@ -11,6 +11,7 @@ import type {
   MempoolOutspend,
   StoredTransaction,
 } from '../types';
+import { encodeOpReturnScript, parseOpReturnEditDraft } from './opReturn';
 
 /** Display-order txid (mempool / node id) ↔ internal bytes in unsigned tx inputs. */
 function reverseTxidHex(txid: string): string {
@@ -478,7 +479,12 @@ export function parsePsbtBase64(psbtBase64: string): ParsedPsbt {
     const output = tx.getOutput(i);
     const value = Number(output.amount);
     outputSum += value;
-    const address = tx.getOutputAddress(i);
+    let address: string | undefined;
+    try {
+      address = tx.getOutputAddress(i);
+    } catch {
+      // OP_RETURN and other non-standard outputs have no address
+    }
     const fields = output.script ? scriptToMempoolFields(output.script) : {};
     vout.push({
       value,
@@ -1252,6 +1258,22 @@ export function addPsbtPaymentOutput(psbtBase64: string): string {
 export function addPsbtOpReturnOutput(psbtBase64: string): string {
   const tx = openPsbtForEdit(psbtBase64);
   tx.addOutput({ script: hex.decode('6a00'), amount: 0n }, true);
+  return base64.encode(tx.toPSBT());
+}
+
+export function updatePsbtOpReturnPayload(
+  psbtBase64: string,
+  outputIndex: number,
+  payloadDraft: string
+): string {
+  const payload = parseOpReturnEditDraft(payloadDraft);
+  const script = encodeOpReturnScript(payload);
+  const tx = openPsbtForEdit(psbtBase64);
+  const out = tx.getOutput(outputIndex);
+  if (!out.script?.length || out.script[0] !== 0x6a) {
+    throw new Error('Output is not OP_RETURN');
+  }
+  tx.updateOutput(outputIndex, { script, amount: out.amount }, true);
   return base64.encode(tx.toPSBT());
 }
 

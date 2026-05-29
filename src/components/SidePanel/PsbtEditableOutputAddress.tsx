@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { updatePsbtOutputAddress } from '../../utils/psbt';
+import { readPsbtIoDerivation, updatePsbtOutputAddress } from '../../utils/psbt';
 
 const inputClass =
   'flex-1 min-w-0 text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500 font-mono break-all';
@@ -29,7 +29,7 @@ interface Props {
   psbtBase64: string;
   outputIndex: number;
   address: string;
-  onPsbtUpdated: (newBase64: string) => void;
+  onPsbtUpdated: (newBase64: string, meta?: { preservedFingerprint?: string }) => void;
   onError: (message: string) => void;
   onAddressInfo?: (address: string) => void;
 }
@@ -54,7 +54,16 @@ export default function PsbtEditableOutputAddress({
     if (trimmed === address) return;
 
     try {
-      onPsbtUpdated(updatePsbtOutputAddress(psbtBase64, outputIndex, trimmed));
+      const preservedFingerprint = readPsbtIoDerivation(
+        psbtBase64,
+        'output',
+        outputIndex
+      ).fingerprint;
+      const updated = updatePsbtOutputAddress(psbtBase64, outputIndex, trimmed);
+      onPsbtUpdated(
+        updated,
+        preservedFingerprint ? { preservedFingerprint } : undefined
+      );
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Invalid address');
       setDraft(address);

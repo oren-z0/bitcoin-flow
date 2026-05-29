@@ -734,6 +734,20 @@ function keymapReplace<T>(
   return [...clears, [pubkey, value]];
 }
 
+/** Remove BIP32/tap derivations and tap internal key; keeps no pubkey/path in PSBT. */
+function clearIoDerivationPubkeyAndPath(io: PsbtIo): Partial<PsbtIo> {
+  const patch: Partial<PsbtIo> = {
+    bip32Derivation: keymapClears(io.bip32Derivation) as Partial<PsbtIo>['bip32Derivation'],
+    tapBip32Derivation: keymapClears(
+      'tapBip32Derivation' in io ? io.tapBip32Derivation : undefined
+    ) as Partial<PsbtIo>['tapBip32Derivation'],
+  };
+  if ('tapInternalKey' in io) {
+    (patch as Partial<PSBTOutputs>).tapInternalKey = undefined;
+  }
+  return patch;
+}
+
 function buildDerivationPatch(
   io: PsbtIo,
   isInput: boolean,
@@ -833,17 +847,11 @@ export const PSBT_SCRIPT_TYPE_LABELS: Record<PsbtScriptKind, string> = {
   unknown: 'unknown',
 };
 
-export const PSBT_INPUT_SCRIPT_TYPES: PsbtScriptKind[] = ['wpkh', 'pkh', 'tr', 'pk'];
-export const PSBT_OUTPUT_SCRIPT_TYPES: PsbtScriptKind[] = [
-  'wpkh',
-  'pkh',
-  'tr',
-  'pk',
-  'op_return',
-];
+export const PSBT_INPUT_SCRIPT_TYPES: PsbtScriptKind[] = ['wpkh', 'pkh', 'tr'];
+export const PSBT_OUTPUT_SCRIPT_TYPES: PsbtScriptKind[] = ['wpkh', 'pkh', 'tr', 'op_return'];
 
 function isEditableScriptKind(kind: PsbtScriptKind): boolean {
-  return kind === 'wpkh' || kind === 'pkh' || kind === 'tr' || kind === 'pk' || kind === 'op_return';
+  return kind === 'wpkh' || kind === 'pkh' || kind === 'tr' || kind === 'op_return';
 }
 
 function getIoScript(io: PsbtIo, isInput: boolean): Uint8Array | undefined {
@@ -973,6 +981,8 @@ export function updatePsbtOutputAddress(
   const script = OutScript.encode(decoded as Parameters<typeof OutScript.encode>[0]);
   const cur = tx.getOutput(outputIndex);
   tx.updateOutput(outputIndex, { script, amount: cur.amount }, true);
+  const io = tx.getOutput(outputIndex);
+  tx.updateOutput(outputIndex, clearIoDerivationPubkeyAndPath(io));
   return base64.encode(tx.toPSBT());
 }
 
@@ -1252,12 +1262,6 @@ function templatePaymentOutputScript(tx: Transaction): Uint8Array {
 export function addPsbtPaymentOutput(psbtBase64: string): string {
   const tx = openPsbtForEdit(psbtBase64);
   tx.addOutput({ script: templatePaymentOutputScript(tx), amount: 0n }, true);
-  return base64.encode(tx.toPSBT());
-}
-
-export function addPsbtOpReturnOutput(psbtBase64: string): string {
-  const tx = openPsbtForEdit(psbtBase64);
-  tx.addOutput({ script: hex.decode('6a00'), amount: 0n }, true);
   return base64.encode(tx.toPSBT());
 }
 

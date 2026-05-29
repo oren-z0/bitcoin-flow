@@ -5,7 +5,6 @@ import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../u
 import { formatOpReturnDisplay } from '../../utils/opReturn';
 import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '../../utils/sequence';
 import {
-  addPsbtOpReturnOutput,
   addPsbtPaymentOutput,
   isKnownTxid,
   removePsbtInput,
@@ -229,9 +228,32 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     copyToClipboard(stored.psbtBase64, 'PSBT copied to clipboard');
   };
 
+  const [outputFpPreserve, setOutputFpPreserve] = useState<{
+    outputIndex: number;
+    fingerprint: string;
+  } | null>(null);
+
+  React.useEffect(() => {
+    setOutputFpPreserve(null);
+  }, [selectedTxid]);
+
   const handlePsbtDerivationUpdated = (newBase64: string) => {
     if (!stored.psbtBase64) return;
     replacePsbtNode(selectedTxid, newBase64);
+  };
+
+  const handleOutputAddressUpdated = (
+    newBase64: string,
+    meta?: { preservedFingerprint?: string },
+    outputIndex?: number
+  ) => {
+    handlePsbtDerivationUpdated(newBase64);
+    if (meta?.preservedFingerprint && outputIndex !== undefined) {
+      setOutputFpPreserve({
+        outputIndex,
+        fingerprint: meta.preservedFingerprint,
+      });
+    }
   };
 
   const handlePsbtMove = (kind: 'input' | 'output', index: number, direction: 'up' | 'down') => {
@@ -487,6 +509,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       psbtBase64={stored.psbtBase64}
                       kind="input"
                       index={i}
+                      transactionKey={selectedTxid}
                       onPsbtUpdated={handlePsbtDerivationUpdated}
                       onError={addError}
                     />
@@ -633,7 +656,9 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         psbtBase64={stored.psbtBase64}
                         outputIndex={i}
                         address={addr ?? ''}
-                        onPsbtUpdated={handlePsbtDerivationUpdated}
+                        onPsbtUpdated={(newBase64, meta) =>
+                          handleOutputAddressUpdated(newBase64, meta, i)
+                        }
                         onError={addError}
                         onAddressInfo={handleAddressClick}
                       />
@@ -676,6 +701,13 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       index={i}
                       hideDerivation={isOpReturn}
                       showOptionalLabel={!isOpReturn}
+                      transactionKey={selectedTxid}
+                      preservedFingerprint={
+                        outputFpPreserve?.outputIndex === i
+                          ? outputFpPreserve.fingerprint
+                          : undefined
+                      }
+                      onPreserveApplied={() => setOutputFpPreserve(null)}
                       onPsbtUpdated={handlePsbtDerivationUpdated}
                       onError={addError}
                     />
@@ -691,13 +723,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   onClick={() => applyPsbtEdit(addPsbtPaymentOutput)}
                 >
                   Add Output
-                </button>
-                <button
-                  type="button"
-                  className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer"
-                  onClick={() => applyPsbtEdit(addPsbtOpReturnOutput)}
-                >
-                  Add OP_RETURN
                 </button>
               </div>
             )}

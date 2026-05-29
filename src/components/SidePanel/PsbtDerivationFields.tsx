@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   PSBT_INPUT_SCRIPT_TYPES,
   PSBT_OUTPUT_SCRIPT_TYPES,
@@ -23,6 +23,11 @@ interface Props {
   /** When true, only script type is shown (e.g. OP_RETURN outputs). */
   hideDerivation?: boolean;
   showOptionalLabel?: boolean;
+  /** Graph node id — resets sticky fingerprint when switching transactions. */
+  transactionKey?: string;
+  /** Set after an output address edit so the fingerprint field stays while path/pubkey clear. */
+  preservedFingerprint?: string;
+  onPreserveApplied?: () => void;
   onPsbtUpdated: (newBase64: string) => void;
   onError: (message: string) => void;
 }
@@ -42,6 +47,9 @@ export default function PsbtDerivationFields({
   index,
   hideDerivation = false,
   showOptionalLabel,
+  transactionKey,
+  preservedFingerprint,
+  onPreserveApplied,
   onPsbtUpdated,
   onError,
 }: Props) {
@@ -55,18 +63,42 @@ export default function PsbtDerivationFields({
   const [pubkey, setPubkey] = useState(initialPubkey);
   const [scriptType, setScriptType] = useState<PsbtScriptKind>(initialScriptType);
 
+  const stickyFingerprintIoRef = useRef<string | null>(null);
+  const ioKey = `${transactionKey ?? ''}:${kind}:${index}`;
+
   const typeOptions = useMemo(
     () => scriptTypeOptions(kind, scriptType),
     [kind, scriptType]
   );
 
   useEffect(() => {
+    stickyFingerprintIoRef.current = null;
+  }, [transactionKey]);
+
+  useEffect(() => {
     const next = readPsbtIoDerivation(psbtBase64, kind, index);
-    setFingerprint(next.fingerprint);
+    const nextPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
+    const nextScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
+
     setPath(next.path);
-    setPubkey(readPsbtIoPubkey(psbtBase64, kind, index) ?? '');
-    setScriptType(readPsbtIoScriptType(psbtBase64, kind, index));
-  }, [derivationKey, psbtBase64, kind, index]);
+    setPubkey(nextPubkey);
+    setScriptType(nextScriptType);
+
+    if (preservedFingerprint !== undefined) {
+      setFingerprint(preservedFingerprint);
+      setPath('');
+      stickyFingerprintIoRef.current = ioKey;
+      onPreserveApplied?.();
+      return;
+    }
+
+    if (next.fingerprint) {
+      stickyFingerprintIoRef.current = null;
+      setFingerprint(next.fingerprint);
+    } else if (stickyFingerprintIoRef.current !== ioKey) {
+      setFingerprint(next.fingerprint);
+    }
+  }, [derivationKey, psbtBase64, kind, index, ioKey, preservedFingerprint, onPreserveApplied]);
 
   const commit = (overrides?: {
     fingerprint?: string;

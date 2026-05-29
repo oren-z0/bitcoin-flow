@@ -44,26 +44,29 @@ export default function PsbtEditableOutputAmount({
   };
 
   return (
-    <span className="inline-flex items-center gap-1 text-gray-300">
-      <input
-        type="text"
-        className={fieldClass}
-        value={draft}
-        spellCheck={false}
-        aria-label={`Output ${outputIndex} amount in BTC`}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.currentTarget.blur();
-          }
-          if (e.key === 'Escape') {
-            setDraft(satsToBtc(valueSats));
-            e.currentTarget.blur();
-          }
-        }}
-      />
-      <span>BTC</span>
-    </span>
+    <div>
+      <label className="text-[10px] text-gray-500 block mb-0.5">Amount</label>
+      <span className="inline-flex items-center gap-1 text-gray-300">
+        <input
+          type="text"
+          className={fieldClass}
+          value={draft}
+          spellCheck={false}
+          aria-label={`Output ${outputIndex} amount in BTC`}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur();
+            }
+            if (e.key === 'Escape') {
+              setDraft(satsToBtc(valueSats));
+              e.currentTarget.blur();
+            }
+          }}
+        />
+        <span>BTC</span>
+      </span>
+    </div>
   );
 }

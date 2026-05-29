@@ -4,12 +4,19 @@ import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
 import { formatOpReturnDisplay } from '../../utils/opReturn';
 import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '../../utils/sequence';
-import { isKnownTxid } from '../../utils/psbt';
+import {
+  addPsbtOpReturnOutput,
+  addPsbtPaymentOutput,
+  isKnownTxid,
+  removePsbtInput,
+  removePsbtOutput,
+} from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import PsbtDerivationFields from './PsbtDerivationFields';
 import PsbtEditableSequence from './PsbtEditableSequence';
 import PsbtEditableLocktime from './PsbtEditableLocktime';
 import PsbtEditableOutputAmount from './PsbtEditableOutputAmount';
+import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 import PsbtAdvancedSection from './PsbtAdvancedSection';
 import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
@@ -229,6 +236,15 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     movePsbtIoInState(selectedTxid, kind, index, direction);
   };
 
+  const applyPsbtEdit = (edit: (base64: string) => string) => {
+    if (!stored.psbtBase64) return;
+    try {
+      handlePsbtDerivationUpdated(edit(stored.psbtBase64));
+    } catch (e) {
+      addError(e instanceof Error ? e.message : 'Failed to update PSBT');
+    }
+  };
+
   const inputCount = tx.vin.length;
   const outputCount = tx.vout.length;
   const showPsbtMove = stored.isPsbt && !!stored.psbtBase64;
@@ -395,7 +411,15 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               const vinInState = !!transactions[vin.txid];
 
               return (
-                <div key={i} className="bg-gray-700 rounded p-2 text-xs space-y-1">
+                <div key={i} className="relative bg-gray-700 rounded p-2 pr-8 text-xs space-y-1">
+                  {showPsbtMove && !vin.is_coinbase && (
+                    <PsbtRemoveIoButton
+                      label="Remove input"
+                      disabled={inputCount <= 1}
+                      disabledTitle="PSBT must have at least one input"
+                      onRemove={() => applyPsbtEdit(b64 => removePsbtInput(b64, i))}
+                    />
+                  )}
                   <div className="flex items-center gap-2">
                     {!vin.is_coinbase && vin.txid && (
                       <LinkedTransactionVisibilityButton
@@ -512,7 +536,15 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               const spendingInState = spendingTxid ? !!transactions[spendingTxid] : false;
 
               return (
-                <div key={i} className="bg-gray-700 rounded p-2 text-xs space-y-1">
+                <div key={i} className="relative bg-gray-700 rounded p-2 pr-8 text-xs space-y-1">
+                  {showPsbtMove && (
+                    <PsbtRemoveIoButton
+                      label="Remove output"
+                      disabled={outputCount <= 1}
+                      disabledTitle="PSBT must have at least one output"
+                      onRemove={() => applyPsbtEdit(b64 => removePsbtOutput(b64, i))}
+                    />
+                  )}
                   {/* Spending tx or UTXO */}
                   {!isOpReturn && (
                     spendingTxid ? (
@@ -626,6 +658,24 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                 </div>
               );
             })}
+            {showPsbtMove && stored.psbtBase64 && (
+              <div className="flex flex-wrap gap-3 pt-1">
+                <button
+                  type="button"
+                  className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer"
+                  onClick={() => applyPsbtEdit(addPsbtPaymentOutput)}
+                >
+                  Add Output
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer"
+                  onClick={() => applyPsbtEdit(addPsbtOpReturnOutput)}
+                >
+                  Add OP_RETURN
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

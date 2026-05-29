@@ -989,6 +989,65 @@ export function readPsbtAdvancedMeta(psbtBase64: string): PsbtAdvancedMeta {
   };
 }
 
+const PSBT_EDIT_OPTS = { allowUnknownOutputs: true };
+
+function openPsbtForEdit(psbtBase64: string): Transaction {
+  return Transaction.fromPSBT(base64.decode(normalizePsbtBase64(psbtBase64)), PSBT_EDIT_OPTS);
+}
+
+function splicePsbtIoList(
+  tx: Transaction,
+  kind: 'input' | 'output',
+  index: number
+): void {
+  const mutable = tx as unknown as { inputs: unknown[]; outputs: unknown[] };
+  const list = kind === 'input' ? mutable.inputs : mutable.outputs;
+  if (index < 0 || index >= list.length) {
+    throw new Error(`Invalid ${kind} index`);
+  }
+  list.splice(index, 1);
+}
+
+export function removePsbtInput(psbtBase64: string, inputIndex: number): string {
+  const tx = openPsbtForEdit(psbtBase64);
+  if (tx.inputsLength <= 1) {
+    throw new Error('PSBT must have at least one input');
+  }
+  splicePsbtIoList(tx, 'input', inputIndex);
+  return base64.encode(tx.toPSBT());
+}
+
+export function removePsbtOutput(psbtBase64: string, outputIndex: number): string {
+  const tx = openPsbtForEdit(psbtBase64);
+  if (tx.outputsLength <= 1) {
+    throw new Error('PSBT must have at least one output');
+  }
+  splicePsbtIoList(tx, 'output', outputIndex);
+  return base64.encode(tx.toPSBT());
+}
+
+function templatePaymentOutputScript(tx: Transaction): Uint8Array {
+  for (let i = tx.outputsLength - 1; i >= 0; i--) {
+    const out = tx.getOutput(i);
+    if (out.script?.length && out.script[0] !== 0x6a) {
+      return out.script;
+    }
+  }
+  return OutScript.encode({ type: 'wpkh', hash: new Uint8Array(20) });
+}
+
+export function addPsbtPaymentOutput(psbtBase64: string): string {
+  const tx = openPsbtForEdit(psbtBase64);
+  tx.addOutput({ script: templatePaymentOutputScript(tx), amount: 0n }, true);
+  return base64.encode(tx.toPSBT());
+}
+
+export function addPsbtOpReturnOutput(psbtBase64: string): string {
+  const tx = openPsbtForEdit(psbtBase64);
+  tx.addOutput({ script: hex.decode('6a00'), amount: 0n }, true);
+  return base64.encode(tx.toPSBT());
+}
+
 export function movePsbtIo(
   psbtBase64: string,
   kind: 'input' | 'output',

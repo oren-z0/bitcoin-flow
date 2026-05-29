@@ -246,7 +246,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                   type="target"
                   position={Position.Left}
                   id={handle.id}
-                  isConnectable={!handle.isCoinbase}
+                  isConnectable={isPsbt && !handle.isCoinbase}
                   className="handle-inline"
                   style={{
                     background: COLOR_GRAY,
@@ -297,6 +297,9 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                     type="source"
                     position={Position.Right}
                     id={handle.id}
+                    isConnectable={
+                      !handle.isOpReturn && (handle.voutIndices?.length ?? 0) === 1
+                    }
                     className="handle-inline"
                     style={{
                       background: handleColor,

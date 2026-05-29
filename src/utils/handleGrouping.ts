@@ -369,3 +369,35 @@ export function computeOutputHandles(
 
   return [...connectedHandles, ...unconnectedHandles];
 }
+
+/** Resolve a single vout index from an output handle id, or null if grouped/unknown. */
+export function resolveOutputVoutIndexFromHandle(
+  nodeId: string,
+  handleId: string,
+  stored: StoredTransaction,
+  transactions: Record<string, StoredTransaction>,
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>
+): number | null {
+  const loadedTxids = new Set(Object.keys(transactions));
+  const handles = computeOutputHandles(
+    nodeId,
+    stored.data.vout,
+    stored.outspends,
+    transactions,
+    addresses,
+    groupMap,
+    loadedTxids
+  );
+  const handle = handles.find(h => h.id === handleId);
+  if (!handle?.voutIndices || handle.voutIndices.length !== 1) return null;
+  return handle.voutIndices[0];
+}
+
+export function isPsbtInputHandleId(handleId: string | null | undefined): boolean {
+  return !!handleId && /^in-/.test(handleId);
+}
+
+export function isOutputHandleId(handleId: string | null | undefined): boolean {
+  return !!handleId && /^out-/.test(handleId);
+}

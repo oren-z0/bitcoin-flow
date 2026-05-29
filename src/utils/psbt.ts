@@ -1188,6 +1188,46 @@ function splicePsbtIoList(
   list.splice(index, 1);
 }
 
+export function addPsbtInputFromPrevout(
+  psbtBase64: string,
+  parentNodeId: string,
+  voutIndex: number,
+  parentVout: MempoolVout
+): string {
+  if (!parentVout.scriptpubkey?.length) {
+    throw new Error('Parent output has no script');
+  }
+  if (parentVout.scriptpubkey_type === 'op_return') {
+    throw new Error('Cannot spend OP_RETURN as an input');
+  }
+
+  const tx = openPsbtForEdit(psbtBase64);
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const inp = tx.getInput(i);
+    const vinTxid = inp.txid?.length ? bytesToHex(inp.txid) : '';
+    if (
+      (inp.index ?? 0) === voutIndex &&
+      vinTxid &&
+      inputTxidMatchesNodeRef(vinTxid, parentNodeId)
+    ) {
+      throw new Error('This output is already an input on the PSBT');
+    }
+  }
+
+  const script = hex.decode(parentVout.scriptpubkey);
+  const txidBytes = nodeRefToPsbtInputTxidBytes(parentNodeId);
+  tx.addInput(
+    {
+      txid: txidBytes,
+      index: voutIndex,
+      witnessUtxo: { script, amount: BigInt(parentVout.value) },
+      sequence: 0xffffffff,
+    },
+    true
+  );
+  return base64.encode(tx.toPSBT());
+}
+
 export function removePsbtInput(psbtBase64: string, inputIndex: number): string {
   const tx = openPsbtForEdit(psbtBase64);
   splicePsbtIoList(tx, 'input', inputIndex);

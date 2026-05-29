@@ -57,3 +57,56 @@ export function getSpendingTxidsForOutput(
 
   return [...txids];
 }
+
+/** Graph nodes that spend a given parent output (vin → parent on the canvas). */
+export function getGraphSpendChildren(
+  transactions: Record<string, StoredTransaction>,
+  parentNodeId: string,
+  voutIdx: number
+): string[] {
+  const children: string[] = [];
+  for (const [childId, child] of Object.entries(transactions)) {
+    for (const vin of child.data.vin) {
+      if (vin.is_coinbase || !vin.txid) continue;
+      const parentKey = resolveParentNodeId(transactions, vin.txid);
+      if (parentKey === parentNodeId && vin.vout === voutIdx) {
+        children.push(childId);
+        break;
+      }
+    }
+  }
+  return children;
+}
+
+/**
+ * True if adding an input to `targetNodeId` from `sourceParentId` would create a cycle:
+ * following each on-graph spender of the target's outputs reaches `sourceParentId`.
+ */
+export function connectWouldCreateCycle(
+  transactions: Record<string, StoredTransaction>,
+  sourceParentId: string,
+  targetNodeId: string
+): boolean {
+  if (sourceParentId === targetNodeId) return true;
+
+  const visited = new Set<string>();
+  const stack = [targetNodeId];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    if (current === sourceParentId) return true;
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    const stored = transactions[current];
+    if (!stored) continue;
+
+    for (let voutIdx = 0; voutIdx < stored.data.vout.length; voutIdx++) {
+      for (const childId of getGraphSpendChildren(transactions, current, voutIdx)) {
+        if (!visited.has(childId)) stack.push(childId);
+      }
+    }
+  }
+
+  return false;
+}

@@ -8,11 +8,16 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  type Connection,
   type Node,
   type Edge,
   type NodeTypes,
   type NodeDragHandler,
 } from 'reactflow';
+import {
+  isOutputHandleId,
+  isPsbtInputHandleId,
+} from '../utils/handleGrouping';
 import 'reactflow/dist/style.css';
 import { SIDE_PANEL_WIDTH } from '../constants/layout';
 import { useGlobalState, layoutRef } from '../hooks/useGlobalState';
@@ -136,6 +141,7 @@ export default function FlowCanvas() {
     addTransaction,
     addTransactions,
     createPsbt,
+    connectPsbtInputFromOutput,
   } = useGlobalState();
 
   const { setCenter, getViewport, fitView } = useReactFlow();
@@ -306,6 +312,23 @@ export default function FlowCanvas() {
     setSelectedTxid(undefined);
   }, [setSelectedTxid]);
 
+  const isValidConnection = useCallback((connection: Connection) => {
+    const { source, target, sourceHandle, targetHandle } = connection;
+    if (!source || !target || !sourceHandle || !targetHandle) return false;
+    if (!isOutputHandleId(sourceHandle) || !isPsbtInputHandleId(targetHandle)) return false;
+    const targetTx = useGlobalState.getState().transactions[target];
+    return !!targetTx?.isPsbt;
+  }, []);
+
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      const { source, target, sourceHandle, targetHandle } = connection;
+      if (!source || !target || !sourceHandle || !targetHandle) return;
+      connectPsbtInputFromOutput(source, sourceHandle, target, targetHandle);
+    },
+    [connectPsbtInputFromOutput]
+  );
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -338,6 +361,8 @@ export default function FlowCanvas() {
       onNodeDragStart={onNodeDragStart}
       onNodeClick={onNodeClick}
       onPaneClick={onPaneClick}
+      onConnect={onConnect}
+      isValidConnection={isValidConnection}
       nodeTypes={nodeTypes}
       fitView
       fitViewOptions={{ padding: 0.2 }}

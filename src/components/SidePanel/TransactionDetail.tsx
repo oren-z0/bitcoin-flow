@@ -633,10 +633,9 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         psbtBase64={stored.psbtBase64}
                         outputIndex={i}
                         address={addr ?? ''}
-                        addressColor={addrData?.color}
                         onPsbtUpdated={handlePsbtDerivationUpdated}
                         onError={addError}
-                        onAddressClick={handleAddressClick}
+                        onAddressInfo={handleAddressClick}
                       />
                     </div>
                   ) : addr ? (

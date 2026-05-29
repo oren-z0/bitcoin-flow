@@ -1,4 +1,4 @@
-import { Transaction, OutScript, Address, NETWORK, getInputType } from '@scure/btc-signer';
+import { Transaction, OutScript, Address, NETWORK, getInputType, p2wpkh, p2pkh, p2tr } from '@scure/btc-signer';
 import { bip32Path, getPrevOut, SigHashNames } from '@scure/btc-signer/transaction.js';
 import type { PSBTInputs, PSBTOutputs } from '@scure/btc-signer/transaction.js';
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -804,6 +804,68 @@ export function readPsbtIoDerivation(
   return extractDerivationDisplay(io);
 }
 
+/** Re-encode output script from a pubkey when the script type supports it (wpkh, pkh, tr, pk). */
+function outputScriptFromPubkey(
+  currentScript: Uint8Array | undefined,
+  pubkey: Uint8Array
+): Uint8Array | null {
+  if (!currentScript?.length || currentScript[0] === 0x6a) return null;
+  try {
+    const decoded = OutScript.decode(currentScript);
+    switch (decoded.type) {
+      case 'wpkh':
+        return p2wpkh(pubkey).script!;
+      case 'pkh':
+        return p2pkh(pubkey).script!;
+      case 'tr': {
+        const xonly = pubkey.length === 33 && pubkey[0] !== 0x04 ? pubkey.slice(1) : pubkey;
+        return p2tr(xonly).script!;
+      }
+      case 'pk':
+        return OutScript.encode({ type: 'pk', pubkey });
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+export function addressFromOutputPubkey(
+  currentScript: Uint8Array | undefined,
+  pubkeyHex: string
+): string | null {
+  try {
+    const pubkey = parsePubkeyHex(pubkeyHex);
+    const script = outputScriptFromPubkey(currentScript, pubkey);
+    if (!script) return null;
+    const decoded = OutScript.decode(script);
+    return addrCodec.encode(decoded as Parameters<typeof addrCodec.encode>[0]);
+  } catch {
+    return null;
+  }
+}
+
+export function updatePsbtOutputAddress(
+  psbtBase64: string,
+  outputIndex: number,
+  address: string
+): string {
+  const trimmed = address.trim();
+  if (!trimmed) throw new Error('Address is required');
+  const tx = openPsbtForEdit(psbtBase64);
+  let decoded;
+  try {
+    decoded = Address(NETWORK).decode(trimmed);
+  } catch {
+    throw new Error('Invalid Bitcoin address');
+  }
+  const script = OutScript.encode(decoded as Parameters<typeof OutScript.encode>[0]);
+  const cur = tx.getOutput(outputIndex);
+  tx.updateOutput(outputIndex, { script, amount: cur.amount }, true);
+  return base64.encode(tx.toPSBT());
+}
+
 export function updatePsbtIoDerivation(
   psbtBase64: string,
   kind: 'input' | 'output',
@@ -812,14 +874,21 @@ export function updatePsbtIoDerivation(
   pathStr: string,
   pubkeyHex?: string
 ): string {
-  const normalized = normalizePsbtBase64(psbtBase64);
-  const tx = Transaction.fromPSBT(base64.decode(normalized));
+  const tx = openPsbtForEdit(psbtBase64);
   const io = kind === 'input' ? tx.getInput(index) : tx.getOutput(index);
   const patch = buildDerivationPatch(io, kind === 'input', fingerprintHex, pathStr, pubkeyHex);
   if (kind === 'input') {
     tx.updateInput(index, patch);
   } else {
     tx.updateOutput(index, patch);
+    if (pubkeyHex?.trim()) {
+      const pubkey = parsePubkeyHex(pubkeyHex);
+      const out = tx.getOutput(index);
+      const newScript = outputScriptFromPubkey(out.script, pubkey);
+      if (newScript) {
+        tx.updateOutput(index, { script: newScript, amount: out.amount }, true);
+      }
+    }
   }
   return base64.encode(tx.toPSBT());
 }
@@ -832,9 +901,8 @@ export function updatePsbtOutputAmount(
   if (!Number.isSafeInteger(amountSats) || amountSats < 0) {
     throw new Error('Output amount must be a non-negative integer (satoshis)');
   }
-  const normalized = normalizePsbtBase64(psbtBase64);
-  const tx = Transaction.fromPSBT(base64.decode(normalized));
-  tx.updateOutput(outputIndex, { amount: BigInt(amountSats) });
+  const tx = openPsbtForEdit(psbtBase64);
+  tx.updateOutput(outputIndex, { amount: BigInt(amountSats) }, true);
   return base64.encode(tx.toPSBT());
 }
 

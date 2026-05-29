@@ -16,6 +16,7 @@ import PsbtDerivationFields from './PsbtDerivationFields';
 import PsbtEditableSequence from './PsbtEditableSequence';
 import PsbtEditableLocktime from './PsbtEditableLocktime';
 import PsbtEditableOutputAmount from './PsbtEditableOutputAmount';
+import PsbtEditableOutputAddress from './PsbtEditableOutputAddress';
 import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 import PsbtAdvancedSection from './PsbtAdvancedSection';
 import PsbtMoveControls from './PsbtMoveControls';
@@ -599,7 +600,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   {isOpReturn ? (
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <div className="text-gray-400 flex-1 min-w-0">{`${i}: OP_RETURN`}</div>
+                        <div className="text-gray-400 flex-1 min-w-0">OP_RETURN</div>
                         {showPsbtMove && (
                           <PsbtMoveControls
                             count={outputCount}
@@ -613,6 +614,21 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                           {opReturnContent}
                         </div>
                       ) : null}
+                    </div>
+                  ) : stored.isPsbt && stored.psbtBase64 ? (
+                    <div className="space-y-0.5">
+                      {addrData?.name && (
+                        <div className="text-gray-400">{addrData.name}</div>
+                      )}
+                      <PsbtEditableOutputAddress
+                        psbtBase64={stored.psbtBase64}
+                        outputIndex={i}
+                        address={addr ?? ''}
+                        addressColor={addrData?.color}
+                        onPsbtUpdated={handlePsbtDerivationUpdated}
+                        onError={addError}
+                        onAddressClick={handleAddressClick}
+                      />
                     </div>
                   ) : addr ? (
                     <div className="space-y-0.5">

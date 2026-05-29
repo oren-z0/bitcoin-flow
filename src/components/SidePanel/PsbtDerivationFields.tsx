@@ -4,10 +4,14 @@ import {
   PSBT_OUTPUT_SCRIPT_TYPES,
   PSBT_SCRIPT_TYPE_LABELS,
   addressFromPubkeyAndScriptKind,
+  canPersistPsbtIoDerivation,
   readPsbtIoDerivation,
   readPsbtIoPubkey,
   readPsbtIoScriptType,
   updatePsbtIoDerivation,
+  validateFingerprintField,
+  validatePathField,
+  validatePubkeyField,
   type PsbtScriptKind,
 } from '../../utils/psbt';
 
@@ -16,6 +20,8 @@ const fieldClass =
 
 const selectClass =
   'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-gray-500 cursor-pointer';
+
+type DerivationField = 'fingerprint' | 'path' | 'pubkey';
 
 interface Props {
   psbtBase64: string;
@@ -44,6 +50,17 @@ function scriptTypeOptions(
   return [current, ...base];
 }
 
+function fieldValidationError(
+  field: DerivationField,
+  fingerprint: string,
+  path: string,
+  pubkey: string
+): string | null {
+  if (field === 'fingerprint') return validateFingerprintField(fingerprint);
+  if (field === 'path') return validatePathField(path, fingerprint);
+  return validatePubkeyField(pubkey);
+}
+
 export default function PsbtDerivationFields({
   psbtBase64,
   kind,
@@ -67,6 +84,7 @@ export default function PsbtDerivationFields({
   const [pubkey, setPubkey] = useState(initialPubkey);
   const [scriptType, setScriptType] = useState<PsbtScriptKind>(initialScriptType);
 
+  const draftTouchedRef = useRef(false);
   const stickyFingerprintIoRef = useRef<string | null>(null);
   const ioKey = `${transactionKey ?? ''}:${kind}:${index}`;
 
@@ -77,6 +95,7 @@ export default function PsbtDerivationFields({
 
   useEffect(() => {
     stickyFingerprintIoRef.current = null;
+    draftTouchedRef.current = false;
   }, [transactionKey]);
 
   useEffect(() => {
@@ -84,18 +103,23 @@ export default function PsbtDerivationFields({
     const nextPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
     const nextScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
 
-    setPath(next.path);
-    setPubkey(nextPubkey);
     setScriptType(nextScriptType);
     onScriptTypeChange?.(nextScriptType);
 
     if (preservedFingerprint !== undefined) {
+      draftTouchedRef.current = true;
       setFingerprint(preservedFingerprint);
       setPath('');
+      setPubkey(nextPubkey);
       stickyFingerprintIoRef.current = ioKey;
       onPreserveApplied?.();
       return;
     }
+
+    if (draftTouchedRef.current) return;
+
+    setPath(next.path);
+    setPubkey(nextPubkey);
 
     if (next.fingerprint) {
       stickyFingerprintIoRef.current = null;
@@ -136,6 +160,20 @@ export default function PsbtDerivationFields({
       return;
     }
 
+    if (
+      !canPersistPsbtIoDerivation(
+        psbtBase64,
+        kind,
+        index,
+        nextFingerprint,
+        nextPath,
+        nextPubkey.trim() || undefined,
+        scriptTypeForSave
+      )
+    ) {
+      return;
+    }
+
     try {
       const updated = updatePsbtIoDerivation(
         psbtBase64,
@@ -147,18 +185,29 @@ export default function PsbtDerivationFields({
         scriptTypeForSave
       );
       onPsbtUpdated(updated);
+      draftTouchedRef.current = false;
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Failed to update PSBT');
-      setFingerprint(current.fingerprint);
-      setPath(current.path);
-      setPubkey(currentPubkey);
-      setScriptType(currentScriptType);
     }
+  };
+
+  const commitOnBlur = (field: DerivationField) => {
+    const err = fieldValidationError(field, fingerprint, path, pubkey);
+    if (err) {
+      onError(err);
+      return;
+    }
+    commit();
+  };
+
+  const markDraftTouched = () => {
+    draftTouchedRef.current = true;
   };
 
   const handleScriptTypeChange = (next: PsbtScriptKind) => {
     setScriptType(next);
     onScriptTypeChange?.(next);
+    markDraftTouched();
     if (next === 'op_return' || pubkey.trim()) {
       commit({ scriptType: next });
     }
@@ -177,6 +226,15 @@ export default function PsbtDerivationFields({
     if (derived.toLowerCase() === parentOutputAddress.toLowerCase()) return null;
     return `Address derived from public key (${derived}) is different from the previous transaction output address (${parentOutputAddress}).`;
   }, [kind, pubkey, scriptType, parentOutputAddress]);
+
+  const blurEnterProps = (field: DerivationField) => ({
+    onBlur: () => commitOnBlur(field),
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.currentTarget.blur();
+      }
+    },
+  });
 
   return (
     <div className="space-y-1.5 pt-1.5 border-t border-gray-600">
@@ -212,13 +270,11 @@ export default function PsbtDerivationFields({
               className={fieldClass}
               value={fingerprint}
               placeholder="8 hex chars"
-              onChange={(e) => setFingerprint(e.target.value)}
-              onBlur={() => commit()}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                }
+              onChange={(e) => {
+                markDraftTouched();
+                setFingerprint(e.target.value);
               }}
+              {...blurEnterProps('fingerprint')}
             />
           </div>
           <div>
@@ -228,13 +284,11 @@ export default function PsbtDerivationFields({
               className={fieldClass}
               value={path}
               placeholder="i.e. m/0h/0/0"
-              onChange={(e) => setPath(e.target.value)}
-              onBlur={() => commit()}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                }
+              onChange={(e) => {
+                markDraftTouched();
+                setPath(e.target.value);
               }}
+              {...blurEnterProps('path')}
             />
           </div>
           <div>
@@ -244,13 +298,11 @@ export default function PsbtDerivationFields({
               className={fieldClass}
               value={pubkey}
               placeholder="33-byte compressed pubkey (hex)"
-              onChange={(e) => setPubkey(e.target.value)}
-              onBlur={() => commit()}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                }
+              onChange={(e) => {
+                markDraftTouched();
+                setPubkey(e.target.value);
               }}
+              {...blurEnterProps('pubkey')}
             />
             {pubkeyParentAddressMismatch && (
               <p className="text-sm text-red-400 mt-1 break-all">

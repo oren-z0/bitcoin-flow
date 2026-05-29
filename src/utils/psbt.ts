@@ -648,6 +648,86 @@ export function parsePubkeyHex(input: string): Uint8Array {
   return hex.decode(s);
 }
 
+/** Non-empty invalid values return an error message; empty is allowed. */
+export function validateFingerprintField(input: string): string | null {
+  const s = input.trim().replace(/^0x/i, '');
+  if (!s) return null;
+  if (!/^[0-9a-f]{8}$/i.test(s)) {
+    return 'Master fingerprint must be 4 bytes (8 hex characters)';
+  }
+  return null;
+}
+
+/** Non-empty invalid values return an error message; empty is allowed. */
+export function validatePathField(input: string, fingerprintHex: string): string | null {
+  const t = input.trim();
+  if (!t) return null;
+  try {
+    parsePathInput(t);
+  } catch (e) {
+    return e instanceof Error ? e.message : 'Invalid derivation path';
+  }
+  const fp = fingerprintHex.trim().replace(/^0x/i, '');
+  if (!fp) return 'Master fingerprint is required when a derivation path is set';
+  return validateFingerprintField(fingerprintHex);
+}
+
+/** Non-empty invalid values return an error message; empty is allowed. */
+export function validatePubkeyField(input: string): string | null {
+  const s = input.trim().replace(/^0x/i, '');
+  if (!s) return null;
+  if (!/^[0-9a-f]{64}$|^[0-9a-f]{66}$/i.test(s)) {
+    return 'Public key must be 32 or 33 bytes (64 or 66 hex characters)';
+  }
+  return null;
+}
+
+/** Whether `updatePsbtIoDerivation` can run without throwing for these draft values. */
+export function canPersistPsbtIoDerivation(
+  psbtBase64: string,
+  kind: 'input' | 'output',
+  index: number,
+  fingerprintHex: string,
+  pathStr: string,
+  pubkeyHex?: string,
+  scriptType?: PsbtScriptKind
+): boolean {
+  if (validateFingerprintField(fingerprintHex)) return false;
+  if (validatePathField(pathStr, fingerprintHex)) return false;
+  if (validatePubkeyField(pubkeyHex ?? '')) return false;
+
+  try {
+    const tx = openPsbtForEdit(psbtBase64);
+    const isInput = kind === 'input';
+    const io = isInput ? tx.getInput(index) : tx.getOutput(index);
+    const currentKind = readScriptKindFromScript(getIoScript(io, isInput));
+    const targetKind = scriptType ?? currentKind;
+    const trimmedPubkey = pubkeyHex?.trim() ?? '';
+
+    if (targetKind !== currentKind) {
+      if (!isEditableScriptKind(targetKind)) return false;
+      if (isInput && targetKind === 'op_return') return false;
+      if (targetKind !== 'op_return' && !trimmedPubkey && !resolvePubkeyForDerivation(io, isInput)) {
+        return false;
+      }
+    }
+
+    const path = parsePathInput(pathStr);
+    const fingerprint = parseFingerprintHex(fingerprintHex);
+
+    if (fingerprint !== undefined || path.length > 0) {
+      const pubkey = trimmedPubkey
+        ? parsePubkeyHex(trimmedPubkey)
+        : resolvePubkeyForDerivation(io, isInput);
+      if (!pubkey) return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function normalizePathInput(path: string): string {
   const t = path.trim();
   if (!t) return '';

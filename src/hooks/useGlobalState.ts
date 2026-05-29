@@ -4,6 +4,7 @@ import { fetchTransaction, fetchOutspends } from '../api/mempool';
 import { computeLayout } from '../utils/layout';
 import { sortTxids } from '../utils/sorting';
 import {
+  createNewPsbtV2Base64,
   enrichPrevoutsFromGraph,
   parsePsbtBase64,
   normalizePsbtBase64,
@@ -51,6 +52,7 @@ interface GlobalStore {
   // Actions
   addTransaction: (txid: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => Promise<void>;
   addPsbt: (base64: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => Promise<void>;
+  createPsbt: () => Promise<void>;
   addTransactions: (txids: string[]) => Promise<void>;
   removeTransaction: (txid: string) => void;
   updateTransaction: (txid: string, patch: Partial<Pick<StoredTransaction, 'name' | 'color' | 'coordinates'>>) => void;
@@ -412,6 +414,16 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       if (!noSelect) {
         get().setSelectedTxid(nodeId);
       }
+    }
+  },
+
+  createPsbt: async () => {
+    try {
+      const base64 = createNewPsbtV2Base64(Object.keys(get().transactions));
+      await get().addPsbt(base64);
+    } catch (e) {
+      get().addError(e instanceof Error ? e.message : 'Failed to create PSBT');
+      console.error('Failed to create PSBT', e);
     }
   },
 

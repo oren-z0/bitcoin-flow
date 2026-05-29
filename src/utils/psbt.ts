@@ -1128,6 +1128,47 @@ export function readPsbtVersion(psbtBase64: string): number {
   return global.version ?? 0;
 }
 
+type PsbtGlobalFields = { version?: number; txVersion?: number };
+
+function buildBlankPsbtV2Transaction(opReturnPayload?: Uint8Array): Transaction {
+  const tx = new Transaction({ version: 2, allowUnknownOutputs: true });
+  const mutable = tx as unknown as { global: PsbtGlobalFields };
+  mutable.global = { ...mutable.global, version: 2, txVersion: 2 };
+  if (opReturnPayload !== undefined) {
+    const script = encodeOpReturnScript(opReturnPayload);
+    tx.addOutput({ script, amount: 0n }, true);
+  }
+  return tx;
+}
+
+/**
+ * New PSBT v2 with no inputs. If `existingGraphNodeIds` already contains the
+ * resulting graph node id, adds an OP_RETURN whose payload is 0x00, then 0x01, …
+ */
+export function createNewPsbtV2Base64(existingGraphNodeIds: Iterable<string>): string {
+  const taken = new Set(existingGraphNodeIds);
+
+  const tryEncode = (opReturnPayload?: Uint8Array): string => {
+    const tx = buildBlankPsbtV2Transaction(opReturnPayload);
+    return normalizePsbtBase64(base64.encode(tx.toPSBT()));
+  };
+
+  const isTaken = (normalized: string): boolean => {
+    const { nodeId } = parsePsbtBase64(normalized);
+    return taken.has(nodeId);
+  };
+
+  const empty = tryEncode();
+  if (!isTaken(empty)) return empty;
+
+  for (let byte = 0; byte <= 0xff; byte++) {
+    const candidate = tryEncode(new Uint8Array([byte]));
+    if (!isTaken(candidate)) return candidate;
+  }
+
+  throw new Error('Could not create a unique PSBT (too many similar transactions on the graph)');
+}
+
 const PSBT_EDIT_OPTS = { allowUnknownOutputs: true };
 
 function openPsbtForEdit(psbtBase64: string): Transaction {

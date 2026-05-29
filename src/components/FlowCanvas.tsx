@@ -135,6 +135,7 @@ export default function FlowCanvas() {
     setAutoLayout,
     addTransaction,
     addTransactions,
+    createPsbt,
   } = useGlobalState();
 
   const { setCenter, getViewport, fitView } = useReactFlow();
@@ -346,6 +347,15 @@ export default function FlowCanvas() {
       nodesConnectable={false}
     >
       <Background color="#374151" gap={20} />
+      <Panel position="top-right" className="!m-3">
+        <button
+          type="button"
+          className="text-xs bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-200 px-3 py-1.5 rounded shadow cursor-pointer"
+          onClick={() => void createPsbt()}
+        >
+          Create PSBT
+        </button>
+      </Panel>
       {Object.keys(transactions).length === 0 && (
         <Panel position="top-center" style={{ top: '50%', transform: 'translate(-50%, -50%)' }}>
           <div className="text-center text-gray-500 select-none">

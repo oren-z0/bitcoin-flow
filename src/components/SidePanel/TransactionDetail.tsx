@@ -328,7 +328,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => nonCoinbaseVins.filter(vin => !!transactions[vin.txid]).forEach(vin => removeTransaction(vin.txid))}
                 >
-                  Remove All Transactions
+                  Remove All Input Transactions
                 </button>
               )}
             </div>
@@ -442,7 +442,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => spendingTxids.filter(txid => !!transactions[txid]).forEach(txid => removeTransaction(txid))}
                 >
-                  Remove All Transactions
+                  Remove All Output Transactions
                 </button>
               )}
             </div>

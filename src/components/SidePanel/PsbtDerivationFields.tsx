@@ -119,11 +119,18 @@ export default function PsbtDerivationFields({
     const currentPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
     const currentScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
 
+    const scriptTypeForSave =
+      nextScriptType !== currentScriptType &&
+      nextScriptType !== 'op_return' &&
+      !nextPubkey.trim()
+        ? currentScriptType
+        : nextScriptType;
+
     if (
       nextFingerprint === current.fingerprint &&
       nextPath === current.path &&
       nextPubkey === currentPubkey &&
-      nextScriptType === currentScriptType
+      scriptTypeForSave === currentScriptType
     ) {
       return;
     }
@@ -136,7 +143,7 @@ export default function PsbtDerivationFields({
         nextFingerprint,
         nextPath,
         nextPubkey.trim() || undefined,
-        nextScriptType
+        scriptTypeForSave
       );
       onPsbtUpdated(updated);
     } catch (e) {
@@ -150,7 +157,9 @@ export default function PsbtDerivationFields({
 
   const handleScriptTypeChange = (next: PsbtScriptKind) => {
     setScriptType(next);
-    commit({ scriptType: next });
+    if (next === 'op_return' || pubkey.trim()) {
+      commit({ scriptType: next });
+    }
   };
 
   const pubkeyParentAddressMismatch = useMemo(() => {

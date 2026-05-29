@@ -938,6 +938,31 @@ function applyScriptToIo(
   }
 }
 
+function scriptToAddress(script: Uint8Array | undefined): string | undefined {
+  if (!script?.length || script[0] === 0x6a) return undefined;
+  try {
+    const decoded = OutScript.decode(script);
+    return addrCodec.encode(decoded as Parameters<typeof addrCodec.encode>[0]);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Address for a pubkey under an editable script type (wpkh, pkh, tr). */
+export function addressFromPubkeyAndScriptKind(
+  pubkeyHex: string,
+  kind: PsbtScriptKind
+): string | null {
+  try {
+    const trimmed = pubkeyHex.trim();
+    if (!trimmed || !isEditableScriptKind(kind) || kind === 'op_return') return null;
+    const script = scriptBytesForKind(kind, parsePubkeyHex(trimmed));
+    return scriptToAddress(script) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Re-encode script from a pubkey for a given script kind (wpkh, pkh, tr, pk). */
 function outputScriptFromPubkey(
   currentScript: Uint8Array | undefined,
@@ -961,8 +986,7 @@ export function addressFromOutputPubkey(
     const pubkey = parsePubkeyHex(pubkeyHex);
     const script = outputScriptFromPubkey(currentScript, pubkey);
     if (!script) return null;
-    const decoded = OutScript.decode(script);
-    return addrCodec.encode(decoded as Parameters<typeof addrCodec.encode>[0]);
+    return scriptToAddress(script) ?? null;
   } catch {
     return null;
   }

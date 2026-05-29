@@ -9,6 +9,7 @@ import {
   isKnownTxid,
   removePsbtInput,
   removePsbtOutput,
+  resolveParentNodeId,
 } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import PsbtDerivationFields from './PsbtDerivationFields';
@@ -433,6 +434,13 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                 !vin.is_coinbase && vin.txid ? `${vinTxBase} : ${vin.vout}` : vinTxBase;
 
               const vinInState = !!transactions[vin.txid];
+              const parentNodeId =
+                vin.txid && !vin.is_coinbase
+                  ? resolveParentNodeId(transactions, vin.txid)
+                  : undefined;
+              const parentOutputAddress = parentNodeId
+                ? transactions[parentNodeId]?.data.vout[vin.vout]?.scriptpubkey_address
+                : undefined;
 
               return (
                 <div key={i} className="relative bg-gray-700 rounded p-2 pr-8 text-xs space-y-1">
@@ -508,6 +516,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       kind="input"
                       index={i}
                       transactionKey={selectedTxid}
+                      parentOutputAddress={parentOutputAddress}
                       onPsbtUpdated={handlePsbtDerivationUpdated}
                       onError={addError}
                     />

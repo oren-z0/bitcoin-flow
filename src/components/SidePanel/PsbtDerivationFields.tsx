@@ -3,6 +3,7 @@ import {
   PSBT_INPUT_SCRIPT_TYPES,
   PSBT_OUTPUT_SCRIPT_TYPES,
   PSBT_SCRIPT_TYPE_LABELS,
+  addressFromPubkeyAndScriptKind,
   readPsbtIoDerivation,
   readPsbtIoPubkey,
   readPsbtIoScriptType,
@@ -28,6 +29,8 @@ interface Props {
   /** Set after an output address edit so the fingerprint field stays while path/pubkey clear. */
   preservedFingerprint?: string;
   onPreserveApplied?: () => void;
+  /** Parent tx output address when the previous transaction/PSBT is on the graph. */
+  parentOutputAddress?: string;
   onPsbtUpdated: (newBase64: string) => void;
   onError: (message: string) => void;
 }
@@ -50,6 +53,7 @@ export default function PsbtDerivationFields({
   transactionKey,
   preservedFingerprint,
   onPreserveApplied,
+  parentOutputAddress,
   onPsbtUpdated,
   onError,
 }: Props) {
@@ -149,6 +153,18 @@ export default function PsbtDerivationFields({
     commit({ scriptType: next });
   };
 
+  const pubkeyParentAddressMismatch = useMemo(() => {
+    if (kind !== 'input' || !parentOutputAddress) return null;
+    const trimmed = pubkey.trim();
+    if (!trimmed) return null;
+
+    const derived = addressFromPubkeyAndScriptKind(trimmed, scriptType);
+    if (!derived) return null;
+
+    if (derived.toLowerCase() === parentOutputAddress.toLowerCase()) return null;
+    return `Address derived from public key (${derived}) is different from the previous transaction output address (${parentOutputAddress}).`;
+  }, [kind, pubkey, scriptType, parentOutputAddress]);
+
   return (
     <div className="space-y-1.5 pt-1.5 border-t border-gray-600">
       <div>
@@ -223,6 +239,11 @@ export default function PsbtDerivationFields({
                 }
               }}
             />
+            {pubkeyParentAddressMismatch && (
+              <p className="text-[10px] text-red-400 mt-0.5 break-all">
+                {pubkeyParentAddressMismatch}
+              </p>
+            )}
           </div>
         </>
       )}

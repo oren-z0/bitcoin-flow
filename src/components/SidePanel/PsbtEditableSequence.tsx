@@ -27,17 +27,13 @@ export default function PsbtEditableSequence({
   onError,
 }: Props) {
   const fieldKey = `${psbtBase64}:${inputIndex}`;
-  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(() => formatSequenceHex(sequence));
 
   useEffect(() => {
-    if (!editing) {
-      setDraft(formatSequenceHex(sequence));
-    }
-  }, [fieldKey, sequence, editing]);
+    setDraft(formatSequenceHex(sequence));
+  }, [fieldKey, sequence]);
 
   const commit = () => {
-    setEditing(false);
     const currentHex = formatSequenceHex(sequence);
     if (draft.trim() === currentHex) return;
 
@@ -51,17 +47,18 @@ export default function PsbtEditableSequence({
     }
   };
 
-  const suffix = inputSequenceHintSuffix(txVersion, sequence);
+  const hintSuffix = inputSequenceHintSuffix(txVersion, sequence).trim();
 
-  if (editing) {
-    return (
-      <span>
-        Sequence:{' '}
+  return (
+    <div className="text-gray-400 font-mono">
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+        <span>Sequence:</span>
         <input
           type="text"
           className={fieldClass}
           value={draft}
-          autoFocus
+          spellCheck={false}
+          aria-label={`Input ${inputIndex} sequence`}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
@@ -70,29 +67,12 @@ export default function PsbtEditableSequence({
             }
             if (e.key === 'Escape') {
               setDraft(formatSequenceHex(sequence));
-              setEditing(false);
+              e.currentTarget.blur();
             }
           }}
         />
-        {suffix}
-      </span>
-    );
-  }
-
-  return (
-    <span>
-      Sequence:{' '}
-      <button
-        type="button"
-        className="text-gray-300 hover:text-white underline decoration-dotted underline-offset-2 cursor-pointer font-mono"
-        onClick={() => {
-          setDraft(formatSequenceHex(sequence));
-          setEditing(true);
-        }}
-      >
-        {formatSequenceHex(sequence)}
-      </button>
-      {suffix}
-    </span>
+      </div>
+      {hintSuffix ? <div className="mt-0.5 text-gray-500">{hintSuffix}</div> : null}
+    </div>
   );
 }

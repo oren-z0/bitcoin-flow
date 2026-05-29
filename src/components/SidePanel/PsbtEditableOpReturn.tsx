@@ -57,22 +57,36 @@ export default function PsbtEditableOpReturn({
     setDraft(opReturnDraftFromBytes(bytes, next));
   };
 
+  const revertToSaved = () => {
+    const currentBytes = opReturnPayloadBytes(scriptpubkey);
+    setDraft(opReturnDraftFromBytes(currentBytes, mode));
+  };
+
   const commit = () => {
     const currentBytes = opReturnPayloadBytes(scriptpubkey);
-    const draftBytes = parseOpReturnEditDraft(draft, mode);
+
+    let draftBytes: Uint8Array;
+    try {
+      draftBytes = parseOpReturnEditDraft(draft, mode);
+    } catch (e) {
+      if (mode === 'hex') {
+        onError(e instanceof Error ? e.message : 'Invalid hex payload');
+        revertToSaved();
+      }
+      return;
+    }
+
     if (payloadsEqual(draftBytes, currentBytes)) return;
 
     try {
       onPsbtUpdated(updatePsbtOpReturnPayload(psbtBase64, outputIndex, draft, mode));
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Invalid OP_RETURN data');
-      setDraft(opReturnDraftFromBytes(currentBytes, mode));
+      revertToSaved();
     }
   };
 
-  const resetDraft = () => {
-    setDraft(opReturnDraftFromBytes(opReturnPayloadBytes(scriptpubkey), mode));
-  };
+  const resetDraft = revertToSaved;
 
   return (
     <div className="space-y-1">
@@ -98,11 +112,15 @@ export default function PsbtEditableOpReturn({
         className={`${fieldClass} min-h-[3rem] resize-y`}
         value={draft}
         spellCheck={mode === 'text'}
-        placeholder={mode === 'text' ? 'UTF-8 text (max 80 bytes)' : 'Hex (max 80 bytes)'}
+        placeholder={mode === 'text' ? 'UTF-8 text' : 'Hex'}
         aria-label={`Output ${outputIndex} OP_RETURN data (${mode})`}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
           if (e.key === 'Escape') {
             resetDraft();
             e.currentTarget.blur();

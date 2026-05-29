@@ -115,11 +115,6 @@ export function parseOpReturnEditDraft(draft: string, mode: OpReturnEditMode): U
 
 /** Build `OP_RETURN <pushdata> payload` script bytes. */
 export function encodeOpReturnScript(payload: Uint8Array): Uint8Array {
-  const MAX_STANDARD = 80;
-  if (payload.length > MAX_STANDARD) {
-    throw new Error(`OP_RETURN payload cannot exceed ${MAX_STANDARD} bytes`);
-  }
-
   const script: number[] = [0x6a];
   let offset = 0;
 

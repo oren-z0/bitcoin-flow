@@ -49,7 +49,9 @@ export function getSpendingTxidsForOutput(
 
   for (const [childTxid, child] of Object.entries(transactions)) {
     for (const vin of child.data.vin) {
-      if (!vin.is_coinbase && vin.txid === parentTxid && vin.vout === voutIdx) {
+      if (vin.is_coinbase || !vin.txid) continue;
+      const parentKey = resolveParentNodeId(transactions, vin.txid);
+      if (parentKey === parentTxid && vin.vout === voutIdx) {
         txids.add(childTxid);
       }
     }

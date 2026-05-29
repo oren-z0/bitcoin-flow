@@ -2,6 +2,7 @@ import type { MempoolVin, MempoolVout, StoredAddress, HandleDescriptor, AddressG
 import { truncateAddress } from './formatting';
 import { getEffectiveName } from './addressDisplay';
 import { getSpendingTxidsForOutput } from './graphConnections';
+import { voutScriptpubkeyHex } from './psbt';
 
 const MAX_HANDLES = 8;
 
@@ -366,7 +367,14 @@ export function computeOutputHandles(
       : getDisplayLabel(vout.scriptpubkey_address, addresses, groupMap),
     amount: vout.value,
     addresses: vout.scriptpubkey_address ? [vout.scriptpubkey_address] : [],
-    txids: mempoolSpendingTxids(outspends, i),
+    txids: isPsbt
+      ? getSpendingTxidsForOutput(
+          parentTxid,
+          i,
+          transactions,
+          outspends[i]?.spent ? outspends[i].txid : undefined
+        ).filter(t => loadedTxids.has(t))
+      : mempoolSpendingTxids(outspends, i),
     voutIndices: [i],
     isOpReturn: vout.scriptpubkey_type === 'op_return',
   });
@@ -461,6 +469,20 @@ export function resolvePsbtInputInsertIndexFromHandle(
 /**
  * Index at which to insert a new PSBT output when a connection lands on `targetHandleId`.
  */
+/** Target handle id for dropping a UTXO onto a PSBT output row (insert after that row). */
+export function psbtOutputDropTargetHandleId(outputHandleId: string): string {
+  return `${outputHandleId}-in`;
+}
+
+/** Strip `-in` suffix from a PSBT output drop target handle. */
+export function psbtOutputHandleIdFromDropTarget(targetHandleId: string): string {
+  return targetHandleId.endsWith('-in') ? targetHandleId.slice(0, -3) : targetHandleId;
+}
+
+export function isPsbtOutputDropTargetHandleId(handleId: string | null | undefined): boolean {
+  return !!handleId && /^out-.+-in$/.test(handleId);
+}
+
 export function resolvePsbtOutputInsertIndexFromHandle(
   targetHandleId: string,
   stored: StoredTransaction,
@@ -468,7 +490,8 @@ export function resolvePsbtOutputInsertIndexFromHandle(
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup>
 ): number {
-  if (targetHandleId === 'out-drop') return 0;
+  const outputHandleId = psbtOutputHandleIdFromDropTarget(targetHandleId);
+  if (outputHandleId === 'out-drop') return 0;
 
   const loadedTxids = new Set(Object.keys(transactions));
   const handles = computeOutputHandles(
@@ -481,14 +504,14 @@ export function resolvePsbtOutputInsertIndexFromHandle(
     loadedTxids,
     true
   );
-  const handle = handles.find(h => h.id === targetHandleId);
+  const handle = handles.find(h => h.id === outputHandleId);
   if (handle) {
     if (handle.isDropPlaceholder) return 0;
     const indices = handle.voutIndices ?? [];
     if (indices.length > 0) return Math.max(...indices) + 1;
   }
 
-  const m = /^out-(\d+)$/.exec(targetHandleId);
+  const m = /^out-(\d+)$/.exec(outputHandleId);
   if (m) return Number(m[1]) + 1;
 
   return stored.data.vout.length;
@@ -498,15 +521,47 @@ export function isPsbtInputHandleId(handleId: string | null | undefined): boolea
   return !!handleId && /^in-/.test(handleId);
 }
 
+/** Source output handle id (excludes `-in` drop targets). */
 export function isPsbtOutputHandleId(handleId: string | null | undefined): boolean {
-  return !!handleId && /^out-/.test(handleId);
+  return !!handleId && /^out-/.test(handleId) && !handleId.endsWith('-in');
 }
 
 export function isOutputHandleId(handleId: string | null | undefined): boolean {
-  return !!handleId && /^out-/.test(handleId);
+  return !!handleId && /^out-/.test(handleId) && !handleId.endsWith('-in');
 }
 
-/** Unspent output (green handle) — same rule as mempool outspend, not OP_RETURN. */
+/** PSBT payment output not yet spent by a child on the graph. */
+export function isPsbtOutputSpendable(
+  nodeId: string,
+  handleId: string,
+  stored: StoredTransaction,
+  transactions: Record<string, StoredTransaction>,
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>
+): boolean {
+  if (!stored.isPsbt) return false;
+  const voutIdx = resolveOutputVoutIndexFromHandle(
+    nodeId,
+    handleId,
+    stored,
+    transactions,
+    addresses,
+    groupMap
+  );
+  if (voutIdx === null) return false;
+  const vout = stored.data.vout[voutIdx];
+  if (!vout || vout.scriptpubkey_type === 'op_return' || !voutScriptpubkeyHex(vout)) {
+    return false;
+  }
+  return getSpendingTxidsForOutput(
+    nodeId,
+    voutIdx,
+    transactions,
+    stored.outspends[voutIdx]?.spent ? stored.outspends[voutIdx].txid : undefined
+  ).filter(t => t in transactions).length === 0;
+}
+
+/** Unspent output (green handle) — mempool outspend or unspent PSBT output on the graph. */
 export function isUtxoOutputHandle(
   nodeId: string,
   handleId: string,
@@ -515,6 +570,17 @@ export function isUtxoOutputHandle(
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup>
 ): boolean {
+  if (stored.isPsbt) {
+    return isPsbtOutputSpendable(
+      nodeId,
+      handleId,
+      stored,
+      transactions,
+      addresses,
+      groupMap
+    );
+  }
+
   const voutIdx = resolveOutputVoutIndexFromHandle(
     nodeId,
     handleId,

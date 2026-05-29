@@ -63,6 +63,14 @@ html, body, #root {
   right: -12px !important;
 }
 
+.react-flow__handle.psbt-connect-handle.react-flow__handle-right.react-flow__handle-source {
+  z-index: 12;
+}
+
+.react-flow__handle.psbt-connect-handle.react-flow__handle-right.react-flow__handle-target {
+  z-index: 8;
+}
+
 .react-flow__handle.psbt-connect-handle.react-flow__handle-left {
   left: -12px !important;
 }

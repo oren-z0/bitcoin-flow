@@ -22,7 +22,7 @@ import { connectWouldCreateCycle } from '../utils/graphConnections';
 import {
   isOutputHandleId,
   isPsbtInputHandleId,
-  isPsbtOutputHandleId,
+  isPsbtOutputDropTargetHandleId,
   isUtxoOutputHandle,
   resolveOutputVoutIndexFromHandle,
   resolvePsbtInputInsertIndexFromHandle,
@@ -1002,7 +1002,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const source = transactions[sourceNodeId];
     if (!source) return;
 
-    if (!isOutputHandleId(sourceHandleId) || !isPsbtOutputHandleId(targetHandleId)) {
+    if (!isOutputHandleId(sourceHandleId) || !isPsbtOutputDropTargetHandleId(targetHandleId)) {
       get().addError('Drag from an output handle to a PSBT output handle');
       return;
     }

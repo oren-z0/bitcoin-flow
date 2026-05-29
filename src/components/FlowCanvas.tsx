@@ -17,7 +17,7 @@ import ReactFlow, {
 import {
   isOutputHandleId,
   isPsbtInputHandleId,
-  isPsbtOutputHandleId,
+  isPsbtOutputDropTargetHandleId,
   isUtxoOutputHandle,
 } from '../utils/handleGrouping';
 import 'reactflow/dist/style.css';
@@ -321,7 +321,7 @@ export default function FlowCanvas() {
     const { source, target, sourceHandle, targetHandle } = connection;
     if (!source || !target || !sourceHandle || !targetHandle) return false;
     if (!isOutputHandleId(sourceHandle)) return false;
-    if (!isPsbtInputHandleId(targetHandle) && !isPsbtOutputHandleId(targetHandle)) {
+    if (!isPsbtInputHandleId(targetHandle) && !isPsbtOutputDropTargetHandleId(targetHandle)) {
       return false;
     }
 
@@ -344,7 +344,7 @@ export default function FlowCanvas() {
     (connection: Connection) => {
       const { source, target, sourceHandle, targetHandle } = connection;
       if (!source || !target || !sourceHandle || !targetHandle) return;
-      if (isPsbtOutputHandleId(targetHandle)) {
+      if (isPsbtOutputDropTargetHandleId(targetHandle)) {
         connectPsbtOutputFromOutput(source, sourceHandle, target, targetHandle);
       } else {
         connectPsbtInputFromOutput(source, sourceHandle, target, targetHandle);

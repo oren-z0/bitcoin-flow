@@ -1,7 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { useGlobalState } from '../hooks/useGlobalState';
-import { computeInputHandles, computeOutputHandles } from '../utils/handleGrouping';
+import {
+  computeInputHandles,
+  computeOutputHandles,
+  isPsbtOutputSpendable,
+  psbtOutputDropTargetHandleId,
+} from '../utils/handleGrouping';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc, truncateTxid, formatFee, formatTimestamp } from '../utils/formatting';
 import { inputHasRelativeLocktime, showsAbsoluteLocktime } from '../utils/sequence';
@@ -328,14 +333,26 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
 
           <div className="flex flex-col gap-1 flex-1 min-w-0">
             {outputHandles.map((handle) => {
-              const isPsbtOutputConnect =
-                isPsbt && !handle.isOpReturn;
-              const isUtxo = isUtxoOutputHandleDescriptor(handle, outspends);
+              const isPsbtPaymentOutput = isPsbt && !handle.isOpReturn;
+              const isPsbtSpendable =
+                isPsbtPaymentOutput &&
+                isPsbtOutputSpendable(
+                  txid,
+                  handle.id,
+                  stored,
+                  transactions,
+                  addresses,
+                  groupMap
+                );
+              const isUtxo =
+                !isPsbt &&
+                isUtxoOutputHandleDescriptor(handle, outspends);
               const isSpent =
                 !handle.isOpReturn &&
                 (handle.voutIndices?.length ?? 0) === 1 &&
                 handle.txids.length > 0;
               const dotColor = outputDotColor(handle);
+              const dropTargetId = psbtOutputDropTargetHandleId(handle.id);
 
               return (
                 <div
@@ -354,20 +371,57 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                       onLabelClick={handleAddressLabelClick}
                     />
                   )}
-                  {isPsbtOutputConnect ? (
+                  {isPsbtPaymentOutput ? (
                     <>
+                      {isPsbtSpendable ? (
+                        <>
+                          <Handle
+                            type="source"
+                            position={Position.Right}
+                            id={handle.id}
+                            isConnectable
+                            isConnectableStart
+                            className="psbt-connect-handle nodrag"
+                            style={{ top: '40%' }}
+                          />
+                          <div
+                            className="shrink-0 rounded-full mr-[-5px]"
+                            style={{ ...HANDLE_DOT_STYLE, background: COLOR_GREEN }}
+                          />
+                        </>
+                      ) : isSpent ? (
+                        <Handle
+                          type="source"
+                          position={Position.Right}
+                          id={handle.id}
+                          isConnectable={false}
+                          className="handle-inline nodrag"
+                          style={{ ...HANDLE_DOT_STYLE, background: dotColor }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOutputHandleClick(handle);
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className="shrink-0 rounded-full mr-[-5px]"
+                          style={{
+                            ...HANDLE_DOT_STYLE,
+                            background: handle.isDropPlaceholder ? COLOR_GRAY : dotColor,
+                          }}
+                        />
+                      )}
                       <Handle
                         type="target"
                         position={Position.Right}
-                        id={handle.id}
+                        id={dropTargetId}
                         isConnectable
                         isConnectableEnd
                         className="psbt-connect-handle nodrag"
-                        style={{ top: '50%' }}
-                      />
-                      <div
-                        className="shrink-0 rounded-full mr-[-5px]"
-                        style={{ ...HANDLE_DOT_STYLE, background: COLOR_GRAY }}
+                        style={{
+                          top: isPsbtSpendable ? '70%' : '50%',
+                          right: handle.isDropPlaceholder ? -12 : -20,
+                        }}
                       />
                     </>
                   ) : isUtxo ? (

@@ -1293,6 +1293,18 @@ function moveLastPsbtIoToIndex(
   list.splice(at, 0, item);
 }
 
+/** Hex script for spending a vout (from PSBT/mempool fields or encoded from address). */
+export function voutScriptpubkeyHex(vout: MempoolVout): string | undefined {
+  if (vout.scriptpubkey?.length) return vout.scriptpubkey;
+  if (!vout.scriptpubkey_address) return undefined;
+  try {
+    const decoded = Address(NETWORK).decode(vout.scriptpubkey_address);
+    return bytesToHex(OutScript.encode(decoded as Parameters<typeof OutScript.encode>[0]));
+  } catch {
+    return undefined;
+  }
+}
+
 export function addPsbtInputFromPrevout(
   psbtBase64: string,
   parentNodeId: string,
@@ -1300,11 +1312,13 @@ export function addPsbtInputFromPrevout(
   parentVout: MempoolVout,
   insertAtIndex?: number
 ): string {
-  if (!parentVout.scriptpubkey?.length) {
-    throw new Error('Parent output has no script');
-  }
   if (parentVout.scriptpubkey_type === 'op_return') {
     throw new Error('Cannot spend OP_RETURN as an input');
+  }
+
+  const scriptHex = voutScriptpubkeyHex(parentVout);
+  if (!scriptHex) {
+    throw new Error('Parent output has no script');
   }
 
   const tx = openPsbtForEdit(psbtBase64);
@@ -1320,7 +1334,7 @@ export function addPsbtInputFromPrevout(
     }
   }
 
-  const script = hex.decode(parentVout.scriptpubkey);
+  const script = hex.decode(scriptHex);
   const txidBytes = nodeRefToPsbtInputTxidBytes(parentNodeId);
   tx.addInput(
     {

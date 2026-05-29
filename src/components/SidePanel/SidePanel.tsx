@@ -6,6 +6,7 @@ import AddressesTab from './AddressesTab';
 import AddressDetail from './AddressDetail';
 import GroupDetail from './GroupDetail';
 import SettingsTab from './SettingsTab';
+import { SIDE_PANEL_WIDTH } from '../../constants/layout';
 
 type Tab = 'transactions' | 'addresses' | 'settings';
 
@@ -51,7 +52,7 @@ export default function SidePanel({ onHide }: Props) {
   return (
     <div
       className="flex flex-col h-full bg-gray-800 border-l border-gray-700 text-gray-200"
-      style={{ width: 336 }}
+      style={{ width: SIDE_PANEL_WIDTH }}
     >
       {selectedTxid ? (
         <TransactionDetail onOpenAddressDetail={handleOpenAddressDetail} onHide={onHide} />

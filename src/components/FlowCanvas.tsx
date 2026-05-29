@@ -14,6 +14,7 @@ import ReactFlow, {
   type NodeDragHandler,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { SIDE_PANEL_WIDTH } from '../constants/layout';
 import { useGlobalState, layoutRef } from '../hooks/useGlobalState';
 import TransactionNode from './TransactionNode';
 import { computeEdgeWidth } from '../utils/edgeStyling';
@@ -147,7 +148,7 @@ export default function FlowCanvas() {
   useEffect(() => {
     layoutRef.getViewportCenter = () => {
       const viewport = getViewport();
-      const width = window.innerWidth - 280;
+      const width = window.innerWidth - SIDE_PANEL_WIDTH;
       const height = window.innerHeight;
       return {
         x: (-viewport.x + width / 2) / viewport.zoom,

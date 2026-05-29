@@ -658,15 +658,24 @@ export function validateFingerprintField(input: string): string | null {
   return null;
 }
 
-/** Non-empty invalid values return an error message; empty is allowed. */
-export function validatePathField(input: string, fingerprintHex: string): string | null {
+/** Path syntax only (no cross-field rules). Empty is allowed. */
+export function validatePathSyntaxField(input: string): string | null {
   const t = input.trim();
   if (!t) return null;
   try {
     parsePathInput(t);
+    return null;
   } catch (e) {
     return e instanceof Error ? e.message : 'Invalid derivation path';
   }
+}
+
+/** Non-empty invalid values return an error message; empty is allowed. */
+export function validatePathField(input: string, fingerprintHex: string): string | null {
+  const syntax = validatePathSyntaxField(input);
+  if (syntax) return syntax;
+  const t = input.trim();
+  if (!t) return null;
   const fp = fingerprintHex.trim().replace(/^0x/i, '');
   if (!fp) return 'Master fingerprint is required when a derivation path is set';
   return validateFingerprintField(fingerprintHex);

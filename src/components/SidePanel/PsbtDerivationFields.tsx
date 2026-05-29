@@ -4,13 +4,13 @@ import {
   PSBT_OUTPUT_SCRIPT_TYPES,
   PSBT_SCRIPT_TYPE_LABELS,
   addressFromPubkeyAndScriptKind,
-  canPersistPsbtIoDerivation,
   readPsbtIoDerivation,
   readPsbtIoPubkey,
   readPsbtIoScriptType,
   updatePsbtIoDerivation,
   validateFingerprintField,
   validatePathField,
+  validatePathSyntaxField,
   validatePubkeyField,
   type PsbtScriptKind,
 } from '../../utils/psbt';
@@ -22,6 +22,12 @@ const selectClass =
   'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-gray-500 cursor-pointer';
 
 type DerivationField = 'fingerprint' | 'path' | 'pubkey';
+
+type DerivationDraft = {
+  fingerprint: string;
+  path: string;
+  pubkey: string;
+};
 
 interface Props {
   psbtBase64: string;
@@ -50,15 +56,55 @@ function scriptTypeOptions(
   return [current, ...base];
 }
 
-function fieldValidationError(
+/** Format-only validation for the field being committed (empty is OK). */
+function fieldFormatError(
   field: DerivationField,
-  fingerprint: string,
-  path: string,
-  pubkey: string
+  draft: DerivationDraft
 ): string | null {
-  if (field === 'fingerprint') return validateFingerprintField(fingerprint);
-  if (field === 'path') return validatePathField(path, fingerprint);
-  return validatePubkeyField(pubkey);
+  if (field === 'fingerprint') return validateFingerprintField(draft.fingerprint);
+  if (field === 'path') return validatePathSyntaxField(draft.path);
+  return validatePubkeyField(draft.pubkey);
+}
+
+function fieldValue(draft: DerivationDraft, field: DerivationField): string {
+  return draft[field];
+}
+
+function allDerivationFieldsFilled(draft: DerivationDraft): boolean {
+  return (
+    draft.fingerprint.trim().length > 0 &&
+    draft.path.trim().length > 0 &&
+    draft.pubkey.trim().length > 0
+  );
+}
+
+function allDerivationFieldsEmpty(draft: DerivationDraft): boolean {
+  return (
+    !draft.fingerprint.trim() &&
+    !draft.path.trim() &&
+    !draft.pubkey.trim()
+  );
+}
+
+function allDerivationFieldsValid(draft: DerivationDraft): boolean {
+  return (
+    !validateFingerprintField(draft.fingerprint) &&
+    !validatePathField(draft.path, draft.fingerprint) &&
+    !validatePubkeyField(draft.pubkey)
+  );
+}
+
+function readDerivationDraftFromPsbt(
+  psbtBase64: string,
+  kind: 'input' | 'output',
+  index: number
+): DerivationDraft {
+  const der = readPsbtIoDerivation(psbtBase64, kind, index);
+  return {
+    fingerprint: der.fingerprint,
+    path: der.path,
+    pubkey: readPsbtIoPubkey(psbtBase64, kind, index) ?? '',
+  };
 }
 
 export default function PsbtDerivationFields({
@@ -75,32 +121,41 @@ export default function PsbtDerivationFields({
   onError,
 }: Props) {
   const derivationKey = `${psbtBase64}:${kind}:${index}`;
-  const initial = readPsbtIoDerivation(psbtBase64, kind, index);
-  const initialPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
+  const initial = readDerivationDraftFromPsbt(psbtBase64, kind, index);
   const initialScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
 
   const [fingerprint, setFingerprint] = useState(initial.fingerprint);
   const [path, setPath] = useState(initial.path);
-  const [pubkey, setPubkey] = useState(initialPubkey);
+  const [pubkey, setPubkey] = useState(initial.pubkey);
   const [scriptType, setScriptType] = useState<PsbtScriptKind>(initialScriptType);
 
+  const lastValidRef = useRef<DerivationDraft>({ ...initial });
   const draftTouchedRef = useRef(false);
   const stickyFingerprintIoRef = useRef<string | null>(null);
   const ioKey = `${transactionKey ?? ''}:${kind}:${index}`;
+
+  const draft = useMemo(
+    (): DerivationDraft => ({ fingerprint, path, pubkey }),
+    [fingerprint, path, pubkey]
+  );
 
   const typeOptions = useMemo(
     () => scriptTypeOptions(kind, scriptType),
     [kind, scriptType]
   );
 
+  const syncLastValidFromPsbt = () => {
+    lastValidRef.current = readDerivationDraftFromPsbt(psbtBase64, kind, index);
+  };
+
   useEffect(() => {
     stickyFingerprintIoRef.current = null;
     draftTouchedRef.current = false;
+    syncLastValidFromPsbt();
   }, [transactionKey]);
 
   useEffect(() => {
-    const next = readPsbtIoDerivation(psbtBase64, kind, index);
-    const nextPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
+    const next = readDerivationDraftFromPsbt(psbtBase64, kind, index);
     const nextScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
 
     setScriptType(nextScriptType);
@@ -108,9 +163,15 @@ export default function PsbtDerivationFields({
 
     if (preservedFingerprint !== undefined) {
       draftTouchedRef.current = true;
-      setFingerprint(preservedFingerprint);
-      setPath('');
-      setPubkey(nextPubkey);
+      const preserved: DerivationDraft = {
+        fingerprint: preservedFingerprint,
+        path: '',
+        pubkey: next.pubkey,
+      };
+      setFingerprint(preserved.fingerprint);
+      setPath(preserved.path);
+      setPubkey(preserved.pubkey);
+      lastValidRef.current = { ...preserved };
       stickyFingerprintIoRef.current = ioKey;
       onPreserveApplied?.();
       return;
@@ -118,58 +179,45 @@ export default function PsbtDerivationFields({
 
     if (draftTouchedRef.current) return;
 
+    setFingerprint(next.fingerprint);
     setPath(next.path);
-    setPubkey(nextPubkey);
+    setPubkey(next.pubkey);
+    lastValidRef.current = { ...next };
 
     if (next.fingerprint) {
       stickyFingerprintIoRef.current = null;
-      setFingerprint(next.fingerprint);
     } else if (stickyFingerprintIoRef.current !== ioKey) {
       setFingerprint(next.fingerprint);
     }
   }, [derivationKey, psbtBase64, kind, index, ioKey, preservedFingerprint, onPreserveApplied, onScriptTypeChange]);
 
-  const commit = (overrides?: {
-    fingerprint?: string;
-    path?: string;
-    pubkey?: string;
-    scriptType?: PsbtScriptKind;
-  }) => {
-    const nextFingerprint = overrides?.fingerprint ?? fingerprint;
-    const nextPath = overrides?.path ?? path;
-    const nextPubkey = overrides?.pubkey ?? pubkey;
-    const nextScriptType = overrides?.scriptType ?? scriptType;
+  const revertField = (field: DerivationField) => {
+    const v = lastValidRef.current[field];
+    if (field === 'fingerprint') setFingerprint(v);
+    else if (field === 'path') setPath(v);
+    else setPubkey(v);
+  };
 
-    const current = readPsbtIoDerivation(psbtBase64, kind, index);
-    const currentPubkey = readPsbtIoPubkey(psbtBase64, kind, index) ?? '';
+  const commitFullDerivation = () => {
+    const nextFingerprint = fingerprint;
+    const nextPath = path;
+    const nextPubkey = pubkey;
+
+    const current = readDerivationDraftFromPsbt(psbtBase64, kind, index);
     const currentScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
 
     const scriptTypeForSave =
-      nextScriptType !== currentScriptType &&
-      nextScriptType !== 'op_return' &&
+      scriptType !== currentScriptType &&
+      scriptType !== 'op_return' &&
       !nextPubkey.trim()
         ? currentScriptType
-        : nextScriptType;
+        : scriptType;
 
     if (
       nextFingerprint === current.fingerprint &&
       nextPath === current.path &&
-      nextPubkey === currentPubkey &&
+      nextPubkey === current.pubkey &&
       scriptTypeForSave === currentScriptType
-    ) {
-      return;
-    }
-
-    if (
-      !canPersistPsbtIoDerivation(
-        psbtBase64,
-        kind,
-        index,
-        nextFingerprint,
-        nextPath,
-        nextPubkey.trim() || undefined,
-        scriptTypeForSave
-      )
     ) {
       return;
     }
@@ -181,23 +229,88 @@ export default function PsbtDerivationFields({
         index,
         nextFingerprint,
         nextPath,
-        nextPubkey.trim() || undefined,
+        nextPubkey.trim(),
         scriptTypeForSave
       );
       onPsbtUpdated(updated);
       draftTouchedRef.current = false;
+      const saved = readDerivationDraftFromPsbt(updated, kind, index);
+      lastValidRef.current = saved;
+      setFingerprint(saved.fingerprint);
+      setPath(saved.path);
+      setPubkey(saved.pubkey);
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Failed to update PSBT');
+      setFingerprint(lastValidRef.current.fingerprint);
+      setPath(lastValidRef.current.path);
+      setPubkey(lastValidRef.current.pubkey);
+    }
+  };
+
+  const clearDerivationInPsbtIfNeeded = () => {
+    const current = readDerivationDraftFromPsbt(psbtBase64, kind, index);
+    const hadDerivation =
+      current.fingerprint.length > 0 ||
+      current.path.length > 0 ||
+      current.pubkey.length > 0;
+    if (!hadDerivation) return;
+
+    try {
+      const updated = updatePsbtIoDerivation(
+        psbtBase64,
+        kind,
+        index,
+        '',
+        '',
+        undefined,
+        scriptType
+      );
+      onPsbtUpdated(updated);
+      draftTouchedRef.current = false;
+      const saved = readDerivationDraftFromPsbt(updated, kind, index);
+      lastValidRef.current = saved;
+      setFingerprint(saved.fingerprint);
+      setPath(saved.path);
+      setPubkey(saved.pubkey);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Failed to update PSBT');
+      setFingerprint(lastValidRef.current.fingerprint);
+      setPath(lastValidRef.current.path);
+      setPubkey(lastValidRef.current.pubkey);
     }
   };
 
   const commitOnBlur = (field: DerivationField) => {
-    const err = fieldValidationError(field, fingerprint, path, pubkey);
-    if (err) {
-      onError(err);
+    const value = fieldValue(draft, field);
+    const formatErr = fieldFormatError(field, draft);
+
+    if (value.trim() && formatErr) {
+      onError(formatErr);
+      revertField(field);
       return;
     }
-    commit();
+
+    if (!allDerivationFieldsFilled(draft)) {
+      draftTouchedRef.current = true;
+      if (allDerivationFieldsEmpty(draft)) {
+        clearDerivationInPsbtIfNeeded();
+      }
+      return;
+    }
+
+    if (!allDerivationFieldsValid(draft)) {
+      const fpErr = validateFingerprintField(fingerprint);
+      const pathErr = validatePathField(path, fingerprint);
+      const pkErr = validatePubkeyField(pubkey);
+      const err = fpErr ?? pathErr ?? pkErr;
+      if (err) onError(err);
+      setFingerprint(lastValidRef.current.fingerprint);
+      setPath(lastValidRef.current.path);
+      setPubkey(lastValidRef.current.pubkey);
+      return;
+    }
+
+    commitFullDerivation();
   };
 
   const markDraftTouched = () => {
@@ -209,7 +322,9 @@ export default function PsbtDerivationFields({
     onScriptTypeChange?.(next);
     markDraftTouched();
     if (next === 'op_return' || pubkey.trim()) {
-      commit({ scriptType: next });
+      if (allDerivationFieldsFilled(draft) && allDerivationFieldsValid(draft)) {
+        commitFullDerivation();
+      }
     }
   };
 
@@ -217,15 +332,14 @@ export default function PsbtDerivationFields({
 
   const pubkeyParentAddressMismatch = useMemo(() => {
     if (kind !== 'input' || !parentOutputAddress) return null;
-    const trimmed = pubkey.trim();
-    if (!trimmed) return null;
+    if (!allDerivationFieldsFilled(draft) || !allDerivationFieldsValid(draft)) return null;
 
-    const derived = addressFromPubkeyAndScriptKind(trimmed, scriptType);
+    const derived = addressFromPubkeyAndScriptKind(pubkey.trim(), scriptType);
     if (!derived) return null;
 
     if (derived.toLowerCase() === parentOutputAddress.toLowerCase()) return null;
     return `Address derived from public key (${derived}) is different from the previous transaction output address (${parentOutputAddress}).`;
-  }, [kind, pubkey, scriptType, parentOutputAddress]);
+  }, [kind, draft, pubkey, scriptType, parentOutputAddress]);
 
   const blurEnterProps = (field: DerivationField) => ({
     onBlur: () => commitOnBlur(field),

@@ -13,6 +13,7 @@ import {
   propagatePsbtOutputSwap,
   resolveNodeIdAfterRewrites,
   resolveParentNodeId,
+  resolvePsbtGraphNodeId,
 } from '../utils/psbt';
 
 const STORAGE_KEY = 'bitcoin-flow-state';
@@ -204,6 +205,12 @@ function applyPsbtNodeIdRemap(
   newNodeId: string,
   node: StoredTransaction
 ): { transactions: Record<string, StoredTransaction>; selectedTxid?: string } {
+  if (oldNodeId === newNodeId) {
+    return {
+      transactions: { ...transactions, [newNodeId]: node },
+      selectedTxid,
+    };
+  }
   const merged = { ...transactions, [newNodeId]: node };
   delete merged[oldNodeId];
   const { transactions: propagated, rewrites } = propagatePsbtNodeIdChange(
@@ -765,7 +772,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       psbtBase64: normalized,
     };
 
-    const newNodeId = parsed.nodeId;
+    const newNodeId = resolvePsbtGraphNodeId(parsed.nodeId, parsed.data.txid, nodeId);
 
     set(s => {
       let { transactions, selectedTxid } = applyPsbtNodeIdRemap(
@@ -817,7 +824,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       psbtBase64: normalized,
     };
 
-    const newNodeId = parsed.nodeId;
+    const newNodeId = resolvePsbtGraphNodeId(parsed.nodeId, parsed.data.txid, oldNodeId);
 
     set(s => {
       const { transactions, selectedTxid } = applyPsbtNodeIdRemap(

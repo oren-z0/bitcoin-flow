@@ -165,7 +165,7 @@ export function propagatePsbtNodeIdChange(
         continue;
       }
 
-      const newChildKey = parsed.nodeId;
+      const newChildKey = resolvePsbtGraphNodeId(parsed.nodeId, parsed.data.txid, childKey);
       const updatedChild: StoredTransaction = {
         ...result[childKey],
         data: parsed.data,
@@ -251,7 +251,7 @@ export function propagatePsbtOutputSwap(
       continue;
     }
 
-    const newChildKey = parsed.nodeId;
+    const newChildKey = resolvePsbtGraphNodeId(parsed.nodeId, parsed.data.txid, childKey);
     const next = { ...result };
     delete next[childKey];
     next[newChildKey] = {
@@ -350,6 +350,20 @@ export function isPsbtNodeId(id: string): boolean {
 export function psbtNodeIdFromBase64(normalizedBase64: string): string {
   const hash = sha256(utf8ToBytes(normalizedBase64));
   return `psbt_${hex.encode(hash)}`;
+}
+
+/**
+ * Graph node id for a PSBT. Unsigned PSBTs keep their existing `psbt_…` id across
+ * edits so updating fields (pubkey, amounts, etc.) does not drop the node.
+ */
+export function resolvePsbtGraphNodeId(
+  parsedNodeId: string,
+  chainTxid: string,
+  existingGraphId?: string
+): string {
+  if (isKnownTxid(chainTxid)) return chainTxid.toLowerCase();
+  if (existingGraphId && isPsbtNodeId(existingGraphId)) return existingGraphId;
+  return parsedNodeId;
 }
 
 /** Weight (WU) per input type — standard vsize × 4 for fee display on unsigned PSBTs. */

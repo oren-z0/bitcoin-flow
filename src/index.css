@@ -46,6 +46,27 @@ html, body, #root {
   margin-right: -5px;
 }
 
+/* Absolute handles for drag-connect to PSBT (inline handles break RF connections) */
+.react-flow__handle.psbt-connect-handle {
+  position: absolute !important;
+  opacity: 0;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px;
+  min-height: 20px;
+  border: none !important;
+  z-index: 10;
+  transform: translateY(-50%) !important;
+}
+
+.react-flow__handle.psbt-connect-handle.react-flow__handle-right {
+  right: -12px !important;
+}
+
+.react-flow__handle.psbt-connect-handle.react-flow__handle-left {
+  left: -12px !important;
+}
+
 .react-flow__controls {
   background: #1f2937 !important;
   border: 1px solid #374151 !important;

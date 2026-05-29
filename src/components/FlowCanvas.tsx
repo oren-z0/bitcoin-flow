@@ -17,6 +17,7 @@ import ReactFlow, {
 import {
   isOutputHandleId,
   isPsbtInputHandleId,
+  isUtxoOutputHandle,
 } from '../utils/handleGrouping';
 import 'reactflow/dist/style.css';
 import { SIDE_PANEL_WIDTH } from '../constants/layout';
@@ -317,8 +318,20 @@ export default function FlowCanvas() {
     const { source, target, sourceHandle, targetHandle } = connection;
     if (!source || !target || !sourceHandle || !targetHandle) return false;
     if (!isOutputHandleId(sourceHandle) || !isPsbtInputHandleId(targetHandle)) return false;
-    const targetTx = useGlobalState.getState().transactions[target];
-    return !!targetTx?.isPsbt;
+
+    const { transactions, addresses, groupMap } = useGlobalState.getState();
+    const sourceTx = transactions[source];
+    const targetTx = transactions[target];
+    if (!sourceTx || !targetTx?.isPsbt) return false;
+
+    return isUtxoOutputHandle(
+      source,
+      sourceHandle,
+      sourceTx,
+      transactions,
+      addresses,
+      groupMap
+    );
   }, []);
 
   const onConnect = useCallback(
@@ -370,7 +383,8 @@ export default function FlowCanvas() {
       minZoom={0.05}
       maxZoom={3}
       deleteKeyCode={null}
-      nodesConnectable={false}
+      nodesConnectable
+      connectionRadius={28}
     >
       <Background color="#374151" gap={20} />
       <Panel position="top-right" className="!m-3">

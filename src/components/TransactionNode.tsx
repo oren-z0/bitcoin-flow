@@ -16,6 +16,27 @@ const COLOR_RED = 'rgb(255, 61, 0)';
 const COLOR_GREEN = 'rgb(10, 171, 47)';
 const COLOR_GRAY = '#888';
 
+const HANDLE_DOT_STYLE: React.CSSProperties = {
+  width: 10,
+  height: 10,
+  border: '2px solid #4b5563',
+};
+
+function outputDotColor(handle: HandleDescriptor): string {
+  if (handle.isOpReturn) return COLOR_GRAY;
+  return handle.txids.length > 0 ? COLOR_RED : COLOR_GREEN;
+}
+
+function isUtxoOutputHandleDescriptor(
+  handle: HandleDescriptor,
+  outspends: StoredTransaction['outspends']
+): boolean {
+  if (handle.isOpReturn || (handle.voutIndices?.length ?? 0) !== 1) return false;
+  const voutIdx = handle.voutIndices![0];
+  const outspend = outspends[voutIdx];
+  return !(outspend?.spent && outspend.txid);
+}
+
 function HourglassIcon() {
   return (
     <svg
@@ -241,25 +262,44 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
         <div className="flex justify-between gap-3">
           <div className="flex flex-col gap-1 flex-1 min-w-0">
             {inputHandles.map((handle) => (
-              <div key={handle.id} className="flex items-center gap-1 min-w-0">
-                <Handle
-                  type="target"
-                  position={Position.Left}
-                  id={handle.id}
-                  isConnectable={isPsbt && !handle.isCoinbase}
-                  className="handle-inline"
-                  style={{
-                    background: COLOR_GRAY,
-                    width: 10,
-                    height: 10,
-                    border: '2px solid #4b5563',
-                    cursor: handle.isCoinbase ? 'default' : undefined,
-                  }}
-                  onClick={handle.isCoinbase ? undefined : (e) => {
-                    e.stopPropagation();
-                    handleInputHandleClick(handle);
-                  }}
-                />
+              <div
+                key={handle.id}
+                className="relative flex items-center gap-1 min-w-0 min-h-[22px]"
+              >
+                {isPsbt && !handle.isCoinbase ? (
+                  <>
+                    <Handle
+                      type="target"
+                      position={Position.Left}
+                      id={handle.id}
+                      isConnectable
+                      isConnectableEnd
+                      className="psbt-connect-handle nodrag"
+                      style={{ top: '50%' }}
+                    />
+                    <div
+                      className="shrink-0 rounded-full ml-[-5px]"
+                      style={{ ...HANDLE_DOT_STYLE, background: COLOR_GRAY }}
+                    />
+                  </>
+                ) : (
+                  <Handle
+                    type="target"
+                    position={Position.Left}
+                    id={handle.id}
+                    isConnectable={false}
+                    className="handle-inline nodrag"
+                    style={{
+                      ...HANDLE_DOT_STYLE,
+                      background: COLOR_GRAY,
+                      cursor: handle.isCoinbase ? 'default' : undefined,
+                    }}
+                    onClick={handle.isCoinbase ? undefined : (e) => {
+                      e.stopPropagation();
+                      handleInputHandleClick(handle);
+                    }}
+                  />
+                )}
                 <HandleLabel
                   handle={handle}
                   isInput={true}
@@ -276,13 +316,18 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
 
           <div className="flex flex-col gap-1 flex-1 min-w-0">
             {outputHandles.map((handle) => {
-              const handleColor = handle.isOpReturn
-                ? COLOR_GRAY
-                : handle.txids.length > 0
-                ? COLOR_RED
-                : COLOR_GREEN;
+              const isUtxo = isUtxoOutputHandleDescriptor(handle, outspends);
+              const isSpent =
+                !handle.isOpReturn &&
+                (handle.voutIndices?.length ?? 0) === 1 &&
+                handle.txids.length > 0;
+              const dotColor = outputDotColor(handle);
+
               return (
-                <div key={handle.id} className="flex items-center gap-1 justify-end min-w-0">
+                <div
+                  key={handle.id}
+                  className="relative flex items-center gap-1 justify-end min-w-0 min-h-[22px]"
+                >
                   <HandleLabel
                     handle={handle}
                     isInput={false}
@@ -293,25 +338,41 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                     selectedAddresses={selectedAddresses}
                     onLabelClick={handleAddressLabelClick}
                   />
-                  <Handle
-                    type="source"
-                    position={Position.Right}
-                    id={handle.id}
-                    isConnectable={
-                      !handle.isOpReturn && (handle.voutIndices?.length ?? 0) === 1
-                    }
-                    className="handle-inline"
-                    style={{
-                      background: handleColor,
-                      width: 10,
-                      height: 10,
-                      border: '2px solid #4b5563',
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOutputHandleClick(handle);
-                    }}
-                  />
+                  {isUtxo ? (
+                    <>
+                      <Handle
+                        type="source"
+                        position={Position.Right}
+                        id={handle.id}
+                        isConnectable
+                        isConnectableStart
+                        className="psbt-connect-handle nodrag"
+                        style={{ top: '50%' }}
+                      />
+                      <div
+                        className="shrink-0 rounded-full mr-[-5px]"
+                        style={{ ...HANDLE_DOT_STYLE, background: dotColor }}
+                      />
+                    </>
+                  ) : isSpent ? (
+                    <Handle
+                      type="source"
+                      position={Position.Right}
+                      id={handle.id}
+                      isConnectable={false}
+                      className="handle-inline nodrag"
+                      style={{ ...HANDLE_DOT_STYLE, background: dotColor }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOutputHandleClick(handle);
+                      }}
+                    />
+                  ) : (
+                    <div
+                      className="shrink-0 rounded-full mr-[-5px]"
+                      style={{ ...HANDLE_DOT_STYLE, background: dotColor }}
+                    />
+                  )}
                 </div>
               );
             })}

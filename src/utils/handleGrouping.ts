@@ -401,3 +401,27 @@ export function isPsbtInputHandleId(handleId: string | null | undefined): boolea
 export function isOutputHandleId(handleId: string | null | undefined): boolean {
   return !!handleId && /^out-/.test(handleId);
 }
+
+/** Unspent output (green handle) — same rule as mempool outspend, not OP_RETURN. */
+export function isUtxoOutputHandle(
+  nodeId: string,
+  handleId: string,
+  stored: StoredTransaction,
+  transactions: Record<string, StoredTransaction>,
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>
+): boolean {
+  const voutIdx = resolveOutputVoutIndexFromHandle(
+    nodeId,
+    handleId,
+    stored,
+    transactions,
+    addresses,
+    groupMap
+  );
+  if (voutIdx === null) return false;
+  const vout = stored.data.vout[voutIdx];
+  if (!vout || vout.scriptpubkey_type === 'op_return') return false;
+  const outspend = stored.outspends[voutIdx];
+  return !(outspend?.spent && outspend.txid);
+}

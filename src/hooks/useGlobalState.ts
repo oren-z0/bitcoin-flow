@@ -21,6 +21,7 @@ import { connectWouldCreateCycle } from '../utils/graphConnections';
 import {
   isOutputHandleId,
   isPsbtInputHandleId,
+  isUtxoOutputHandle,
   resolveOutputVoutIndexFromHandle,
 } from '../utils/handleGrouping';
 
@@ -920,6 +921,20 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     );
     if (voutIdx === null) {
       get().addError('Drag from a single output handle (not a grouped handle)');
+      return;
+    }
+
+    if (
+      !isUtxoOutputHandle(
+        sourceNodeId,
+        sourceHandleId,
+        source,
+        transactions,
+        addresses,
+        groupMap
+      )
+    ) {
+      get().addError('Only unspent outputs (green UTXO handles) can be connected to a PSBT');
       return;
     }
 

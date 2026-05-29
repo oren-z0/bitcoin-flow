@@ -1,5 +1,5 @@
 import { Transaction, OutScript, Address, NETWORK, getInputType, p2wpkh, p2pkh, p2tr } from '@scure/btc-signer';
-import { bip32Path, getPrevOut, SigHashNames } from '@scure/btc-signer/transaction.js';
+import { bip32Path, getPrevOut } from '@scure/btc-signer/transaction.js';
 import type { PSBTInputs, PSBTOutputs } from '@scure/btc-signer/transaction.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
@@ -1120,124 +1120,12 @@ export function readPsbtIoPubkey(
   return pk ? hex.encode(pk) : undefined;
 }
 
-export interface PsbtGlobalXpubDisplay {
-  fingerprint: string;
-  path: string;
-  depth: number;
-  publicKey: string;
-}
-
-export interface PsbtIoAdvancedDisplay {
-  pubkey?: string;
-  sighashType?: string;
-  redeemScript?: string;
-  witnessScript?: string;
-  tapInternalKey?: string;
-  tapBip32DerivationCount?: number;
-  partialSigCount?: number;
-  finalizedInput?: boolean;
-}
-
-export interface PsbtAdvancedMeta {
-  psbtVersion: number;
-  globalXpubs: PsbtGlobalXpubDisplay[];
-  inputs: PsbtIoAdvancedDisplay[];
-  outputs: PsbtIoAdvancedDisplay[];
-}
-
-function bytesFieldHex(value: Uint8Array | undefined): string | undefined {
-  if (!value?.length) return undefined;
-  return hex.encode(value);
-}
-
-function formatSighashType(value: number | undefined): string | undefined {
-  if (value === undefined) return undefined;
-  const name = SigHashNames[value];
-  return name ? `${name} (${value})` : String(value);
-}
-
-function extractIoAdvanced(io: PsbtIo, isInput: boolean): PsbtIoAdvancedDisplay {
-  const advanced: PsbtIoAdvancedDisplay = {};
-
-  const pubkey = resolvePubkeyForDerivation(io, isInput);
-  if (pubkey) advanced.pubkey = hex.encode(pubkey);
-
-  if (isInput) {
-    const inp = io as PSBTInputs;
-    const sighash = formatSighashType(inp.sighashType);
-    if (sighash) advanced.sighashType = sighash;
-    if (inp.finalScriptSig !== undefined) advanced.finalizedInput = true;
-    if (inp.partialSig?.length) advanced.partialSigCount = inp.partialSig.length;
-    const redeem = bytesFieldHex(inp.redeemScript);
-    if (redeem) advanced.redeemScript = redeem;
-    const witness = bytesFieldHex(inp.witnessScript);
-    if (witness) advanced.witnessScript = witness;
-    const tapKey = bytesFieldHex(inp.tapInternalKey);
-    if (tapKey) advanced.tapInternalKey = tapKey;
-    if (inp.tapBip32Derivation?.length) {
-      advanced.tapBip32DerivationCount = inp.tapBip32Derivation.length;
-    }
-  } else {
-    const out = io as PSBTOutputs;
-    const redeem = bytesFieldHex(out.redeemScript);
-    if (redeem) advanced.redeemScript = redeem;
-    const witness = bytesFieldHex(out.witnessScript);
-    if (witness) advanced.witnessScript = witness;
-    const tapKey = bytesFieldHex(out.tapInternalKey);
-    if (tapKey) advanced.tapInternalKey = tapKey;
-    if (out.tapBip32Derivation?.length) {
-      advanced.tapBip32DerivationCount = out.tapBip32Derivation.length;
-    }
-  }
-
-  return advanced;
-}
-
-function hasIoAdvancedContent(advanced: PsbtIoAdvancedDisplay): boolean {
-  return Object.keys(advanced).length > 0;
-}
-
-type PsbtGlobalDecoded = {
-  version?: number;
-  xpub?: Array<
-    [
-      { depth: number; publicKey: Uint8Array },
-      { fingerprint: number; path: number[] },
-    ]
-  >;
-};
-
-export function readPsbtAdvancedMeta(psbtBase64: string): PsbtAdvancedMeta {
+/** PSBT global version field (defaults to 0 when omitted). */
+export function readPsbtVersion(psbtBase64: string): number {
   const normalized = normalizePsbtBase64(psbtBase64);
   const tx = Transaction.fromPSBT(base64.decode(normalized));
-  const global = (tx as unknown as { global: PsbtGlobalDecoded }).global;
-
-  const globalXpubs: PsbtGlobalXpubDisplay[] = [];
-  for (const [xpub, der] of global.xpub ?? []) {
-    globalXpubs.push({
-      fingerprint: formatFingerprint(der.fingerprint),
-      path: formatBip32Path(der.path),
-      depth: xpub.depth,
-      publicKey: hex.encode(xpub.publicKey),
-    });
-  }
-
-  const inputs: PsbtIoAdvancedDisplay[] = [];
-  for (let i = 0; i < tx.inputsLength; i++) {
-    inputs.push(extractIoAdvanced(tx.getInput(i), true));
-  }
-
-  const outputs: PsbtIoAdvancedDisplay[] = [];
-  for (let i = 0; i < tx.outputsLength; i++) {
-    outputs.push(extractIoAdvanced(tx.getOutput(i), false));
-  }
-
-  return {
-    psbtVersion: global.version ?? 0,
-    globalXpubs,
-    inputs,
-    outputs,
-  };
+  const global = (tx as unknown as { global: { version?: number } }).global;
+  return global.version ?? 0;
 }
 
 const PSBT_EDIT_OPTS = { allowUnknownOutputs: true };
@@ -1325,11 +1213,4 @@ export function movePsbtIo(
   list[newIndex] = tmp;
 
   return base64.encode(tx.toPSBT());
-}
-
-export function psbtAdvancedHasContent(meta: PsbtAdvancedMeta): boolean {
-  if (meta.globalXpubs.length > 0) return true;
-  if (meta.inputs.some(hasIoAdvancedContent)) return true;
-  if (meta.outputs.some(hasIoAdvancedContent)) return true;
-  return false;
 }

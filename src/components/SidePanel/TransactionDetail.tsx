@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { base64 } from '@scure/base';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
 import { satsToBtc, truncateTxid, formatTimestamp, formatFeeRate } from '../../utils/formatting';
@@ -7,6 +7,7 @@ import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '
 import {
   addPsbtPaymentOutput,
   isKnownTxid,
+  readPsbtVersion,
   removePsbtInput,
   removePsbtOutput,
   resolveParentNodeId,
@@ -19,7 +20,6 @@ import PsbtEditableOutputAmount from './PsbtEditableOutputAmount';
 import PsbtEditableOutputAddress from './PsbtEditableOutputAddress';
 import PsbtEditableOpReturn from './PsbtEditableOpReturn';
 import PsbtRemoveIoButton from './PsbtRemoveIoButton';
-import PsbtAdvancedSection from './PsbtAdvancedSection';
 import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 import { EyeIcon, EyeOffIcon } from './icons';
@@ -273,6 +273,11 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const inputCount = tx.vin.length;
   const outputCount = tx.vout.length;
   const showPsbtMove = stored.isPsbt && !!stored.psbtBase64;
+
+  const psbtVersion = useMemo(() => {
+    if (!stored.isPsbt || !stored.psbtBase64) return null;
+    return readPsbtVersion(stored.psbtBase64);
+  }, [stored.isPsbt, stored.psbtBase64]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -734,8 +739,8 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
           </div>
         </div>
 
-        {stored.isPsbt && stored.psbtBase64 && (
-          <PsbtAdvancedSection psbtBase64={stored.psbtBase64} />
+        {psbtVersion !== null && (
+          <p className="text-xs text-gray-400">PSBT version: {psbtVersion}</p>
         )}
 
         {/* Details */}

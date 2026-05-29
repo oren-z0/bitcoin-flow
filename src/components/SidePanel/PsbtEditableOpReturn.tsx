@@ -33,6 +33,10 @@ function payloadsEqual(a: Uint8Array, b: Uint8Array): boolean {
   return true;
 }
 
+function copyBytes(bytes: Uint8Array): Uint8Array {
+  return new Uint8Array(bytes);
+}
+
 export default function PsbtEditableOpReturn({
   psbtBase64,
   outputIndex,
@@ -42,28 +46,33 @@ export default function PsbtEditableOpReturn({
 }: Props) {
   const fieldKey = `${psbtBase64}:${outputIndex}`;
   const [mode, setMode] = useState<OpReturnEditMode>('text');
+  const [payloadBytes, setPayloadBytes] = useState(() =>
+    copyBytes(opReturnPayloadBytes(scriptpubkey))
+  );
   const [draft, setDraft] = useState(() =>
     opReturnDraftFromBytes(opReturnPayloadBytes(scriptpubkey), 'text')
   );
 
   useEffect(() => {
-    setDraft(opReturnDraftFromBytes(opReturnPayloadBytes(scriptpubkey), mode));
+    const bytes = opReturnPayloadBytes(scriptpubkey);
+    setPayloadBytes(copyBytes(bytes));
+    setDraft(opReturnDraftFromBytes(bytes, mode));
   }, [fieldKey, scriptpubkey]);
 
   const switchMode = (next: OpReturnEditMode) => {
     if (next === mode) return;
-    const bytes = parseOpReturnEditDraft(draft, mode);
     setMode(next);
-    setDraft(opReturnDraftFromBytes(bytes, next));
+    setDraft(opReturnDraftFromBytes(payloadBytes, next));
   };
 
   const revertToSaved = () => {
-    const currentBytes = opReturnPayloadBytes(scriptpubkey);
-    setDraft(opReturnDraftFromBytes(currentBytes, mode));
+    const saved = opReturnPayloadBytes(scriptpubkey);
+    setPayloadBytes(copyBytes(saved));
+    setDraft(opReturnDraftFromBytes(saved, mode));
   };
 
   const commit = () => {
-    const currentBytes = opReturnPayloadBytes(scriptpubkey);
+    const savedBytes = opReturnPayloadBytes(scriptpubkey);
 
     let draftBytes: Uint8Array;
     try {
@@ -76,7 +85,9 @@ export default function PsbtEditableOpReturn({
       return;
     }
 
-    if (payloadsEqual(draftBytes, currentBytes)) return;
+    setPayloadBytes(copyBytes(draftBytes));
+
+    if (payloadsEqual(draftBytes, savedBytes)) return;
 
     try {
       onPsbtUpdated(updatePsbtOpReturnPayload(psbtBase64, outputIndex, draft, mode));
@@ -86,7 +97,9 @@ export default function PsbtEditableOpReturn({
     }
   };
 
-  const resetDraft = revertToSaved;
+  const resetDraft = () => {
+    setDraft(opReturnDraftFromBytes(payloadBytes, mode));
+  };
 
   return (
     <div className="space-y-1">

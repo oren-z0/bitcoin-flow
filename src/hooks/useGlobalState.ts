@@ -167,6 +167,8 @@ function buildSelectedAddresses(addresses: Record<string, StoredAddress>): Set<s
 
 const NODE_WIDTH = 260;
 const SMALL_GAP = 30;
+/** Matches `layoutRef.focusNode` centering so new nodes sit in the viewport middle. */
+const NODE_VIEWPORT_CENTER_OFFSET = { x: 90, y: 60 };
 
 function computeInitialX(
   txid: string,
@@ -386,13 +388,20 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const existing = state.transactions[nodeId];
 
     const viewportCenter = layoutRef.getViewportCenter();
-    const y = existing?.coordinates.y ?? viewportCenter.y;
-    const preserved = existing
-      ? { coordinates: existing.coordinates, name: existing.name, color: existing.color }
-      : { coordinates: { x: 0, y } };
+    const { autoLayout } = get();
+    const initialCoordinates = existing
+      ? existing.coordinates
+      : autoLayout
+        ? { x: 0, y: viewportCenter.y }
+        : {
+            x: viewportCenter.x - NODE_VIEWPORT_CENTER_OFFSET.x,
+            y: viewportCenter.y - NODE_VIEWPORT_CENTER_OFFSET.y,
+          };
 
     const newTx: StoredTransaction = {
-      ...preserved,
+      coordinates: initialCoordinates,
+      name: existing?.name,
+      color: existing?.color,
       data,
       outspends,
       isPsbt: true,
@@ -401,9 +410,12 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
 
     set(s => {
       const updated = { ...s.transactions, [nodeId]: newTx };
-      if (!existing) {
+      if (!existing && autoLayout) {
         const x = computeInitialX(nodeId, updated);
-        updated[nodeId] = { ...newTx, coordinates: { x, y } };
+        updated[nodeId] = {
+          ...newTx,
+          coordinates: { x, y: initialCoordinates.y },
+        };
       }
       persist({ ...s, transactions: updated });
       return { transactions: updated };
@@ -417,7 +429,6 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       });
     }
 
-    const { autoLayout } = get();
     if (autoLayout) {
       await get().runLayout();
     }

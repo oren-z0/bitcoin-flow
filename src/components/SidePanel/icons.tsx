@@ -1,5 +1,28 @@
 const iconClass = 'shrink-0';
 
+/** Document with plus — create new PSBT */
+export function CreatePsbtIcon() {
+  return (
+    <svg
+      className={iconClass}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+      <path d="M12 11v6" />
+      <path d="M9 14h6" />
+    </svg>
+  );
+}
+
 /** Document with upward arrow — load / upload file */
 export function UploadFileIcon() {
   return (

@@ -1143,7 +1143,7 @@ function buildBlankPsbtV2Transaction(opReturnPayload?: Uint8Array): Transaction 
 
 /**
  * New PSBT v2 with no inputs. If `existingGraphNodeIds` already contains the
- * resulting graph node id, adds an OP_RETURN whose payload is 0x00, then 0x01, …
+ * resulting graph node id, adds an OP_RETURN with UTF-8 text "1", "2", … until unique.
  */
 export function createNewPsbtV2Base64(existingGraphNodeIds: Iterable<string>): string {
   const taken = new Set(existingGraphNodeIds);
@@ -1161,8 +1161,8 @@ export function createNewPsbtV2Base64(existingGraphNodeIds: Iterable<string>): s
   const empty = tryEncode();
   if (!isTaken(empty)) return empty;
 
-  for (let byte = 0; byte <= 0xff; byte++) {
-    const candidate = tryEncode(new Uint8Array([byte]));
+  for (let n = 1; n < 1_000_000; n++) {
+    const candidate = tryEncode(utf8ToBytes(String(n)));
     if (!isTaken(candidate)) return candidate;
   }
 

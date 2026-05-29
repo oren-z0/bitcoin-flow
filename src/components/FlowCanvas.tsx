@@ -20,6 +20,7 @@ import {
 } from '../utils/handleGrouping';
 import 'reactflow/dist/style.css';
 import { SIDE_PANEL_WIDTH } from '../constants/layout';
+import { CreatePsbtIcon, fileButtonClass } from './SidePanel/icons';
 import { useGlobalState, layoutRef } from '../hooks/useGlobalState';
 import TransactionNode from './TransactionNode';
 import { computeEdgeWidth } from '../utils/edgeStyling';
@@ -375,10 +376,11 @@ export default function FlowCanvas() {
       <Panel position="top-right" className="!m-3">
         <button
           type="button"
-          className="text-xs bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-200 px-3 py-1.5 rounded shadow cursor-pointer"
+          className={`${fileButtonClass} border border-gray-600 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 shadow`}
           onClick={() => void createPsbt()}
         >
-          Create PSBT
+          <CreatePsbtIcon />
+          Create a new PSBT
         </button>
       </Panel>
       {Object.keys(transactions).length === 0 && (

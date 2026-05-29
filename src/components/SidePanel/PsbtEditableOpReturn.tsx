@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   opReturnDraftFromBytes,
   opReturnPayloadBytes,
@@ -9,6 +9,9 @@ import { updatePsbtOpReturnPayload } from '../../utils/psbt';
 
 const fieldClass =
   'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500 font-mono break-all';
+
+const SPAM_LINK_URL = 'https://www.youtube.com/watch?v=anwy2MPT5RE';
+const OP_RETURN_STANDARD_MAX_BYTES = 80;
 
 const modeButtonClass = (active: boolean) =>
   `text-[10px] px-2 py-0.5 rounded border cursor-pointer ${
@@ -101,6 +104,14 @@ export default function PsbtEditableOpReturn({
     setDraft(opReturnDraftFromBytes(payloadBytes, mode));
   };
 
+  const contentByteLength = useMemo(() => {
+    try {
+      return parseOpReturnEditDraft(draft, mode).length;
+    } catch {
+      return payloadBytes.length;
+    }
+  }, [draft, mode, payloadBytes]);
+
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-1">
@@ -140,6 +151,16 @@ export default function PsbtEditableOpReturn({
           }
         }}
       />
+      {contentByteLength > OP_RETURN_STANDARD_MAX_BYTES && (
+        <a
+          href={SPAM_LINK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[10px] text-blue-400 hover:text-blue-300"
+        >
+          SPAM SPAM SPAM
+        </a>
+      )}
     </div>
   );
 }

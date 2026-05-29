@@ -530,7 +530,7 @@ export function isOutputHandleId(handleId: string | null | undefined): boolean {
   return !!handleId && /^out-/.test(handleId) && !handleId.endsWith('-in');
 }
 
-/** PSBT payment output not yet spent by a child on the graph. */
+/** PSBT payment output that can be dragged as a connect source (may fund multiple PSBTs). */
 export function isPsbtOutputSpendable(
   nodeId: string,
   handleId: string,
@@ -553,15 +553,10 @@ export function isPsbtOutputSpendable(
   if (!vout || vout.scriptpubkey_type === 'op_return' || !voutScriptpubkeyHex(vout)) {
     return false;
   }
-  return getSpendingTxidsForOutput(
-    nodeId,
-    voutIdx,
-    transactions,
-    stored.outspends[voutIdx]?.spent ? stored.outspends[voutIdx].txid : undefined
-  ).filter(t => t in transactions).length === 0;
+  return true;
 }
 
-/** Unspent output (green handle) — mempool outspend or unspent PSBT output on the graph. */
+/** Unspent output (green handle) — mempool outspend, or any spendable PSBT payment output. */
 export function isUtxoOutputHandle(
   nodeId: string,
   handleId: string,

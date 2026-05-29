@@ -77,14 +77,17 @@ export function formatOpReturnDisplay(scriptpubkey: string | undefined): string 
   return `hex: ${bytesToHex(bytes)}`;
 }
 
-/** Value for the OP_RETURN edit field (plain text or hex, no prefix). */
-export function opReturnPayloadForEdit(scriptpubkey: string | undefined): string {
-  if (!scriptpubkey?.startsWith('6a')) return '';
-  const bytes = extractOpReturnPayload(scriptpubkey);
+export type OpReturnEditMode = 'text' | 'hex';
+
+export function opReturnPayloadBytes(scriptpubkey: string | undefined): Uint8Array {
+  if (!scriptpubkey?.startsWith('6a')) return new Uint8Array(0);
+  return extractOpReturnPayload(scriptpubkey);
+}
+
+export function opReturnDraftFromBytes(bytes: Uint8Array, mode: OpReturnEditMode): string {
   if (bytes.length === 0) return '';
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-  if (isMostlyPrintable(text)) return text;
-  return bytesToHex(bytes);
+  if (mode === 'hex') return bytesToHex(bytes);
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
 }
 
 function parseHexPayload(hexStr: string): Uint8Array {
@@ -100,26 +103,13 @@ function parseHexPayload(hexStr: string): Uint8Array {
   return bytes;
 }
 
-/** Parse edit field: optional `string:` / `hex:` prefix, else hex if all hex chars else UTF-8. */
-export function parseOpReturnEditDraft(draft: string): Uint8Array {
+/** Parse edit field using the selected Text or Hex mode (no format guessing). */
+export function parseOpReturnEditDraft(draft: string, mode: OpReturnEditMode): Uint8Array {
   const trimmed = draft.trim();
   if (!trimmed) return new Uint8Array(0);
-
-  const stringMatch = /^string:\s*/i.exec(trimmed);
-  if (stringMatch) {
-    return new TextEncoder().encode(trimmed.slice(stringMatch[0].length));
+  if (mode === 'hex') {
+    return parseHexPayload(trimmed);
   }
-
-  const hexMatch = /^hex:\s*/i.exec(trimmed);
-  if (hexMatch) {
-    return parseHexPayload(trimmed.slice(hexMatch[0].length));
-  }
-
-  const asHex = trimmed.replace(/\s/g, '');
-  if (/^[0-9a-f]+$/i.test(asHex) && asHex.length % 2 === 0) {
-    return parseHexPayload(asHex);
-  }
-
   return new TextEncoder().encode(trimmed);
 }
 

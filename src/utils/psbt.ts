@@ -11,7 +11,11 @@ import type {
   MempoolOutspend,
   StoredTransaction,
 } from '../types';
-import { encodeOpReturnScript, parseOpReturnEditDraft } from './opReturn';
+import {
+  encodeOpReturnScript,
+  parseOpReturnEditDraft,
+  type OpReturnEditMode,
+} from './opReturn';
 
 /** Display-order txid (mempool / node id) ↔ internal bytes in unsigned tx inputs. */
 function reverseTxidHex(txid: string): string {
@@ -1268,9 +1272,10 @@ export function addPsbtPaymentOutput(psbtBase64: string): string {
 export function updatePsbtOpReturnPayload(
   psbtBase64: string,
   outputIndex: number,
-  payloadDraft: string
+  payloadDraft: string,
+  mode: OpReturnEditMode
 ): string {
-  const payload = parseOpReturnEditDraft(payloadDraft);
+  const payload = parseOpReturnEditDraft(payloadDraft, mode);
   const script = encodeOpReturnScript(payload);
   const tx = openPsbtForEdit(psbtBase64);
   const out = tx.getOutput(outputIndex);

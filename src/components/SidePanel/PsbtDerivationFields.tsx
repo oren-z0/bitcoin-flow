@@ -240,7 +240,7 @@ export default function PsbtDerivationFields({
               }}
             />
             {pubkeyParentAddressMismatch && (
-              <p className="text-[10px] text-red-400 mt-0.5 break-all">
+              <p className="text-sm text-red-400 mt-1 break-all">
                 {pubkeyParentAddressMismatch}
               </p>
             )}

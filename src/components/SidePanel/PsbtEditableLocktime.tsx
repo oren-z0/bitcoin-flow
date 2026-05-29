@@ -23,21 +23,17 @@ export default function PsbtEditableLocktime({
   onError,
 }: Props) {
   const fieldKey = `${psbtBase64}:${locktime}`;
-  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(() => String(locktime));
 
   useEffect(() => {
-    if (!editing) {
-      setDraft(String(locktime));
-    }
-  }, [fieldKey, locktime, editing]);
+    setDraft(String(locktime));
+  }, [fieldKey, locktime]);
 
   const disabledSuffix = isLocktimeDisabled(vin) ? ' (disabled)' : '';
   const absoluteSuffix =
     showsAbsoluteLocktime(locktime, vin) ? ` (${formatTimestamp(locktime)})` : '';
 
   const commit = () => {
-    setEditing(false);
     if (draft.trim() === String(locktime)) return;
 
     try {
@@ -50,44 +46,27 @@ export default function PsbtEditableLocktime({
     }
   };
 
-  if (editing) {
-    return (
-      <span className="flex flex-wrap items-center justify-end gap-1">
-        <input
-          type="text"
-          className={fieldClass}
-          value={draft}
-          autoFocus
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.currentTarget.blur();
-            }
-            if (e.key === 'Escape') {
-              setDraft(String(locktime));
-              setEditing(false);
-            }
-          }}
-        />
-        {disabledSuffix}
-      </span>
-    );
-  }
-
   return (
-    <span>
-      <button
-        type="button"
-        className="hover:text-white underline decoration-dotted underline-offset-2 cursor-pointer"
-        onClick={() => {
-          setDraft(String(locktime));
-          setEditing(true);
+    <span className="flex flex-wrap items-center justify-end gap-1">
+      <input
+        type="text"
+        className={fieldClass}
+        value={draft}
+        spellCheck={false}
+        aria-label="Locktime"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.currentTarget.blur();
+          }
+          if (e.key === 'Escape') {
+            setDraft(String(locktime));
+            e.currentTarget.blur();
+          }
         }}
-      >
-        {locktime}
-        {absoluteSuffix}
-      </button>
+      />
+      {absoluteSuffix}
       {disabledSuffix}
     </span>
   );

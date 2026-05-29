@@ -100,6 +100,18 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const someOutputsUnchecked = spendingTxids.some(txid => !transactions[txid]);
   const someOutputsChecked = spendingTxids.some(txid => !!transactions[txid]);
 
+  const removeLinkedTransactions = (txids: string[]) => {
+    const toRemove = txids.filter(txid => !!transactions[txid]);
+    const hasPsbt = toRemove.some(txid => transactions[txid].isPsbt);
+    if (hasPsbt) {
+      const ok = window.confirm(
+        'At least one of these transactions is a PSBT. Removing a PSBT cannot be undone — it cannot be retrieved from the blockchain. Continue?'
+      );
+      if (!ok) return;
+    }
+    toRemove.forEach(txid => removeTransaction(txid));
+  };
+
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNameInput(e.target.value);
     cursorPosRef.current = e.target.selectionStart ?? 0;
@@ -326,7 +338,11 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               {someInputsChecked && (
                 <button
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
-                  onClick={() => nonCoinbaseVins.filter(vin => !!transactions[vin.txid]).forEach(vin => removeTransaction(vin.txid))}
+                  onClick={() =>
+                    removeLinkedTransactions(
+                      nonCoinbaseVins.filter(vin => !!transactions[vin.txid]).map(vin => vin.txid)
+                    )
+                  }
                 >
                   Remove All Input Transactions
                 </button>
@@ -440,7 +456,9 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               {someOutputsChecked && (
                 <button
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
-                  onClick={() => spendingTxids.filter(txid => !!transactions[txid]).forEach(txid => removeTransaction(txid))}
+                  onClick={() =>
+                    removeLinkedTransactions(spendingTxids.filter(txid => !!transactions[txid]))
+                  }
                 >
                   Remove All Output Transactions
                 </button>

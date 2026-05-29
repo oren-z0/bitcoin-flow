@@ -439,8 +439,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   {showPsbtMove && !vin.is_coinbase && (
                     <PsbtRemoveIoButton
                       label="Remove input"
-                      disabled={inputCount <= 1}
-                      disabledTitle="PSBT must have at least one input"
                       onRemove={() => applyPsbtEdit(b64 => removePsbtInput(b64, i))}
                     />
                   )}
@@ -565,8 +563,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   {showPsbtMove && (
                     <PsbtRemoveIoButton
                       label="Remove output"
-                      disabled={outputCount <= 1}
-                      disabledTitle="PSBT must have at least one output"
                       onRemove={() => applyPsbtEdit(b64 => removePsbtOutput(b64, i))}
                     />
                   )}

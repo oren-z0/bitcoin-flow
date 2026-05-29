@@ -1237,18 +1237,12 @@ function splicePsbtIoList(
 
 export function removePsbtInput(psbtBase64: string, inputIndex: number): string {
   const tx = openPsbtForEdit(psbtBase64);
-  if (tx.inputsLength <= 1) {
-    throw new Error('PSBT must have at least one input');
-  }
   splicePsbtIoList(tx, 'input', inputIndex);
   return base64.encode(tx.toPSBT());
 }
 
 export function removePsbtOutput(psbtBase64: string, outputIndex: number): string {
   const tx = openPsbtForEdit(psbtBase64);
-  if (tx.outputsLength <= 1) {
-    throw new Error('PSBT must have at least one output');
-  }
   splicePsbtIoList(tx, 'output', outputIndex);
   return base64.encode(tx.toPSBT());
 }

@@ -7,10 +7,12 @@ import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '
 import {
   addPsbtPaymentOutput,
   isKnownTxid,
+  readPsbtIoScriptType,
   readPsbtVersion,
   removePsbtInput,
   removePsbtOutput,
   resolveParentNodeId,
+  type PsbtScriptKind,
 } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import PsbtDerivationFields from './PsbtDerivationFields';
@@ -233,10 +235,14 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     outputIndex: number;
     fingerprint: string;
   } | null>(null);
+  const [outputScriptTypes, setOutputScriptTypes] = useState<
+    Record<number, PsbtScriptKind>
+  >({});
 
   React.useEffect(() => {
     setOutputFpPreserve(null);
-  }, [selectedTxid]);
+    setOutputScriptTypes({});
+  }, [selectedTxid, stored?.psbtBase64]);
 
   const handlePsbtDerivationUpdated = (newBase64: string) => {
     if (!stored.psbtBase64) return;
@@ -564,8 +570,16 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               const outspend = stored.outspends[i];
               const addr = vout.scriptpubkey_address;
               const addrData = addr ? addresses[addr] : undefined;
-              const isOpReturn = vout.scriptpubkey_type === 'op_return';
-              const opReturnContent = isOpReturn
+              const savedIsOpReturn = vout.scriptpubkey_type === 'op_return';
+              const effectiveScriptType =
+                outputScriptTypes[i] ??
+                (stored.psbtBase64
+                  ? readPsbtIoScriptType(stored.psbtBase64, 'output', i)
+                  : savedIsOpReturn
+                    ? 'op_return'
+                    : 'wpkh');
+              const isOpReturn = effectiveScriptType === 'op_return';
+              const opReturnContent = savedIsOpReturn && isOpReturn
                 ? formatOpReturnDisplay(vout.scriptpubkey)
                 : '';
 
@@ -628,6 +642,27 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         )}
                       </div>
                     )
+                  )}
+
+                  {stored.isPsbt && stored.psbtBase64 && (
+                    <PsbtDerivationFields
+                      psbtBase64={stored.psbtBase64}
+                      kind="output"
+                      index={i}
+                      showOptionalLabel={!isOpReturn}
+                      transactionKey={selectedTxid}
+                      preservedFingerprint={
+                        outputFpPreserve?.outputIndex === i
+                          ? outputFpPreserve.fingerprint
+                          : undefined
+                      }
+                      onPreserveApplied={() => setOutputFpPreserve(null)}
+                      onScriptTypeChange={(t) =>
+                        setOutputScriptTypes((s) => ({ ...s, [i]: t }))
+                      }
+                      onPsbtUpdated={handlePsbtDerivationUpdated}
+                      onError={addError}
+                    />
                   )}
 
                   {/* Address / OP_RETURN */}
@@ -703,24 +738,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         <div className="text-gray-300">{`${satsToBtc(vout.value)} BTC`}</div>
                       )}
                     </div>
-                  )}
-                  {stored.isPsbt && stored.psbtBase64 && (
-                    <PsbtDerivationFields
-                      psbtBase64={stored.psbtBase64}
-                      kind="output"
-                      index={i}
-                      hideDerivation={isOpReturn}
-                      showOptionalLabel={!isOpReturn}
-                      transactionKey={selectedTxid}
-                      preservedFingerprint={
-                        outputFpPreserve?.outputIndex === i
-                          ? outputFpPreserve.fingerprint
-                          : undefined
-                      }
-                      onPreserveApplied={() => setOutputFpPreserve(null)}
-                      onPsbtUpdated={handlePsbtDerivationUpdated}
-                      onError={addError}
-                    />
                   )}
                 </div>
               );

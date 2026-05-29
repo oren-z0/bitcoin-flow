@@ -21,9 +21,9 @@ interface Props {
   psbtBase64: string;
   kind: 'input' | 'output';
   index: number;
-  /** When true, only script type is shown (e.g. OP_RETURN outputs). */
-  hideDerivation?: boolean;
   showOptionalLabel?: boolean;
+  /** Fired when the script type dropdown changes (including after PSBT reload). */
+  onScriptTypeChange?: (scriptType: PsbtScriptKind) => void;
   /** Graph node id — resets sticky fingerprint when switching transactions. */
   transactionKey?: string;
   /** Set after an output address edit so the fingerprint field stays while path/pubkey clear. */
@@ -48,12 +48,12 @@ export default function PsbtDerivationFields({
   psbtBase64,
   kind,
   index,
-  hideDerivation = false,
   showOptionalLabel,
   transactionKey,
   preservedFingerprint,
   onPreserveApplied,
   parentOutputAddress,
+  onScriptTypeChange,
   onPsbtUpdated,
   onError,
 }: Props) {
@@ -87,6 +87,7 @@ export default function PsbtDerivationFields({
     setPath(next.path);
     setPubkey(nextPubkey);
     setScriptType(nextScriptType);
+    onScriptTypeChange?.(nextScriptType);
 
     if (preservedFingerprint !== undefined) {
       setFingerprint(preservedFingerprint);
@@ -102,7 +103,7 @@ export default function PsbtDerivationFields({
     } else if (stickyFingerprintIoRef.current !== ioKey) {
       setFingerprint(next.fingerprint);
     }
-  }, [derivationKey, psbtBase64, kind, index, ioKey, preservedFingerprint, onPreserveApplied]);
+  }, [derivationKey, psbtBase64, kind, index, ioKey, preservedFingerprint, onPreserveApplied, onScriptTypeChange]);
 
   const commit = (overrides?: {
     fingerprint?: string;
@@ -157,10 +158,13 @@ export default function PsbtDerivationFields({
 
   const handleScriptTypeChange = (next: PsbtScriptKind) => {
     setScriptType(next);
+    onScriptTypeChange?.(next);
     if (next === 'op_return' || pubkey.trim()) {
       commit({ scriptType: next });
     }
   };
+
+  const showDerivationFields = scriptType !== 'op_return';
 
   const pubkeyParentAddressMismatch = useMemo(() => {
     if (kind !== 'input' || !parentOutputAddress) return null;
@@ -192,7 +196,7 @@ export default function PsbtDerivationFields({
         </select>
       </div>
 
-      {!hideDerivation && (
+      {showDerivationFields && (
         <>
           {showOptionalLabel && (
             <div className="text-[10px] text-gray-500 italic">

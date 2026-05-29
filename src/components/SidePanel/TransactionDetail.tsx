@@ -121,6 +121,17 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const someOutputsUnchecked = spendingTxids.some(txid => !transactions[txid]);
   const someOutputsChecked = spendingTxids.some(txid => !!transactions[txid]);
 
+  const removeLinkedTransaction = (txid: string) => {
+    if (!transactions[txid]) return;
+    if (transactions[txid].isPsbt) {
+      const ok = window.confirm(
+        'This transaction is a PSBT. Removing it cannot be undone — it cannot be retrieved from the blockchain. Continue?'
+      );
+      if (!ok) return;
+    }
+    removeTransaction(txid);
+  };
+
   const removeLinkedTransactions = (txids: string[]) => {
     const toRemove = txids.filter(txid => !!transactions[txid]);
     const hasPsbt = toRemove.some(txid => transactions[txid].isPsbt);
@@ -390,7 +401,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         visible={vinInState}
                         onToggle={() => {
                           if (vinInState) {
-                            removeTransaction(vin.txid);
+                            removeLinkedTransaction(vin.txid);
                           } else {
                             addTransaction(vin.txid, { noFocus: true });
                           }
@@ -509,7 +520,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                           visible={spendingInState}
                           onToggle={() => {
                             if (spendingInState) {
-                              removeTransaction(spendingTxid);
+                              removeLinkedTransaction(spendingTxid);
                             } else {
                               addTransaction(spendingTxid, { noFocus: true });
                             }

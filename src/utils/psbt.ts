@@ -473,7 +473,10 @@ export function parsePsbtBase64(psbtBase64: string): ParsedPsbt {
     });
   }
 
-  const fee = hasAllInputAmounts && vin.some(v => !v.is_coinbase) ? Math.max(0, inputSum - outputSum) : 0;
+  const feeFromIo = computeTxFee(vin, vout);
+  const fee =
+    feeFromIo ??
+    (hasAllInputAmounts && vin.some(v => !v.is_coinbase) ? inputSum - outputSum : 0);
 
   const data: MempoolTx = {
     txid: chainTxid,
@@ -492,18 +495,59 @@ export function parsePsbtBase64(psbtBase64: string): ParsedPsbt {
   return { nodeId, data, outspends };
 }
 
-/** Copy prevout from a loaded parent tx output when vin lacks an address. */
+function vinHasKnownAmount(vin: MempoolVin): boolean {
+  if (vin.is_coinbase) return true;
+  const prevout = vin.prevout;
+  if (!prevout) return false;
+  if ((prevout.value ?? 0) > 0) return true;
+  return !!prevout.scriptpubkey_address;
+}
+
+/** Fee from summed inputs/outputs; null when any non-coinbase input amount is unknown. */
+export function computeTxFee(vin: MempoolVin[], vout: MempoolVout[]): number | null {
+  if (!vin.some(v => !v.is_coinbase)) return null;
+
+  let inputSum = 0;
+  for (const v of vin) {
+    if (v.is_coinbase) continue;
+    if (!vinHasKnownAmount(v)) return null;
+    inputSum += v.prevout!.value;
+  }
+
+  const outputSum = vout.reduce((sum, o) => sum + o.value, 0);
+  return inputSum - outputSum;
+}
+
+function prevoutFromParentOutput(parentOut: MempoolVout): MempoolVin['prevout'] {
+  return {
+    value: parentOut.value,
+    scriptpubkey_address: parentOut.scriptpubkey_address,
+    scriptpubkey_type: parentOut.scriptpubkey_type,
+  };
+}
+
+function prevoutsEqual(a: MempoolVin['prevout'], b: MempoolVin['prevout']): boolean {
+  return (
+    a.value === b.value &&
+    a.scriptpubkey_address === b.scriptpubkey_address &&
+    a.scriptpubkey_type === b.scriptpubkey_type
+  );
+}
+
+/**
+ * When a vin's parent tx/PSBT is on the graph, copy that output's prevout (amount + script).
+ * Otherwise keep amounts from PSBT witness/non-witness UTXO data. Recomputes fee after changes.
+ */
 export function enrichPrevoutsFromGraph(
   transactions: Record<string, StoredTransaction>
 ): Record<string, StoredTransaction> | null {
   let changed = false;
-  const updated: Record<string, StoredTransaction> = {};
+  const result = { ...transactions };
 
   for (const [txid, stored] of Object.entries(transactions)) {
-    let txChanged = false;
+    let vinChanged = false;
     const newVin = stored.data.vin.map(vin => {
       if (vin.is_coinbase || !vin.txid) return vin;
-      if (vin.prevout?.scriptpubkey_address && (vin.prevout?.value ?? 0) > 0) return vin;
 
       const parentKey = resolveParentNodeId(transactions, vin.txid);
       const parent = parentKey ? transactions[parentKey] : undefined;
@@ -512,34 +556,26 @@ export function enrichPrevoutsFromGraph(
       const parentOut = parent.data.vout[vin.vout];
       if (!parentOut) return vin;
 
-      txChanged = true;
-      changed = true;
-      return {
-        ...vin,
-        prevout: {
-          value: parentOut.value,
-          scriptpubkey_address: parentOut.scriptpubkey_address,
-          scriptpubkey_type: parentOut.scriptpubkey_type,
-          scriptpubkey: parentOut.scriptpubkey,
-        },
-      };
+      const fromParent = prevoutFromParentOutput(parentOut);
+      if (prevoutsEqual(vin.prevout, fromParent)) return vin;
+
+      vinChanged = true;
+      return { ...vin, prevout: fromParent };
     });
 
-    if (txChanged) {
-      updated[txid] = {
+    const feeFromIo = computeTxFee(newVin, stored.data.vout);
+    const fee = feeFromIo ?? stored.data.fee;
+
+    if (vinChanged || fee !== stored.data.fee) {
+      changed = true;
+      result[txid] = {
         ...stored,
-        data: { ...stored.data, vin: newVin },
+        data: { ...stored.data, vin: newVin, fee },
       };
     }
   }
 
-  if (!changed) return null;
-
-  const result = { ...transactions };
-  for (const [txid, stored] of Object.entries(updated)) {
-    result[txid] = stored;
-  }
-  return result;
+  return changed ? result : null;
 }
 
 const HARDENED_OFFSET = 0x80000000;
@@ -771,6 +807,20 @@ export function updatePsbtIoDerivation(
   } else {
     tx.updateOutput(index, patch);
   }
+  return base64.encode(tx.toPSBT());
+}
+
+export function updatePsbtOutputAmount(
+  psbtBase64: string,
+  outputIndex: number,
+  amountSats: number
+): string {
+  if (!Number.isSafeInteger(amountSats) || amountSats < 0) {
+    throw new Error('Output amount must be a non-negative integer (satoshis)');
+  }
+  const normalized = normalizePsbtBase64(psbtBase64);
+  const tx = Transaction.fromPSBT(base64.decode(normalized));
+  tx.updateOutput(outputIndex, { amount: BigInt(amountSats) });
   return base64.encode(tx.toPSBT());
 }
 

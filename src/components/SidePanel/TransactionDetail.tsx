@@ -9,6 +9,7 @@ import OpenInExplorerButton from './OpenInExplorerButton';
 import PsbtDerivationFields from './PsbtDerivationFields';
 import PsbtEditableSequence from './PsbtEditableSequence';
 import PsbtEditableLocktime from './PsbtEditableLocktime';
+import PsbtEditableOutputAmount from './PsbtEditableOutputAmount';
 import PsbtAdvancedSection from './PsbtAdvancedSection';
 import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
@@ -598,8 +599,18 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
                   {/* Amount */}
                   {!isOpReturn && (
-                    <div className="text-gray-300">
-                      {`${satsToBtc(vout.value)} BTC`}
+                    <div>
+                      {stored.isPsbt && stored.psbtBase64 ? (
+                        <PsbtEditableOutputAmount
+                          psbtBase64={stored.psbtBase64}
+                          outputIndex={i}
+                          valueSats={vout.value}
+                          onPsbtUpdated={handlePsbtDerivationUpdated}
+                          onError={addError}
+                        />
+                      ) : (
+                        <div className="text-gray-300">{`${satsToBtc(vout.value)} BTC`}</div>
+                      )}
                     </div>
                   )}
                   {stored.isPsbt && stored.psbtBase64 && !isOpReturn && (

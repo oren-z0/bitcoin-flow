@@ -12,6 +12,22 @@ export function satsToBtc(sats: number): string {
   return (sats / 1e8).toFixed(8);
 }
 
+/** Parse a BTC decimal string (up to 8 fractional digits) to satoshis. */
+export function btcToSats(btc: string): number {
+  const trimmed = btc.trim();
+  if (!trimmed) throw new Error('Amount is required');
+  if (!/^\d+(\.\d{0,8})?$/.test(trimmed)) {
+    throw new Error('Invalid BTC amount (use up to 8 decimal places)');
+  }
+  const [whole, frac = ''] = trimmed.split('.');
+  const sats =
+    BigInt(whole) * 100_000_000n +
+    BigInt((frac + '00000000').slice(0, 8));
+  const n = Number(sats);
+  if (!Number.isSafeInteger(n)) throw new Error('Amount is too large');
+  return n;
+}
+
 export function formatFeeRate(fee: number, weight: number): string {
   if (weight === 0) return '0.00';
   const rate = (fee * 4) / weight; // sat/vB = fee / vsize, vsize = weight/4

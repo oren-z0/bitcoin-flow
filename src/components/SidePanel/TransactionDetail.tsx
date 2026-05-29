@@ -353,7 +353,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => addTransactions(nonCoinbaseVins.filter(vin => !transactions[vin.txid]).map(vin => vin.txid))}
                 >
-                  Add All Transactions
+                  Add All Input Txes
                 </button>
               )}
               {someInputsChecked && (
@@ -365,7 +365,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                     )
                   }
                 >
-                  Remove All Input Transactions
+                  Remove All Input Txes
                 </button>
               )}
             </div>
@@ -471,7 +471,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   className="text-xs text-gray-400 hover:text-white cursor-pointer"
                   onClick={() => addTransactions(spendingTxids.filter(txid => !transactions[txid]))}
                 >
-                  Add All Transactions
+                  Add All Output Txes
                 </button>
               )}
               {someOutputsChecked && (
@@ -481,7 +481,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                     removeLinkedTransactions(spendingTxids.filter(txid => !!transactions[txid]))
                   }
                 >
-                  Remove All Output Transactions
+                  Remove All Output Txes
                 </button>
               )}
             </div>

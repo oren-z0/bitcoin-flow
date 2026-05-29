@@ -316,7 +316,11 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
         </div>
 
         {/* Fee */}
-        <div className="flex items-center justify-center gap-0.5 text-xs text-gray-400 mt-2 border-t border-gray-700 pt-1 px-3">
+        <div
+          className={`flex items-center justify-center gap-0.5 text-xs mt-2 border-t border-gray-700 pt-1 px-3 ${
+            tx.fee < 0 ? 'text-red-400' : 'text-gray-400'
+          }`}
+        >
           {showsAbsoluteLocktime(tx.locktime, tx.vin) && <AlarmClockIcon />}
           <span>Fee: {formatFee(tx.fee, tx.weight)}</span>
         </div>

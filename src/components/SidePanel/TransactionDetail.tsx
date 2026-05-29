@@ -647,11 +647,15 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Fee</span>
-              <span>{satsToBtc(tx.fee)} BTC</span>
+              <span className={tx.fee < 0 ? 'text-red-400' : undefined}>
+                {satsToBtc(tx.fee)} BTC
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Fee rate</span>
-              <span>{formatFeeRate(tx.fee, tx.weight)} sat/vB</span>
+              <span className={tx.fee < 0 ? 'text-red-400' : undefined}>
+                {formatFeeRate(tx.fee, tx.weight)} sat/vB
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Version</span>

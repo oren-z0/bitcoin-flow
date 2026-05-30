@@ -35,7 +35,7 @@ export default function PsbtRemoveIoButton({
   return (
     <button
       type="button"
-      className="absolute top-2 right-2 p-0.5 text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+      className="p-0.5 text-red-400 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
       title={disabled ? disabledTitle : label}
       aria-label={label}
       disabled={disabled}

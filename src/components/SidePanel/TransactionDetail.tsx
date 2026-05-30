@@ -431,13 +431,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                 : undefined;
 
               return (
-                <div key={i} className="relative bg-gray-700 rounded p-2 pr-8 text-xs space-y-1">
-                  {showPsbtMove && !vin.is_coinbase && (
-                    <PsbtRemoveIoButton
-                      label="Remove input"
-                      onRemove={() => applyPsbtEdit(b64 => removePsbtInput(b64, i))}
-                    />
-                  )}
+                <div key={i} className="bg-gray-700 rounded p-2 text-xs space-y-1">
                   <div className="flex items-center gap-2">
                     {!vin.is_coinbase && vin.txid && (
                       <LinkedTransactionVisibilityButton
@@ -462,6 +456,12 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         count={inputCount}
                         index={i}
                         onMove={(direction) => handlePsbtMove('input', i, direction)}
+                      />
+                    )}
+                    {showPsbtMove && !vin.is_coinbase && (
+                      <PsbtRemoveIoButton
+                        label="Remove input"
+                        onRemove={() => applyPsbtEdit(b64 => removePsbtInput(b64, i))}
                       />
                     )}
                   </div>
@@ -558,15 +558,9 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               const spendingInState = spendingTxid ? !!transactions[spendingTxid] : false;
 
               return (
-                <div key={i} className="relative bg-gray-700 rounded p-2 pr-8 text-xs space-y-1">
-                  {showPsbtMove && (
-                    <PsbtRemoveIoButton
-                      label="Remove output"
-                      onRemove={() => applyPsbtEdit(b64 => removePsbtOutput(b64, i))}
-                    />
-                  )}
+                <div key={i} className="bg-gray-700 rounded p-2 text-xs space-y-1">
                   {/* Spending tx or UTXO */}
-                  {!isOpReturn && (
+                  {!isOpReturn ? (
                     spendingTxid ? (
                       <div className="flex items-center gap-2">
                         <LinkedTransactionVisibilityButton
@@ -595,6 +589,12 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                             onMove={(direction) => handlePsbtMove('output', i, direction)}
                           />
                         )}
+                        {showPsbtMove && (
+                          <PsbtRemoveIoButton
+                            label="Remove output"
+                            onRemove={() => applyPsbtEdit(b64 => removePsbtOutput(b64, i))}
+                          />
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
@@ -611,6 +611,21 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                             onMove={(direction) => handlePsbtMove('output', i, direction)}
                           />
                         )}
+                        {showPsbtMove && (
+                          <PsbtRemoveIoButton
+                            label="Remove output"
+                            onRemove={() => applyPsbtEdit(b64 => removePsbtOutput(b64, i))}
+                          />
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    showPsbtMove && (
+                      <div className="flex items-center justify-end">
+                        <PsbtRemoveIoButton
+                          label="Remove output"
+                          onRemove={() => applyPsbtEdit(b64 => removePsbtOutput(b64, i))}
+                        />
                       </div>
                     )
                   )}

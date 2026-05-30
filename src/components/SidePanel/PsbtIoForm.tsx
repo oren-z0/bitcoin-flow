@@ -107,6 +107,8 @@ export default function PsbtIoForm({
     setDraft(next);
     setOpReturnPayloadBytesState(copyBytes(opReturnPayloadBytes(mempool?.scriptpubkey)));
     onScriptTypeChange?.(next.scriptType);
+    setSaveErrors([]);
+    setSaving(false);
     setDirty(false);
   };
 

@@ -169,8 +169,16 @@ function buildSelectedAddresses(addresses: Record<string, StoredAddress>): Set<s
 
 const NODE_WIDTH = 260;
 const SMALL_GAP = 30;
+/** Max random offset (px) when placing a new PSBT so nodes don't stack on the viewport center. */
+const NODE_PLACEMENT_JITTER_PX = 260;
 /** Matches `layoutRef.focusNode` centering so new nodes sit in the viewport middle. */
 const NODE_VIEWPORT_CENTER_OFFSET = { x: 90, y: 60 };
+
+/** Uniform offset in [-max, max] on each axis (flow coordinates). */
+function randomPlacementJitter(max = NODE_PLACEMENT_JITTER_PX): { dx: number; dy: number } {
+  const offset = () => Math.round(Math.random() * 2 * max - max);
+  return { dx: offset(), dy: offset() };
+}
 
 function computeInitialX(
   txid: string,
@@ -391,13 +399,20 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
 
     const viewportCenter = layoutRef.getViewportCenter();
     const { autoLayout } = get();
+    const placementJitter = existing ? null : randomPlacementJitter();
     const initialCoordinates = existing
       ? existing.coordinates
       : autoLayout
         ? { x: 0, y: viewportCenter.y }
         : {
-            x: viewportCenter.x - NODE_VIEWPORT_CENTER_OFFSET.x,
-            y: viewportCenter.y - NODE_VIEWPORT_CENTER_OFFSET.y,
+            x:
+              viewportCenter.x -
+              NODE_VIEWPORT_CENTER_OFFSET.x +
+              (placementJitter?.dx ?? 0),
+            y:
+              viewportCenter.y -
+              NODE_VIEWPORT_CENTER_OFFSET.y +
+              (placementJitter?.dy ?? 0),
           };
 
     const newTx: StoredTransaction = {
@@ -433,6 +448,25 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
 
     if (autoLayout) {
       await get().runLayout();
+      // runLayout overwrites coordinates — re-apply jitter for a newly placed PSBT.
+      if (placementJitter) {
+        const stored = get().transactions[nodeId];
+        if (stored) {
+          const coordinates = {
+            x: stored.coordinates.x + placementJitter.dx,
+            y: stored.coordinates.y + placementJitter.dy,
+          };
+          set(s => {
+            const updated = {
+              ...s.transactions,
+              [nodeId]: { ...stored, coordinates },
+            };
+            persist({ ...s, transactions: updated });
+            return { transactions: updated };
+          });
+          layoutRef.setNodePositions({ [nodeId]: coordinates }, false);
+        }
+      }
     }
 
     if (!noFocus) {

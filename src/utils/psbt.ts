@@ -1098,6 +1098,30 @@ export function addressFromOutputPubkey(
   }
 }
 
+/** Placeholder pubkey when switching a PSBT output off OP_RETURN before a real key is entered. */
+const PLACEHOLDER_PUBKEY_HEX = `02${'00'.repeat(32)}`;
+
+/** Change output script type (OP_RETURN or payment placeholder script); clears derivation. */
+export function updatePsbtOutputScriptKind(
+  psbtBase64: string,
+  outputIndex: number,
+  kind: PsbtScriptKind
+): string {
+  if (kind === 'op_return') {
+    return updatePsbtIoDerivation(psbtBase64, 'output', outputIndex, '', '', undefined, 'op_return');
+  }
+  if (!isEditableScriptKind(kind)) {
+    throw new Error(`Cannot change script type to ${PSBT_SCRIPT_TYPE_LABELS[kind]}`);
+  }
+  const tx = openPsbtForEdit(psbtBase64);
+  const out = tx.getOutput(outputIndex);
+  const script = scriptBytesForKind(kind, parsePubkeyHex(PLACEHOLDER_PUBKEY_HEX));
+  tx.updateOutput(outputIndex, { script, amount: out.amount }, true);
+  const io = tx.getOutput(outputIndex);
+  tx.updateOutput(outputIndex, clearIoDerivationPubkeyAndPath(io));
+  return base64.encode(tx.toPSBT());
+}
+
 export function updatePsbtOutputAddress(
   psbtBase64: string,
   outputIndex: number,

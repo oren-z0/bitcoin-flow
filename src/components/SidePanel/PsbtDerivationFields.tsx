@@ -8,6 +8,7 @@ import {
   readPsbtIoPubkey,
   readPsbtIoScriptType,
   updatePsbtIoDerivation,
+  updatePsbtOutputScriptKind,
   validateFingerprintField,
   validatePathField,
   validatePathSyntaxField,
@@ -131,7 +132,12 @@ export default function PsbtDerivationFields({
 
   const lastValidRef = useRef<DerivationDraft>({ ...initial });
   const draftTouchedRef = useRef(false);
+  const scriptTypeTouchedRef = useRef(false);
   const stickyFingerprintIoRef = useRef<string | null>(null);
+  const onScriptTypeChangeRef = useRef(onScriptTypeChange);
+  useEffect(() => {
+    onScriptTypeChangeRef.current = onScriptTypeChange;
+  }, [onScriptTypeChange]);
   const ioKey = `${transactionKey ?? ''}:${kind}:${index}`;
 
   const draft = useMemo(
@@ -151,6 +157,7 @@ export default function PsbtDerivationFields({
   useEffect(() => {
     stickyFingerprintIoRef.current = null;
     draftTouchedRef.current = false;
+    scriptTypeTouchedRef.current = false;
     syncLastValidFromPsbt();
   }, [transactionKey]);
 
@@ -158,8 +165,10 @@ export default function PsbtDerivationFields({
     const next = readDerivationDraftFromPsbt(psbtBase64, kind, index);
     const nextScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
 
-    setScriptType(nextScriptType);
-    onScriptTypeChange?.(nextScriptType);
+    if (!scriptTypeTouchedRef.current) {
+      setScriptType(nextScriptType);
+      onScriptTypeChangeRef.current?.(nextScriptType);
+    }
 
     if (preservedFingerprint !== undefined) {
       draftTouchedRef.current = true;
@@ -189,7 +198,20 @@ export default function PsbtDerivationFields({
     } else if (stickyFingerprintIoRef.current !== ioKey) {
       setFingerprint(next.fingerprint);
     }
-  }, [derivationKey, psbtBase64, kind, index, ioKey, preservedFingerprint, onPreserveApplied, onScriptTypeChange]);
+  }, [derivationKey, psbtBase64, kind, index, ioKey, preservedFingerprint, onPreserveApplied]);
+
+  const syncAfterPsbtSave = (updatedBase64: string) => {
+    const savedType = readPsbtIoScriptType(updatedBase64, kind, index);
+    const saved = readDerivationDraftFromPsbt(updatedBase64, kind, index);
+    scriptTypeTouchedRef.current = false;
+    draftTouchedRef.current = false;
+    setScriptType(savedType);
+    onScriptTypeChangeRef.current?.(savedType);
+    lastValidRef.current = saved;
+    setFingerprint(saved.fingerprint);
+    setPath(saved.path);
+    setPubkey(saved.pubkey);
+  };
 
   const revertField = (field: DerivationField) => {
     const v = lastValidRef.current[field];
@@ -207,8 +229,8 @@ export default function PsbtDerivationFields({
     const currentScriptType = readPsbtIoScriptType(psbtBase64, kind, index);
 
     const scriptTypeForSave =
-      scriptType !== currentScriptType &&
       scriptType !== 'op_return' &&
+      scriptType !== currentScriptType &&
       !nextPubkey.trim()
         ? currentScriptType
         : scriptType;
@@ -233,17 +255,58 @@ export default function PsbtDerivationFields({
         scriptTypeForSave
       );
       onPsbtUpdated(updated);
-      draftTouchedRef.current = false;
-      const saved = readDerivationDraftFromPsbt(updated, kind, index);
-      lastValidRef.current = saved;
-      setFingerprint(saved.fingerprint);
-      setPath(saved.path);
-      setPubkey(saved.pubkey);
+      syncAfterPsbtSave(updated);
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Failed to update PSBT');
       setFingerprint(lastValidRef.current.fingerprint);
       setPath(lastValidRef.current.path);
       setPubkey(lastValidRef.current.pubkey);
+      setScriptType(readPsbtIoScriptType(psbtBase64, kind, index));
+    }
+  };
+
+  const commitScriptTypeChange = (next: PsbtScriptKind, prev: PsbtScriptKind) => {
+    const current = readPsbtIoScriptType(psbtBase64, kind, index);
+    if (next === current) return;
+
+    try {
+      let updated: string;
+      if (kind === 'output') {
+        if (next === 'op_return' || prev === 'op_return') {
+          updated = updatePsbtOutputScriptKind(psbtBase64, index, next);
+        } else if (allDerivationFieldsFilled(draft) && allDerivationFieldsValid(draft)) {
+          updated = updatePsbtIoDerivation(
+            psbtBase64,
+            kind,
+            index,
+            fingerprint,
+            path,
+            pubkey.trim(),
+            next
+          );
+        } else {
+          updated = updatePsbtOutputScriptKind(psbtBase64, index, next);
+        }
+      } else if (allDerivationFieldsFilled(draft) && allDerivationFieldsValid(draft)) {
+        updated = updatePsbtIoDerivation(
+          psbtBase64,
+          kind,
+          index,
+          fingerprint,
+          path,
+          pubkey.trim(),
+          next
+        );
+      } else {
+        return;
+      }
+      onPsbtUpdated(updated);
+      syncAfterPsbtSave(updated);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Failed to update script type');
+      setScriptType(current);
+      onScriptTypeChangeRef.current?.(current);
+      scriptTypeTouchedRef.current = false;
     }
   };
 
@@ -266,12 +329,7 @@ export default function PsbtDerivationFields({
         scriptType
       );
       onPsbtUpdated(updated);
-      draftTouchedRef.current = false;
-      const saved = readDerivationDraftFromPsbt(updated, kind, index);
-      lastValidRef.current = saved;
-      setFingerprint(saved.fingerprint);
-      setPath(saved.path);
-      setPubkey(saved.pubkey);
+      syncAfterPsbtSave(updated);
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Failed to update PSBT');
       setFingerprint(lastValidRef.current.fingerprint);
@@ -318,13 +376,19 @@ export default function PsbtDerivationFields({
   };
 
   const handleScriptTypeChange = (next: PsbtScriptKind) => {
+    const prev = scriptType;
     setScriptType(next);
-    onScriptTypeChange?.(next);
+    onScriptTypeChangeRef.current?.(next);
+    scriptTypeTouchedRef.current = true;
     markDraftTouched();
-    if (next === 'op_return' || pubkey.trim()) {
-      if (allDerivationFieldsFilled(draft) && allDerivationFieldsValid(draft)) {
-        commitFullDerivation();
-      }
+
+    if (kind === 'output' && (next === 'op_return' || prev === 'op_return')) {
+      commitScriptTypeChange(next, prev);
+      return;
+    }
+
+    if (allDerivationFieldsFilled(draft) && allDerivationFieldsValid(draft)) {
+      commitFullDerivation();
     }
   };
 

@@ -17,6 +17,35 @@ export function logConnectRejected(reason: string): void {
   console.info(`${LOG} ${reason}`);
 }
 
+type ConnectEndHandle = {
+  nodeId: string;
+  handleId?: string | null;
+  type: 'source' | 'target';
+};
+
+/** Build a partial Connection from React Flow store after a drag ends without onConnect. */
+export function connectionFromConnectEndHandles(
+  start: ConnectEndHandle,
+  end: ConnectEndHandle | null
+): Connection {
+  const startHandle = start.handleId ?? null;
+  const endHandle = end?.handleId ?? null;
+  if (start.type === 'source') {
+    return {
+      source: start.nodeId,
+      sourceHandle: startHandle,
+      target: end?.nodeId ?? null,
+      targetHandle: endHandle,
+    };
+  }
+  return {
+    source: end?.nodeId ?? null,
+    sourceHandle: endHandle,
+    target: start.nodeId,
+    targetHandle: startHandle,
+  };
+}
+
 /** Why React Flow rejected a connection during drag (null = valid). */
 export function explainFlowConnectionValidity(
   connection: Connection,
@@ -242,4 +271,41 @@ export function explainConnectPsbtInputFromOutput(
     addresses,
     groupMap
   );
+}
+
+/** Why connectPsbtOutputFromOutput would not apply (null = proceed). */
+export function explainConnectPsbtOutputFromOutput(
+  sourceNodeId: string,
+  sourceHandleId: string,
+  targetPsbtNodeId: string,
+  targetHandleId: string,
+  transactions: Record<string, StoredTransaction>,
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>
+): string | null {
+  const target = transactions[targetPsbtNodeId];
+  if (!target?.isPsbt || !target.psbtBase64) {
+    return 'Target is not a PSBT with data.';
+  }
+
+  const source = transactions[sourceNodeId];
+  if (!source) {
+    return `Source "${sourceNodeId}" is not on the graph.`;
+  }
+
+  if (!isOutputHandleId(sourceHandleId) || !isPsbtOutputDropTargetHandleId(targetHandleId)) {
+    return `Invalid handles (source "${sourceHandleId}", target "${targetHandleId}"). Drag from a green output dot to an output drop target (out-…-in on the right).`;
+  }
+
+  const spendReason = explainSpendableSource(
+    sourceNodeId,
+    sourceHandleId,
+    source,
+    transactions,
+    addresses,
+    groupMap
+  );
+  if (spendReason) return spendReason;
+
+  return null;
 }

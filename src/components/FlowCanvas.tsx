@@ -13,9 +13,11 @@ import ReactFlow, {
   type Edge,
   type NodeTypes,
   type NodeDragHandler,
+  useStoreApi,
 } from 'reactflow';
 import { isPsbtOutputDropTargetHandleId } from '../utils/handleGrouping';
 import {
+  connectionFromConnectEndHandles,
   explainFlowConnectionValidity,
   logConnectRejected,
 } from '../utils/psbtConnect';
@@ -149,6 +151,8 @@ export default function FlowCanvas() {
   } = useGlobalState();
 
   const { setCenter, getViewport, fitView } = useReactFlow();
+  const storeApi = useStoreApi();
+  const connectAppliedRef = useRef(false);
 
   // Always-current snapshot of controlled nodes, readable inside rAF callbacks
   const nodesRef = useRef<Node[]>([]);
@@ -318,23 +322,53 @@ export default function FlowCanvas() {
 
   const isValidConnection = useCallback((connection: Connection) => {
     const { transactions, addresses, groupMap } = useGlobalState.getState();
+    return (
+      explainFlowConnectionValidity(
+        connection,
+        transactions,
+        addresses,
+        groupMap
+      ) === null
+    );
+  }, []);
+
+  const onConnectStart = useCallback(() => {
+    connectAppliedRef.current = false;
+  }, []);
+
+  const onConnectEnd = useCallback(() => {
+    if (connectAppliedRef.current) return;
+
+    const { connectionStartHandle, connectionEndHandle } = storeApi.getState();
+    if (!connectionStartHandle?.nodeId) return;
+
+    const connection = connectionFromConnectEndHandles(
+      connectionStartHandle,
+      connectionEndHandle
+    );
+    const { transactions, addresses, groupMap } = useGlobalState.getState();
     const reason = explainFlowConnectionValidity(
       connection,
       transactions,
       addresses,
       groupMap
     );
-    if (reason) {
-      logConnectRejected(reason);
-      return false;
-    }
-    return true;
-  }, []);
+    logConnectRejected(
+      reason ??
+        'Dropped on the canvas or an invalid handle — drag from a green output (right) to a PSBT input (left, gray) or output drop target (out-…-in).'
+    );
+  }, [storeApi]);
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      connectAppliedRef.current = true;
       const { source, target, sourceHandle, targetHandle } = connection;
-      if (!source || !target || !sourceHandle || !targetHandle) return;
+      if (!source || !target || !sourceHandle || !targetHandle) {
+        logConnectRejected(
+          'onConnect: incomplete connection (missing source, target, or handle ids)'
+        );
+        return;
+      }
       if (isPsbtOutputDropTargetHandleId(targetHandle)) {
         connectPsbtOutputFromOutput(source, sourceHandle, target, targetHandle);
       } else {
@@ -376,6 +410,8 @@ export default function FlowCanvas() {
       onNodeDragStart={onNodeDragStart}
       onNodeClick={onNodeClick}
       onPaneClick={onPaneClick}
+      onConnectStart={onConnectStart}
+      onConnectEnd={onConnectEnd}
       onConnect={onConnect}
       isValidConnection={isValidConnection}
       nodeTypes={nodeTypes}

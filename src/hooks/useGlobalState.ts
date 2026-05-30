@@ -20,6 +20,7 @@ import {
 } from '../utils/psbt';
 import {
   explainConnectPsbtInputFromOutput,
+  explainConnectPsbtOutputFromOutput,
   logConnectRejected,
 } from '../utils/psbtConnect';
 import {
@@ -854,13 +855,17 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     try {
       parsed = parsePsbtBase64(normalized);
     } catch (e) {
+      logConnectRejected(`replacePsbtNode: invalid PSBT for "${oldNodeId}"`);
       get().addError('Invalid PSBT');
       console.error('Failed to update PSBT', e);
       return;
     }
 
     const existing = get().transactions[oldNodeId];
-    if (!existing?.isPsbt) return;
+    if (!existing?.isPsbt) {
+      logConnectRejected(`replacePsbtNode: "${oldNodeId}" is not a PSBT — update skipped`);
+      return;
+    }
 
     const newTx: StoredTransaction = {
       coordinates: existing.coordinates,
@@ -1008,11 +1013,11 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       return;
     }
 
-    const spendReason = explainConnectPsbtInputFromOutput(
+    const spendReason = explainConnectPsbtOutputFromOutput(
       sourceNodeId,
       sourceHandleId,
       targetPsbtNodeId,
-      'in-drop',
+      targetHandleId,
       transactions,
       addresses,
       groupMap

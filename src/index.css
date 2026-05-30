@@ -60,7 +60,7 @@ html, body, #root {
 }
 
 .react-flow__handle.psbt-connect-handle.react-flow__handle-right {
-  right: -12px !important;
+  right: -10px !important;
 }
 
 .react-flow__handle.psbt-connect-handle.react-flow__handle-right.react-flow__handle-source {
@@ -72,11 +72,13 @@ html, body, #root {
 }
 
 .react-flow__handle.psbt-connect-handle.react-flow__handle-left {
-  left: -12px !important;
+  left: -10px !important;
 }
 
-/* Empty PSBT input drop zone — larger hit target (in-drop) */
-.react-flow__handle.psbt-input-drop-handle {
+/* Empty PSBT input drop zone — larger hit target (in-drop).
+   Selector includes .psbt-connect-handle so it out-specifies the generic
+   left-handle rule above and keeps its 32px box centered on the dot. */
+.react-flow__handle.psbt-connect-handle.psbt-input-drop-handle {
   width: 32px !important;
   height: 32px !important;
   min-width: 32px;

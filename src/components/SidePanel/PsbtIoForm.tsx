@@ -367,7 +367,7 @@ export default function PsbtIoForm({
       )}
 
       {saveErrors.length > 0 && (
-        <ul className="text-sm text-red-400 space-y-1 list-disc list-inside break-all">
+        <ul className="text-sm text-red-400 space-y-1 list-disc list-inside break-words">
           {saveErrors.map((err, i) => (
             <li key={i}>{err}</li>
           ))}

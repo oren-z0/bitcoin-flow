@@ -449,7 +449,7 @@ export default function FlowCanvas() {
       maxZoom={3}
       deleteKeyCode={null}
       nodesConnectable
-      connectionRadius={28}
+      connectionRadius={50}
     >
       <Background color="#374151" gap={20} />
       <Panel position="top-right" className="!m-3">

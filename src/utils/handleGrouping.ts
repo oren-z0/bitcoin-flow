@@ -256,16 +256,6 @@ const PSBT_INPUT_DROP_HANDLE: HandleDescriptor = {
   isDropPlaceholder: true,
 };
 
-const PSBT_OUTPUT_DROP_HANDLE: HandleDescriptor = {
-  id: 'out-drop',
-  label: '',
-  amount: 0,
-  addresses: [],
-  txids: [],
-  voutIndices: [],
-  isDropPlaceholder: true,
-};
-
 export function computeInputHandles(
   vins: MempoolVin[],
   addresses: Record<string, StoredAddress>,
@@ -347,10 +337,6 @@ export function computeOutputHandles(
   isPsbt = false
 ): HandleDescriptor[] {
   const count = vouts.length;
-
-  if (isPsbt && count === 0) {
-    return [PSBT_OUTPUT_DROP_HANDLE];
-  }
 
   const isConnectedVout = (voutIdx: number) =>
     getSpendingTxidsForOutput(

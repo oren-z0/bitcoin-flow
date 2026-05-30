@@ -372,7 +372,14 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
         {/* Status */}
         <div>
           {stored.isPsbt ? (
-            <div className="text-xs text-purple-400">PSBT</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs text-purple-400">PSBT</div>
+              {psbtVersion !== null && (
+                <div className="text-xs text-gray-400 shrink-0">
+                  version: {psbtVersion}
+                </div>
+              )}
+            </div>
           ) : tx.status.confirmed ? (
             <>
               <div className="text-xs text-green-400">
@@ -386,6 +393,13 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             <div className="text-xs text-yellow-400 animate-pulse">Unconfirmed</div>
           )}
         </div>
+
+        {stored.isPsbt && stored.psbtBase64 && (
+          <PsbtGlobalMasterKeys
+            psbtBase64={stored.psbtBase64}
+            onPsbtUpdated={handlePsbtDerivationUpdated}
+          />
+        )}
 
         {/* Inputs */}
         <div>
@@ -697,17 +711,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             )}
           </div>
         </div>
-
-        {psbtVersion !== null && (
-          <p className="text-xs text-gray-400">PSBT version: {psbtVersion}</p>
-        )}
-
-        {stored.isPsbt && stored.psbtBase64 && (
-          <PsbtGlobalMasterKeys
-            psbtBase64={stored.psbtBase64}
-            onPsbtUpdated={handlePsbtDerivationUpdated}
-          />
-        )}
 
         {/* Details */}
         <div>

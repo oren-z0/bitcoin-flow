@@ -18,12 +18,13 @@ import {
   resolveParentNodeId,
   resolvePsbtGraphNodeId,
 } from '../utils/psbt';
-import { connectWouldCreateCycle } from '../utils/graphConnections';
+import {
+  explainConnectPsbtInputFromOutput,
+  logConnectRejected,
+} from '../utils/psbtConnect';
 import {
   isOutputHandleId,
-  isPsbtInputHandleId,
   isPsbtOutputDropTargetHandleId,
-  isUtxoOutputHandle,
   resolveOutputVoutIndexFromHandle,
   resolvePsbtInputInsertIndexFromHandle,
   resolvePsbtOutputInsertIndexFromHandle,
@@ -907,17 +908,34 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const state = get();
     const { transactions, addresses, groupMap } = state;
 
+    const reject = (reason: string, toast?: string) => {
+      logConnectRejected(reason);
+      if (toast) get().addError(toast);
+    };
+
     const target = transactions[targetPsbtNodeId];
     if (!target?.isPsbt || !target.psbtBase64) {
-      get().addError('Drop onto a PSBT input handle to add an input');
+      reject('connectPsbtInputFromOutput: target is not a PSBT with data');
       return;
     }
 
     const source = transactions[sourceNodeId];
-    if (!source) return;
+    if (!source) {
+      reject(`connectPsbtInputFromOutput: source "${sourceNodeId}" is not on the graph`);
+      return;
+    }
 
-    if (!isOutputHandleId(sourceHandleId) || !isPsbtInputHandleId(targetHandleId)) {
-      get().addError('Drag from an output handle to a PSBT input handle');
+    const explain = explainConnectPsbtInputFromOutput(
+      sourceNodeId,
+      sourceHandleId,
+      targetPsbtNodeId,
+      targetHandleId,
+      transactions,
+      addresses,
+      groupMap
+    );
+    if (explain) {
+      reject(`connectPsbtInputFromOutput: ${explain}`, explain);
       return;
     }
 
@@ -928,38 +946,8 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       transactions,
       addresses,
       groupMap
-    );
-    if (voutIdx === null) {
-      get().addError('Drag from a single output handle (not a grouped handle)');
-      return;
-    }
-
-    if (
-      !isUtxoOutputHandle(
-        sourceNodeId,
-        sourceHandleId,
-        source,
-        transactions,
-        addresses,
-        groupMap
-      )
-    ) {
-      get().addError('Only unspent outputs (green UTXO handles) can be connected to a PSBT');
-      return;
-    }
-
+    )!;
     const parentVout = source.data.vout[voutIdx];
-    if (!parentVout) {
-      get().addError('Invalid output');
-      return;
-    }
-
-    if (connectWouldCreateCycle(transactions, sourceNodeId, targetPsbtNodeId)) {
-      get().addError(
-        'This connection would create a cycle (the PSBT already spends back to this transaction)'
-      );
-      return;
-    }
 
     const insertAtIndex = resolvePsbtInputInsertIndexFromHandle(
       targetHandleId,
@@ -979,7 +967,9 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       );
       get().replacePsbtNode(targetPsbtNodeId, updated);
     } catch (e) {
-      get().addError(e instanceof Error ? e.message : 'Failed to add PSBT input');
+      const msg = e instanceof Error ? e.message : 'Failed to add PSBT input';
+      logConnectRejected(`connectPsbtInputFromOutput: ${msg}`);
+      get().addError(msg);
       console.error('connectPsbtInputFromOutput', e);
     }
   },
@@ -993,17 +983,42 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const state = get();
     const { transactions, addresses, groupMap } = state;
 
+    const reject = (reason: string, toast?: string) => {
+      logConnectRejected(reason);
+      if (toast) get().addError(toast);
+    };
+
     const target = transactions[targetPsbtNodeId];
     if (!target?.isPsbt || !target.psbtBase64) {
-      get().addError('Drop onto a PSBT output handle to add an output');
+      reject('connectPsbtOutputFromOutput: target is not a PSBT with data');
       return;
     }
 
     const source = transactions[sourceNodeId];
-    if (!source) return;
+    if (!source) {
+      reject(`connectPsbtOutputFromOutput: source "${sourceNodeId}" is not on the graph`);
+      return;
+    }
 
     if (!isOutputHandleId(sourceHandleId) || !isPsbtOutputDropTargetHandleId(targetHandleId)) {
-      get().addError('Drag from an output handle to a PSBT output handle');
+      reject(
+        `connectPsbtOutputFromOutput: invalid handles (source "${sourceHandleId}", target "${targetHandleId}") — use a green output dot, drop on out-…-in on the right`,
+        'Drag from an output handle to a PSBT output drop target (out-…-in on the right)'
+      );
+      return;
+    }
+
+    const spendReason = explainConnectPsbtInputFromOutput(
+      sourceNodeId,
+      sourceHandleId,
+      targetPsbtNodeId,
+      'in-drop',
+      transactions,
+      addresses,
+      groupMap
+    );
+    if (spendReason) {
+      reject(`connectPsbtOutputFromOutput: ${spendReason}`, spendReason);
       return;
     }
 
@@ -1014,29 +1029,10 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       transactions,
       addresses,
       groupMap
-    );
-    if (voutIdx === null) {
-      get().addError('Drag from a single output handle (not a grouped handle)');
-      return;
-    }
-
-    if (
-      !isUtxoOutputHandle(
-        sourceNodeId,
-        sourceHandleId,
-        source,
-        transactions,
-        addresses,
-        groupMap
-      )
-    ) {
-      get().addError('Only unspent outputs (green UTXO handles) can be connected to a PSBT');
-      return;
-    }
-
+    )!;
     const parentVout = source.data.vout[voutIdx];
     if (!parentVout) {
-      get().addError('Invalid output');
+      reject('connectPsbtOutputFromOutput: invalid output index');
       return;
     }
 
@@ -1056,7 +1052,9 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       );
       get().replacePsbtNode(targetPsbtNodeId, updated);
     } catch (e) {
-      get().addError(e instanceof Error ? e.message : 'Failed to add PSBT output');
+      const msg = e instanceof Error ? e.message : 'Failed to add PSBT output';
+      logConnectRejected(`connectPsbtOutputFromOutput: ${msg}`);
+      get().addError(msg);
       console.error('connectPsbtOutputFromOutput', e);
     }
   },

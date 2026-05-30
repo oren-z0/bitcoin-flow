@@ -27,9 +27,13 @@ const HANDLE_DOT_STYLE: React.CSSProperties = {
   border: '2px solid #4b5563',
 };
 
-function outputDotColor(handle: HandleDescriptor): string {
+function outputDotColor(
+  handle: HandleDescriptor,
+  psbtSpendable: boolean
+): string {
   if (handle.isOpReturn) return COLOR_GRAY;
-  return handle.txids.length > 0 ? COLOR_RED : COLOR_GREEN;
+  if (psbtSpendable) return COLOR_GREEN;
+  return handle.txids.length > 0 ? COLOR_RED : COLOR_GRAY;
 }
 
 function isUtxoOutputHandleDescriptor(
@@ -120,6 +124,7 @@ function HandleLabel({
   groupMap,
   selectedAddresses,
   onLabelClick,
+  psbtOutputSpendable,
 }: {
   handle: HandleDescriptor;
   isInput: boolean;
@@ -129,6 +134,8 @@ function HandleLabel({
   groupMap: Record<string, AddressGroup>;
   selectedAddresses: Set<string>;
   onLabelClick: (handle: HandleDescriptor) => void;
+  /** When set, drives green/red/gray for PSBT outputs (matches drag-connect rules). */
+  psbtOutputSpendable?: boolean;
 }) {
   const isSelected = handle.addresses.some(a => selectedAddresses.has(a));
   const color = getAddressColor(handle.addresses, addressMap, groupMap);
@@ -136,6 +143,12 @@ function HandleLabel({
     ? COLOR_GRAY
     : handle.isOpReturn
     ? COLOR_GRAY
+    : psbtOutputSpendable !== undefined
+    ? psbtOutputSpendable
+      ? COLOR_GREEN
+      : handle.txids.length > 0
+      ? COLOR_RED
+      : COLOR_GRAY
     : handle.txids.length > 0
     ? COLOR_RED
     : COLOR_GREEN;
@@ -334,7 +347,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
           <div className="flex flex-col gap-1 flex-1 min-w-0">
             {outputHandles.map((handle) => {
               const isPsbtPaymentOutput = isPsbt && !handle.isOpReturn;
-              const isPsbtSpendable =
+              const psbtSpendable =
                 isPsbtPaymentOutput &&
                 isPsbtOutputSpendable(
                   txid,
@@ -350,8 +363,8 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
               const isSpent =
                 !handle.isOpReturn &&
                 (handle.voutIndices?.length ?? 0) === 1 &&
-                handle.txids.length > 0;
-              const dotColor = outputDotColor(handle);
+                (isPsbt ? !psbtSpendable && handle.txids.length > 0 : handle.txids.length > 0);
+              const dotColor = outputDotColor(handle, !!psbtSpendable);
               const dropTargetId = psbtOutputDropTargetHandleId(handle.id);
 
               return (
@@ -369,11 +382,14 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                       groupMap={groupMap}
                       selectedAddresses={selectedAddresses}
                       onLabelClick={handleAddressLabelClick}
+                      psbtOutputSpendable={
+                        isPsbtPaymentOutput ? psbtSpendable : undefined
+                      }
                     />
                   )}
                   {isPsbtPaymentOutput ? (
                     <>
-                      {isPsbtSpendable ? (
+                      {psbtSpendable ? (
                         <>
                           <Handle
                             type="source"
@@ -419,7 +435,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                         isConnectableEnd
                         className="psbt-connect-handle nodrag"
                         style={{
-                          top: isPsbtSpendable ? '70%' : '50%',
+                          top: psbtSpendable ? '70%' : '50%',
                           right: handle.isDropPlaceholder ? -12 : -20,
                         }}
                       />

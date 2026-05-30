@@ -320,6 +320,18 @@ function scriptToMempoolFields(script: Uint8Array): Pick<MempoolVout, 'scriptpub
   }
 }
 
+/** Hex script for spending a vout (from PSBT/mempool fields or encoded from address). */
+export function voutScriptpubkeyHex(vout: MempoolVout): string | undefined {
+  if (vout.scriptpubkey?.length) return vout.scriptpubkey;
+  if (!vout.scriptpubkey_address) return undefined;
+  try {
+    const decoded = Address(NETWORK).decode(vout.scriptpubkey_address);
+    return bytesToHex(OutScript.encode(decoded as Parameters<typeof OutScript.encode>[0]));
+  } catch {
+    return undefined;
+  }
+}
+
 export function normalizePsbtBase64(input: string): string {
   return input.trim().replace(/\s/g, '');
 }
@@ -490,11 +502,16 @@ export function parsePsbtBase64(psbtBase64: string): ParsedPsbt {
       // OP_RETURN and other non-standard outputs have no address
     }
     const fields = output.script ? scriptToMempoolFields(output.script) : {};
-    vout.push({
+    const entry: MempoolVout = {
       value,
       ...fields,
       scriptpubkey_address: address ?? fields.scriptpubkey_address,
-    });
+    };
+    if (!entry.scriptpubkey?.length && entry.scriptpubkey_address) {
+      const derived = voutScriptpubkeyHex(entry);
+      if (derived) entry.scriptpubkey = derived;
+    }
+    vout.push(entry);
   }
 
   const feeFromIo = computeTxFee(vin, vout);
@@ -1291,18 +1308,6 @@ function moveLastPsbtIoToIndex(
   if (at === lastIdx) return;
   const item = list.pop()!;
   list.splice(at, 0, item);
-}
-
-/** Hex script for spending a vout (from PSBT/mempool fields or encoded from address). */
-export function voutScriptpubkeyHex(vout: MempoolVout): string | undefined {
-  if (vout.scriptpubkey?.length) return vout.scriptpubkey;
-  if (!vout.scriptpubkey_address) return undefined;
-  try {
-    const decoded = Address(NETWORK).decode(vout.scriptpubkey_address);
-    return bytesToHex(OutScript.encode(decoded as Parameters<typeof OutScript.encode>[0]));
-  } catch {
-    return undefined;
-  }
 }
 
 export function addPsbtInputFromPrevout(

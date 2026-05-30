@@ -14,12 +14,11 @@ import ReactFlow, {
   type NodeTypes,
   type NodeDragHandler,
 } from 'reactflow';
+import { isPsbtOutputDropTargetHandleId } from '../utils/handleGrouping';
 import {
-  isOutputHandleId,
-  isPsbtInputHandleId,
-  isPsbtOutputDropTargetHandleId,
-  isUtxoOutputHandle,
-} from '../utils/handleGrouping';
+  explainFlowConnectionValidity,
+  logConnectRejected,
+} from '../utils/psbtConnect';
 import 'reactflow/dist/style.css';
 import { SIDE_PANEL_WIDTH } from '../constants/layout';
 import { CreatePsbtIcon, fileButtonClass } from './SidePanel/icons';
@@ -318,26 +317,18 @@ export default function FlowCanvas() {
   }, [setSelectedTxid]);
 
   const isValidConnection = useCallback((connection: Connection) => {
-    const { source, target, sourceHandle, targetHandle } = connection;
-    if (!source || !target || !sourceHandle || !targetHandle) return false;
-    if (!isOutputHandleId(sourceHandle)) return false;
-    if (!isPsbtInputHandleId(targetHandle) && !isPsbtOutputDropTargetHandleId(targetHandle)) {
-      return false;
-    }
-
     const { transactions, addresses, groupMap } = useGlobalState.getState();
-    const sourceTx = transactions[source];
-    const targetTx = transactions[target];
-    if (!sourceTx || !targetTx?.isPsbt) return false;
-
-    return isUtxoOutputHandle(
-      source,
-      sourceHandle,
-      sourceTx,
+    const reason = explainFlowConnectionValidity(
+      connection,
       transactions,
       addresses,
       groupMap
     );
+    if (reason) {
+      logConnectRejected(reason);
+      return false;
+    }
+    return true;
   }, []);
 
   const onConnect = useCallback(

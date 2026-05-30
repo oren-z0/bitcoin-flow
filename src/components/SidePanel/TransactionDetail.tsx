@@ -110,10 +110,22 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const [showEmojiPalette, setShowEmojiPalette] = useState(false);
   const cursorPosRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [outputDraftScriptTypes, setOutputDraftScriptTypes] = useState<
+    Record<number, PsbtScriptKind>
+  >({});
 
   React.useEffect(() => {
     if (stored) setNameInput(stored.name || '');
   }, [selectedTxid, stored]);
+
+  React.useEffect(() => {
+    setOutputDraftScriptTypes({});
+  }, [selectedTxid, stored?.psbtBase64]);
+
+  const psbtVersion = useMemo(() => {
+    if (!stored?.isPsbt || !stored.psbtBase64) return null;
+    return readPsbtVersion(stored.psbtBase64);
+  }, [stored?.isPsbt, stored?.psbtBase64]);
 
   if (!stored || !selectedTxid) return null;
 
@@ -227,14 +239,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     copyToClipboard(stored.psbtBase64, 'PSBT copied to clipboard');
   };
 
-  const [outputDraftScriptTypes, setOutputDraftScriptTypes] = useState<
-    Record<number, PsbtScriptKind>
-  >({});
-
-  React.useEffect(() => {
-    setOutputDraftScriptTypes({});
-  }, [selectedTxid, stored?.psbtBase64]);
-
   const handlePsbtDerivationUpdated = (newBase64: string) => {
     if (!stored.psbtBase64) return;
     replacePsbtNode(selectedTxid, newBase64);
@@ -256,11 +260,6 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const inputCount = tx.vin.length;
   const outputCount = tx.vout.length;
   const showPsbtMove = stored.isPsbt && !!stored.psbtBase64;
-
-  const psbtVersion = useMemo(() => {
-    if (!stored.isPsbt || !stored.psbtBase64) return null;
-    return readPsbtVersion(stored.psbtBase64);
-  }, [stored.isPsbt, stored.psbtBase64]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

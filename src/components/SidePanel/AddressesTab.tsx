@@ -20,7 +20,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
   const [addrInput, setAddrInput] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState('');
 
-  // Per-group collapsed state (session only, default open)
+  // Per-group collapsed state (session only, default collapsed)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   // Inline group name editing
@@ -434,7 +434,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
       {/* Groups list */}
       <div className="flex-1 overflow-y-auto">
         {groups.map(group => {
-          const isCollapsed = collapsed[group.id] ?? false;
+          const isCollapsed = collapsed[group.id] ?? true;
           const isDefault = group.id === '';
           const isEditing = editingGroupId === group.id;
 

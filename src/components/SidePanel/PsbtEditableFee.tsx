@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { satsToBtc, btcToSats, formatFeeRate, truncateAddress } from '../../utils/formatting';
+import { satsToBtc, btcToSats, formatFeeRate } from '../../utils/formatting';
 import { updatePsbtOutputAmount } from '../../utils/psbt';
 import type { MempoolVout } from '../../types';
 
@@ -209,15 +209,11 @@ export default function PsbtEditableFee({
             setError(null);
           }}
         >
-          {indices.map(i => {
-            const addr = vout[i]?.scriptpubkey_address;
-            const suffix = addr ? ` · ${truncateAddress(addr)}` : '';
-            return (
-              <option key={i} value={i}>
-                {`#${i} · ${satsToBtc(vout[i]?.value ?? 0)} BTC${suffix}`}
-              </option>
-            );
-          })}
+          {indices.map(i => (
+            <option key={i} value={i}>
+              {i}
+            </option>
+          ))}
         </select>
       </div>
 

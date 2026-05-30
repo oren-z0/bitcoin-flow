@@ -544,8 +544,13 @@ function vinHasKnownAmount(vin: MempoolVin): boolean {
   return !!prevout.scriptpubkey_address;
 }
 
-/** Fee from summed inputs/outputs; null when any non-coinbase input amount is unknown. */
+/**
+ * Fee from summed inputs/outputs; null when any non-coinbase input amount is unknown.
+ * No inputs at all means the input sum is 0, so the fee is -outputSum.
+ */
 export function computeTxFee(vin: MempoolVin[], vout: MempoolVout[]): number | null {
+  const outputSum = vout.reduce((sum, o) => sum + o.value, 0);
+  if (vin.length === 0) return -outputSum;
   if (!vin.some(v => !v.is_coinbase)) return null;
 
   let inputSum = 0;
@@ -555,7 +560,6 @@ export function computeTxFee(vin: MempoolVin[], vout: MempoolVout[]): number | n
     inputSum += v.prevout!.value;
   }
 
-  const outputSum = vout.reduce((sum, o) => sum + o.value, 0);
   return inputSum - outputSum;
 }
 

@@ -15,12 +15,8 @@ import {
   type PsbtScriptKind,
 } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
-import PsbtDerivationFields from './PsbtDerivationFields';
-import PsbtEditableSequence from './PsbtEditableSequence';
+import PsbtIoForm from './PsbtIoForm';
 import PsbtEditableLocktime from './PsbtEditableLocktime';
-import PsbtEditableOutputAmount from './PsbtEditableOutputAmount';
-import PsbtEditableOutputAddress from './PsbtEditableOutputAddress';
-import PsbtEditableOpReturn from './PsbtEditableOpReturn';
 import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
@@ -231,36 +227,17 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     copyToClipboard(stored.psbtBase64, 'PSBT copied to clipboard');
   };
 
-  const [outputFpPreserve, setOutputFpPreserve] = useState<{
-    outputIndex: number;
-    fingerprint: string;
-  } | null>(null);
-  const [outputScriptTypes, setOutputScriptTypes] = useState<
+  const [outputDraftScriptTypes, setOutputDraftScriptTypes] = useState<
     Record<number, PsbtScriptKind>
   >({});
 
   React.useEffect(() => {
-    setOutputFpPreserve(null);
-    setOutputScriptTypes({});
+    setOutputDraftScriptTypes({});
   }, [selectedTxid, stored?.psbtBase64]);
 
   const handlePsbtDerivationUpdated = (newBase64: string) => {
     if (!stored.psbtBase64) return;
     replacePsbtNode(selectedTxid, newBase64);
-  };
-
-  const handleOutputAddressUpdated = (
-    newBase64: string,
-    meta?: { preservedFingerprint?: string },
-    outputIndex?: number
-  ) => {
-    handlePsbtDerivationUpdated(newBase64);
-    if (meta?.preservedFingerprint && outputIndex !== undefined) {
-      setOutputFpPreserve({
-        outputIndex,
-        fingerprint: meta.preservedFingerprint,
-      });
-    }
   };
 
   const handlePsbtMove = (kind: 'input' | 'output', index: number, direction: 'up' | 'down') => {
@@ -504,32 +481,25 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   ) : stored.isPsbt && vin.txid && !transactions[vin.txid] ? null : (
                     <div className="text-gray-400">{`${i}: Non-Standard`}</div>
                   )}
-                  <div className="text-gray-400 font-mono">
-                    {stored.isPsbt && stored.psbtBase64 ? (
-                      <PsbtEditableSequence
-                        psbtBase64={stored.psbtBase64}
-                        inputIndex={i}
-                        txVersion={tx.version}
-                        sequence={vin.sequence}
-                        onPsbtUpdated={handlePsbtDerivationUpdated}
-                        onError={addError}
-                      />
-                    ) : (
-                      formatInputSequence(tx.version, vin.sequence)
-                    )}
-                  </div>
+                  {!(stored.isPsbt && stored.psbtBase64) && (
+                    <div className="text-gray-400 font-mono">
+                      {formatInputSequence(tx.version, vin.sequence)}
+                    </div>
+                  )}
                   <div className="text-gray-300">
                     {satsToBtc(vin.prevout?.value || 0)} BTC
                   </div>
                   {stored.isPsbt && stored.psbtBase64 && (
-                    <PsbtDerivationFields
+                    <PsbtIoForm
                       psbtBase64={stored.psbtBase64}
                       kind="input"
                       index={i}
                       transactionKey={selectedTxid}
+                      mempool={{ sequence: vin.sequence }}
+                      txVersion={tx.version}
+                      savedSequence={vin.sequence}
                       parentOutputAddress={parentOutputAddress}
                       onPsbtUpdated={handlePsbtDerivationUpdated}
-                      onError={addError}
                     />
                   )}
                 </div>
@@ -572,16 +542,17 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               const addrData = addr ? addresses[addr] : undefined;
               const savedIsOpReturn = vout.scriptpubkey_type === 'op_return';
               const effectiveScriptType =
-                outputScriptTypes[i] ??
+                outputDraftScriptTypes[i] ??
                 (stored.psbtBase64
                   ? readPsbtIoScriptType(stored.psbtBase64, 'output', i)
                   : savedIsOpReturn
                     ? 'op_return'
                     : 'wpkh');
               const isOpReturn = effectiveScriptType === 'op_return';
-              const opReturnContent = savedIsOpReturn && isOpReturn
-                ? formatOpReturnDisplay(vout.scriptpubkey)
-                : '';
+              const opReturnContent =
+                savedIsOpReturn && vout.scriptpubkey_type === 'op_return'
+                  ? formatOpReturnDisplay(vout.scriptpubkey)
+                  : '';
 
               const spendingTxid = outspend?.spent ? outspend.txid : undefined;
               const spendingInState = spendingTxid ? !!transactions[spendingTxid] : false;
@@ -644,70 +615,35 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                     )
                   )}
 
-                  {stored.isPsbt && stored.psbtBase64 && (
-                    <PsbtDerivationFields
-                      psbtBase64={stored.psbtBase64}
-                      kind="output"
-                      index={i}
-                      showOptionalLabel={!isOpReturn}
-                      transactionKey={selectedTxid}
-                      preservedFingerprint={
-                        outputFpPreserve?.outputIndex === i
-                          ? outputFpPreserve.fingerprint
-                          : undefined
-                      }
-                      onPreserveApplied={() => setOutputFpPreserve(null)}
-                      onScriptTypeChange={(t) =>
-                        setOutputScriptTypes((s) => ({ ...s, [i]: t }))
-                      }
-                      onPsbtUpdated={handlePsbtDerivationUpdated}
-                      onError={addError}
-                    />
-                  )}
-
-                  {/* Address / OP_RETURN */}
-                  {isOpReturn ? (
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <div className="text-gray-400 flex-1 min-w-0">OP_RETURN</div>
-                        {showPsbtMove && (
-                          <PsbtMoveControls
-                            count={outputCount}
-                            index={i}
-                            onMove={(direction) => handlePsbtMove('output', i, direction)}
-                          />
-                        )}
-                      </div>
-                      {stored.isPsbt && stored.psbtBase64 ? (
-                        <PsbtEditableOpReturn
-                          psbtBase64={stored.psbtBase64}
-                          outputIndex={i}
-                          scriptpubkey={vout.scriptpubkey}
-                          onPsbtUpdated={handlePsbtDerivationUpdated}
-                          onError={addError}
-                        />
-                      ) : opReturnContent ? (
-                        <div className="text-gray-300 break-all whitespace-pre-wrap font-mono text-[11px]">
-                          {opReturnContent}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : stored.isPsbt && stored.psbtBase64 ? (
-                    <div className="space-y-0.5">
-                      {addrData?.name && (
+                  {stored.isPsbt && stored.psbtBase64 ? (
+                    <>
+                      {addrData?.name && !isOpReturn && (
                         <div className="text-gray-400">{addrData.name}</div>
                       )}
-                      <PsbtEditableOutputAddress
+                      <PsbtIoForm
                         psbtBase64={stored.psbtBase64}
-                        outputIndex={i}
-                        address={addr ?? ''}
-                        onPsbtUpdated={(newBase64, meta) =>
-                          handleOutputAddressUpdated(newBase64, meta, i)
+                        kind="output"
+                        index={i}
+                        transactionKey={selectedTxid}
+                        mempool={{
+                          address: addr ?? '',
+                          amountSats: vout.value,
+                          scriptpubkey: vout.scriptpubkey,
+                        }}
+                        showOptionalDerivationLabel={!isOpReturn}
+                        onScriptTypeChange={(t) =>
+                          setOutputDraftScriptTypes((s) => ({ ...s, [i]: t }))
                         }
-                        onError={addError}
                         onAddressInfo={handleAddressClick}
+                        onPsbtUpdated={handlePsbtDerivationUpdated}
                       />
-                    </div>
+                    </>
+                  ) : isOpReturn ? (
+                    opReturnContent ? (
+                      <div className="text-gray-300 break-all whitespace-pre-wrap font-mono text-[11px]">
+                        {opReturnContent}
+                      </div>
+                    ) : null
                   ) : addr ? (
                     <div className="space-y-0.5">
                       {addrData?.name && (
@@ -720,24 +656,10 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       >
                         {`${i}: ${addr}`}
                       </div>
+                      <div className="text-gray-300">{`${satsToBtc(vout.value)} BTC`}</div>
                     </div>
-                  ) : null}
-
-                  {/* Amount */}
-                  {!isOpReturn && (
-                    <div>
-                      {stored.isPsbt && stored.psbtBase64 ? (
-                        <PsbtEditableOutputAmount
-                          psbtBase64={stored.psbtBase64}
-                          outputIndex={i}
-                          valueSats={vout.value}
-                          onPsbtUpdated={handlePsbtDerivationUpdated}
-                          onError={addError}
-                        />
-                      ) : (
-                        <div className="text-gray-300">{`${satsToBtc(vout.value)} BTC`}</div>
-                      )}
-                    </div>
+                  ) : (
+                    <div className="text-gray-300">{`${satsToBtc(vout.value)} BTC`}</div>
                   )}
                 </div>
               );

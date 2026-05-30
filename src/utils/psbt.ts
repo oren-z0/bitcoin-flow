@@ -1098,8 +1098,9 @@ export function addressFromOutputPubkey(
   }
 }
 
-/** Placeholder pubkey when switching a PSBT output off OP_RETURN before a real key is entered. */
-const PLACEHOLDER_PUBKEY_HEX = `02${'00'.repeat(32)}`;
+/** Valid secp256k1 generator point (for script-type placeholder scripts only). */
+const PLACEHOLDER_PUBKEY_HEX =
+  '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
 
 /** Change output script type (OP_RETURN or payment placeholder script); clears derivation. */
 export function updatePsbtOutputScriptKind(

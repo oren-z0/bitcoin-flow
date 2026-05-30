@@ -1524,6 +1524,16 @@ function relativePathFromPrefix(prefix: number[], full: number[]): string {
     .join('/');
 }
 
+/** @scure/bip32 `derive` requires a path starting with `m/` or `M/`. */
+function bip32DeriveRelative(hd: ReturnType<typeof hdKeyFromPsbtGlobalXpubKey>, relativePath: string) {
+  if (!relativePath) return hd;
+  const p =
+    relativePath.startsWith('m/') || relativePath.startsWith('M/')
+      ? relativePath
+      : `m/${relativePath}`;
+  return hd.derive(p);
+}
+
 function xpubKeyFieldsFromHdKey(hd: ReturnType<typeof hdKeyFromExtendedKey>): PsbtGlobalXpubKeyFields {
   if (!hd.publicKey || !hd.chainCode) {
     throw new Error('Extended key must be a public key (xpub, ypub, zpub, …)');
@@ -1629,7 +1639,7 @@ export function derivePubkeyFromPsbtGlobalMasterKeys(
     }
     const hd = hdKeyFromPsbtGlobalXpubKey(key);
     const rel = relativePathFromPrefix(meta.path, ioPath);
-    const derived = rel ? hd.derive(rel) : hd;
+    const derived = bip32DeriveRelative(hd, rel);
     if (!derived.publicKey) {
       lastError = 'Failed to derive public key';
       continue;

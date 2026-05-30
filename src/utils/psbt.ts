@@ -1371,7 +1371,7 @@ export function addPsbtInputFromPrevout(
       txid: txidBytes,
       index: voutIndex,
       witnessUtxo: { script, amount: BigInt(parentVout.value) },
-      sequence: 0xffffffff,
+      sequence: 0xfffffffd,
     },
     true
   );

@@ -5,7 +5,6 @@ import {
   computeInputHandles,
   computeOutputHandles,
   isPsbtOutputSpendable,
-  psbtOutputDropTargetHandleId,
 } from '../utils/handleGrouping';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc, truncateTxid, formatFee, formatTimestamp } from '../utils/formatting';
@@ -303,6 +302,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                       position={Position.Left}
                       id={handle.id}
                       isConnectable
+                      isConnectableStart
                       isConnectableEnd
                       className={`psbt-connect-handle nodrag${
                         handle.isDropPlaceholder ? ' psbt-input-drop-handle' : ''
@@ -364,12 +364,17 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
               const isUtxo =
                 !isPsbt &&
                 isUtxoOutputHandleDescriptor(handle, outspends);
-              const isSpent =
+              // A spendable output can fund a PSBT input: any spendable PSBT output, or an
+              // unspent transaction UTXO. Rendered as a drag source that can also receive a
+              // drag started from a PSBT input (connectable start AND end).
+              const spendableSource = isPsbtPaymentOutput ? !!psbtSpendable : isUtxo;
+              // Spent by a real transaction (not a PSBT): click adds the spending transaction.
+              const isSpentByTx =
+                !isPsbt &&
                 !handle.isOpReturn &&
                 (handle.voutIndices?.length ?? 0) === 1 &&
-                (isPsbt ? !psbtSpendable && handle.txids.length > 0 : handle.txids.length > 0);
+                handle.txids.length > 0;
               const dotColor = outputDotColor(handle, !!psbtSpendable);
-              const dropTargetId = psbtOutputDropTargetHandleId(handle.id);
 
               return (
                 <div
@@ -391,60 +396,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                       }
                     />
                   )}
-                  {isPsbtPaymentOutput ? (
-                    <>
-                      {psbtSpendable ? (
-                        <>
-                          <Handle
-                            type="source"
-                            position={Position.Right}
-                            id={handle.id}
-                            isConnectable
-                            isConnectableStart
-                            className="psbt-connect-handle nodrag"
-                            style={{ top: '40%' }}
-                          />
-                          <div
-                            className="shrink-0 rounded-full mr-[-5px]"
-                            style={{ ...HANDLE_DOT_STYLE, background: COLOR_GREEN }}
-                          />
-                        </>
-                      ) : isSpent ? (
-                        <Handle
-                          type="source"
-                          position={Position.Right}
-                          id={handle.id}
-                          isConnectable={false}
-                          className="handle-inline nodrag"
-                          style={{ ...HANDLE_DOT_STYLE, background: dotColor }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOutputHandleClick(handle);
-                          }}
-                        />
-                      ) : (
-                        <div
-                          className="shrink-0 rounded-full mr-[-5px]"
-                          style={{
-                            ...HANDLE_DOT_STYLE,
-                            background: handle.isDropPlaceholder ? COLOR_GRAY : dotColor,
-                          }}
-                        />
-                      )}
-                      <Handle
-                        type="target"
-                        position={Position.Right}
-                        id={dropTargetId}
-                        isConnectable
-                        isConnectableEnd
-                        className="psbt-connect-handle nodrag"
-                        style={{
-                          top: psbtSpendable ? '70%' : '50%',
-                          right: handle.isDropPlaceholder ? -12 : -20,
-                        }}
-                      />
-                    </>
-                  ) : isUtxo ? (
+                  {spendableSource ? (
                     <>
                       <Handle
                         type="source"
@@ -452,6 +404,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                         id={handle.id}
                         isConnectable
                         isConnectableStart
+                        isConnectableEnd
                         className="psbt-connect-handle nodrag"
                         style={{ top: '50%' }}
                       />
@@ -460,7 +413,7 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                         style={{ ...HANDLE_DOT_STYLE, background: dotColor }}
                       />
                     </>
-                  ) : isSpent ? (
+                  ) : isSpentByTx ? (
                     <Handle
                       type="source"
                       position={Position.Right}

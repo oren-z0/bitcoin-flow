@@ -4,7 +4,6 @@ import { connectWouldCreateCycle } from './graphConnections';
 import {
   isOutputHandleId,
   isPsbtInputHandleId,
-  isPsbtOutputDropTargetHandleId,
   isPsbtOutputSpendable,
   isUtxoOutputHandle,
   resolveOutputVoutIndexFromHandle,
@@ -23,7 +22,11 @@ type ConnectEndHandle = {
   type: 'source' | 'target';
 };
 
-/** Build a partial Connection from React Flow store after a drag ends without onConnect. */
+/**
+ * Build a partial Connection from the React Flow store after a drag ends without onConnect.
+ * The drag may start from either end (an output or a PSBT input), so we normalize to the
+ * canonical shape: source = the output handle, target = the PSBT input handle.
+ */
 export function connectionFromConnectEndHandles(
   start: ConnectEndHandle,
   end: ConnectEndHandle | null
@@ -58,18 +61,21 @@ export function isCompleteFlowConnection(connection: Connection): boolean {
 function explainIncompleteFlowConnection(connection: Connection): string {
   const { source, target, sourceHandle, targetHandle } = connection;
   if (!source || !sourceHandle) {
-    return 'Connection incomplete — drag must start from a green output dot on the right (not the gray drop zone).';
+    return 'Connection incomplete — one end must be a spendable output (right side: an unspent transaction output or any PSBT output).';
   }
   if (!target || !targetHandle) {
-    return (
-      'Connection incomplete — release over a PSBT input on the left (gray dot; empty PSBTs use the hidden in-drop target). ' +
-      'Do not release on the canvas or on the right-side output drop zone (out-…-in).'
-    );
+    return 'Connection incomplete — the other end must be a PSBT input on the left (gray dot; empty PSBTs use the hidden in-drop target). Do not release on the canvas.';
   }
   return 'Connection incomplete — missing source or target handle.';
 }
 
-/** Why React Flow rejected a connection during drag (null = valid). */
+/**
+ * Why React Flow rejected a connection during drag (null = valid).
+ *
+ * There is a single connection type: a spendable output (source) funds a PSBT input (target).
+ * React Flow normalizes the connection so the output is always `source` and the PSBT input is
+ * always `target`, regardless of which end the user started dragging from.
+ */
 export function explainFlowConnectionValidity(
   connection: Connection,
   transactions: Record<string, StoredTransaction>,
@@ -83,17 +89,11 @@ export function explainFlowConnectionValidity(
   }
 
   if (!isOutputHandleId(sourceHandle)) {
-    if (isPsbtOutputDropTargetHandleId(sourceHandle)) {
-      return `Drag must start from the green output dot (handle "${sourceHandle}" is an output drop zone, not a source).`;
-    }
-    return `Drag must start from an output handle on the right (got "${sourceHandle}").`;
+    return `One end must be an output on the right (got "${sourceHandle}").`;
   }
 
-  const isInputTarget = isPsbtInputHandleId(targetHandle);
-  const isOutputDropTarget = isPsbtOutputDropTargetHandleId(targetHandle);
-
-  if (!isInputTarget && !isOutputDropTarget) {
-    return `Drop must end on a PSBT input handle on the left (in-…) or an output drop target (out-…-in), not "${targetHandle}".`;
+  if (!isPsbtInputHandleId(targetHandle)) {
+    return `The other end must be a PSBT input on the left (got "${targetHandle}").`;
   }
 
   const sourceTx = transactions[source];
@@ -104,11 +104,7 @@ export function explainFlowConnectionValidity(
   }
 
   if (!targetTx?.isPsbt) {
-    return `Target "${target}" is not a PSBT — only PSBT nodes accept this connection.`;
-  }
-
-  if (isOutputDropTarget) {
-    return explainOutputDropConnection(source, sourceHandle, sourceTx, transactions, addresses, groupMap);
+    return `Target "${target}" is not a PSBT — only PSBT inputs can spend an output.`;
   }
 
   return explainInputFromOutputConnection(
@@ -122,26 +118,6 @@ export function explainFlowConnectionValidity(
     addresses,
     groupMap
   );
-}
-
-function explainOutputDropConnection(
-  sourceNodeId: string,
-  sourceHandleId: string,
-  sourceTx: StoredTransaction,
-  transactions: Record<string, StoredTransaction>,
-  addresses: Record<string, StoredAddress>,
-  groupMap: Record<string, AddressGroup>
-): string | null {
-  const reason = explainSpendableSource(
-    sourceNodeId,
-    sourceHandleId,
-    sourceTx,
-    transactions,
-    addresses,
-    groupMap
-  );
-  if (reason) return `Output drop: ${reason}`;
-  return null;
 }
 
 function explainInputFromOutputConnection(
@@ -166,7 +142,7 @@ function explainInputFromOutputConnection(
   if (spendReason) return spendReason;
 
   if (sourceNodeId === targetNodeId) {
-    return 'Cannot connect a PSBT to itself — drag to a different PSBT’s input on the left.';
+    return 'Cannot connect a PSBT to itself — drag to a different node.';
   }
 
   if (connectWouldCreateCycle(transactions, sourceNodeId, targetNodeId)) {
@@ -238,7 +214,7 @@ function explainSpendableSource(
         groupMap
       )
     ) {
-      return `PSBT output ${voutIdx} on "${sourceNodeId}" is already spent on the graph (red/orange handle) or not spendable.`;
+      return `PSBT output ${voutIdx} on "${sourceNodeId}" is not spendable.`;
     }
     return null;
   }
@@ -253,7 +229,7 @@ function explainSpendableSource(
       groupMap
     )
   ) {
-    return `Output ${voutIdx} on "${sourceNodeId}" is not an unspent UTXO (mempool spent).`;
+    return `Output ${voutIdx} on "${sourceNodeId}" is already spent — only unspent transaction outputs can fund a PSBT input.`;
   }
 
   return null;
@@ -294,41 +270,4 @@ export function explainConnectPsbtInputFromOutput(
     addresses,
     groupMap
   );
-}
-
-/** Why connectPsbtOutputFromOutput would not apply (null = proceed). */
-export function explainConnectPsbtOutputFromOutput(
-  sourceNodeId: string,
-  sourceHandleId: string,
-  targetPsbtNodeId: string,
-  targetHandleId: string,
-  transactions: Record<string, StoredTransaction>,
-  addresses: Record<string, StoredAddress>,
-  groupMap: Record<string, AddressGroup>
-): string | null {
-  const target = transactions[targetPsbtNodeId];
-  if (!target?.isPsbt || !target.psbtBase64) {
-    return 'Target is not a PSBT with data.';
-  }
-
-  const source = transactions[sourceNodeId];
-  if (!source) {
-    return `Source "${sourceNodeId}" is not on the graph.`;
-  }
-
-  if (!isOutputHandleId(sourceHandleId) || !isPsbtOutputDropTargetHandleId(targetHandleId)) {
-    return `Invalid handles (source "${sourceHandleId}", target "${targetHandleId}"). Drag from a green output dot to an output drop target (out-…-in on the right).`;
-  }
-
-  const spendReason = explainSpendableSource(
-    sourceNodeId,
-    sourceHandleId,
-    source,
-    transactions,
-    addresses,
-    groupMap
-  );
-  if (spendReason) return spendReason;
-
-  return null;
 }

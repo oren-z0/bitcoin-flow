@@ -452,69 +452,13 @@ export function resolvePsbtInputInsertIndexFromHandle(
   return stored.data.vin.length;
 }
 
-/**
- * Index at which to insert a new PSBT output when a connection lands on `targetHandleId`.
- */
-/** Target handle id for dropping a UTXO onto a PSBT output row (insert after that row). */
-export function psbtOutputDropTargetHandleId(outputHandleId: string): string {
-  return `${outputHandleId}-in`;
-}
-
-/** Strip `-in` suffix from a PSBT output drop target handle. */
-export function psbtOutputHandleIdFromDropTarget(targetHandleId: string): string {
-  return targetHandleId.endsWith('-in') ? targetHandleId.slice(0, -3) : targetHandleId;
-}
-
-export function isPsbtOutputDropTargetHandleId(handleId: string | null | undefined): boolean {
-  return !!handleId && /^out-.+-in$/.test(handleId);
-}
-
-export function resolvePsbtOutputInsertIndexFromHandle(
-  targetHandleId: string,
-  stored: StoredTransaction,
-  transactions: Record<string, StoredTransaction>,
-  addresses: Record<string, StoredAddress>,
-  groupMap: Record<string, AddressGroup>
-): number {
-  const outputHandleId = psbtOutputHandleIdFromDropTarget(targetHandleId);
-  if (outputHandleId === 'out-drop') return 0;
-
-  const loadedTxids = new Set(Object.keys(transactions));
-  const handles = computeOutputHandles(
-    stored.data.txid,
-    stored.data.vout,
-    stored.outspends,
-    transactions,
-    addresses,
-    groupMap,
-    loadedTxids,
-    true
-  );
-  const handle = handles.find(h => h.id === outputHandleId);
-  if (handle) {
-    if (handle.isDropPlaceholder) return 0;
-    const indices = handle.voutIndices ?? [];
-    if (indices.length > 0) return Math.max(...indices) + 1;
-  }
-
-  const m = /^out-(\d+)$/.exec(outputHandleId);
-  if (m) return Number(m[1]) + 1;
-
-  return stored.data.vout.length;
-}
-
 export function isPsbtInputHandleId(handleId: string | null | undefined): boolean {
   if (!handleId) return false;
   return handleId === 'in-drop' || /^in-/.test(handleId);
 }
 
-/** Source output handle id (excludes `-in` drop targets). */
-export function isPsbtOutputHandleId(handleId: string | null | undefined): boolean {
-  return !!handleId && /^out-/.test(handleId) && !handleId.endsWith('-in');
-}
-
 export function isOutputHandleId(handleId: string | null | undefined): boolean {
-  return !!handleId && /^out-/.test(handleId) && !handleId.endsWith('-in');
+  return !!handleId && /^out-/.test(handleId);
 }
 
 /** PSBT payment output that can be dragged as a connect source (may fund multiple PSBTs). */

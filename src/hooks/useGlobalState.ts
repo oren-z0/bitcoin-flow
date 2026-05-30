@@ -5,7 +5,6 @@ import { computeLayout } from '../utils/layout';
 import { sortTxids } from '../utils/sorting';
 import {
   addPsbtInputFromPrevout,
-  addPsbtOutputFromPrevout,
   createNewPsbtV2Base64,
   enrichPrevoutsFromGraph,
   parsePsbtBase64,
@@ -20,15 +19,11 @@ import {
 } from '../utils/psbt';
 import {
   explainConnectPsbtInputFromOutput,
-  explainConnectPsbtOutputFromOutput,
   logConnectRejected,
 } from '../utils/psbtConnect';
 import {
-  isOutputHandleId,
-  isPsbtOutputDropTargetHandleId,
   resolveOutputVoutIndexFromHandle,
   resolvePsbtInputInsertIndexFromHandle,
-  resolvePsbtOutputInsertIndexFromHandle,
 } from '../utils/handleGrouping';
 
 const STORAGE_KEY = 'bitcoin-flow-state';
@@ -86,12 +81,6 @@ interface GlobalStore {
   promotePsbtIfConfirmed: (txid: string) => Promise<void>;
   replacePsbtNode: (oldNodeId: string, psbtBase64: string) => void;
   connectPsbtInputFromOutput: (
-    sourceNodeId: string,
-    sourceHandleId: string,
-    targetPsbtNodeId: string,
-    targetHandleId: string
-  ) => void;
-  connectPsbtOutputFromOutput: (
     sourceNodeId: string,
     sourceHandleId: string,
     targetPsbtNodeId: string,
@@ -976,91 +965,6 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       logConnectRejected(`connectPsbtInputFromOutput: ${msg}`);
       get().addError(msg);
       console.error('connectPsbtInputFromOutput', e);
-    }
-  },
-
-  connectPsbtOutputFromOutput: (
-    sourceNodeId,
-    sourceHandleId,
-    targetPsbtNodeId,
-    targetHandleId
-  ) => {
-    const state = get();
-    const { transactions, addresses, groupMap } = state;
-
-    const reject = (reason: string, toast?: string) => {
-      logConnectRejected(reason);
-      if (toast) get().addError(toast);
-    };
-
-    const target = transactions[targetPsbtNodeId];
-    if (!target?.isPsbt || !target.psbtBase64) {
-      reject('connectPsbtOutputFromOutput: target is not a PSBT with data');
-      return;
-    }
-
-    const source = transactions[sourceNodeId];
-    if (!source) {
-      reject(`connectPsbtOutputFromOutput: source "${sourceNodeId}" is not on the graph`);
-      return;
-    }
-
-    if (!isOutputHandleId(sourceHandleId) || !isPsbtOutputDropTargetHandleId(targetHandleId)) {
-      reject(
-        `connectPsbtOutputFromOutput: invalid handles (source "${sourceHandleId}", target "${targetHandleId}") — use a green output dot, drop on out-…-in on the right`,
-        'Drag from an output handle to a PSBT output drop target (out-…-in on the right)'
-      );
-      return;
-    }
-
-    const spendReason = explainConnectPsbtOutputFromOutput(
-      sourceNodeId,
-      sourceHandleId,
-      targetPsbtNodeId,
-      targetHandleId,
-      transactions,
-      addresses,
-      groupMap
-    );
-    if (spendReason) {
-      reject(`connectPsbtOutputFromOutput: ${spendReason}`, spendReason);
-      return;
-    }
-
-    const voutIdx = resolveOutputVoutIndexFromHandle(
-      sourceNodeId,
-      sourceHandleId,
-      source,
-      transactions,
-      addresses,
-      groupMap
-    )!;
-    const parentVout = source.data.vout[voutIdx];
-    if (!parentVout) {
-      reject('connectPsbtOutputFromOutput: invalid output index');
-      return;
-    }
-
-    const insertAtIndex = resolvePsbtOutputInsertIndexFromHandle(
-      targetHandleId,
-      target,
-      transactions,
-      addresses,
-      groupMap
-    );
-
-    try {
-      const updated = addPsbtOutputFromPrevout(
-        target.psbtBase64,
-        parentVout,
-        insertAtIndex
-      );
-      get().replacePsbtNode(targetPsbtNodeId, updated);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to add PSBT output';
-      logConnectRejected(`connectPsbtOutputFromOutput: ${msg}`);
-      get().addError(msg);
-      console.error('connectPsbtOutputFromOutput', e);
     }
   },
 

@@ -15,7 +15,6 @@ import ReactFlow, {
   type NodeDragHandler,
   useStoreApi,
 } from 'reactflow';
-import { isPsbtOutputDropTargetHandleId } from '../utils/handleGrouping';
 import {
   connectionFromConnectEndHandles,
   explainFlowConnectionValidity,
@@ -148,7 +147,6 @@ export default function FlowCanvas() {
     addTransactions,
     createPsbt,
     connectPsbtInputFromOutput,
-    connectPsbtOutputFromOutput,
   } = useGlobalState();
 
   const { setCenter, getViewport, fitView } = useReactFlow();
@@ -397,13 +395,11 @@ export default function FlowCanvas() {
         );
         return;
       }
-      if (isPsbtOutputDropTargetHandleId(targetHandle)) {
-        connectPsbtOutputFromOutput(source, sourceHandle, target, targetHandle);
-      } else {
-        connectPsbtInputFromOutput(source, sourceHandle, target, targetHandle);
-      }
+      // Single connection type: a spendable output (source) funds a PSBT input (target).
+      // React Flow normalizes the direction, so source is always the output handle.
+      connectPsbtInputFromOutput(source, sourceHandle, target, targetHandle);
     },
-    [connectPsbtInputFromOutput, connectPsbtOutputFromOutput]
+    [connectPsbtInputFromOutput]
   );
 
   // Keyboard shortcuts

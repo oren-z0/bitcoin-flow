@@ -247,6 +247,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
           ))}
         </select>
 
+        <div className="flex flex-col items-start gap-1">
         {/* Add Group */}
         {addingGroup ? (
           <form onSubmit={handleAddGroup} className="flex gap-2">
@@ -309,7 +310,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
         ) : (
           <button
             type="button"
-            className="text-xs text-blue-400 hover:text-blue-300 underline cursor-pointer"
+            className="block text-xs text-blue-400 hover:text-blue-300 underline cursor-pointer text-left"
             onClick={() => setAddingGroup(true)}
           >
             + Add Empty Group
@@ -368,12 +369,13 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
         ) : (
           <button
             type="button"
-            className="text-xs text-blue-400 hover:text-blue-300 underline cursor-pointer"
+            className="block text-xs text-blue-400 hover:text-blue-300 underline cursor-pointer text-left"
             onClick={() => setAddingFromXpub(true)}
           >
             + Add Group from Extended Public Key
           </button>
         )}
+        </div>
 
         {/* CSV buttons */}
         <div className="flex gap-2">

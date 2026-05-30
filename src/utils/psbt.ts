@@ -16,6 +16,11 @@ import {
   parseOpReturnEditDraft,
   type OpReturnEditMode,
 } from './opReturn';
+import {
+  hdKeyFromExtendedKey,
+  hdKeyFromPsbtGlobalXpubKey,
+  type PsbtGlobalXpubKeyFields,
+} from './xpub';
 
 /** Display-order txid (mempool / node id) ↔ internal bytes in unsigned tx inputs. */
 function reverseTxidHex(txid: string): string {
@@ -1473,4 +1478,166 @@ export function movePsbtIo(
   list[newIndex] = tmp;
 
   return base64.encode(tx.toPSBT());
+}
+
+/** Global PSBT `xpub` entry (extended key + master fingerprint and path to that key). */
+export type PsbtGlobalMasterKey = {
+  extendedKey: string;
+  path: string;
+  fingerprint: string;
+};
+
+type PsbtGlobalXpubMeta = { fingerprint: number; path: number[] };
+type PsbtGlobalXpubEntry = [PsbtGlobalXpubKeyFields, PsbtGlobalXpubMeta];
+
+type PsbtGlobalMap = {
+  xpub?: PsbtGlobalXpubEntry[];
+  version?: number;
+  txVersion?: number;
+  fallbackLocktime?: number;
+};
+
+function getMutableGlobal(tx: Transaction): PsbtGlobalMap {
+  const txAny = tx as unknown as { global: PsbtGlobalMap };
+  if (!txAny.global) txAny.global = {};
+  return txAny.global;
+}
+
+function pathsSharePrefix(prefix: number[], full: number[]): boolean {
+  if (full.length < prefix.length) return false;
+  for (let i = 0; i < prefix.length; i++) {
+    if (prefix[i] !== full[i]) return false;
+  }
+  return true;
+}
+
+/** BIP32 relative path from `prefix` to `full` (empty when equal). */
+function relativePathFromPrefix(prefix: number[], full: number[]): string {
+  const rest = full.slice(prefix.length);
+  if (rest.length === 0) return '';
+  return rest
+    .map(idx => {
+      const hardened = idx >= HARDENED_OFFSET;
+      const i = hardened ? idx - HARDENED_OFFSET : idx;
+      return hardened ? `${i}'` : `${i}`;
+    })
+    .join('/');
+}
+
+function xpubKeyFieldsFromHdKey(hd: ReturnType<typeof hdKeyFromExtendedKey>): PsbtGlobalXpubKeyFields {
+  if (!hd.publicKey || !hd.chainCode) {
+    throw new Error('Extended key must be a public key (xpub, ypub, zpub, …)');
+  }
+  return {
+    version: hd.versions.public,
+    depth: hd.depth,
+    parentFingerprint: hd.parentFingerprint,
+    childNumber: hd.index,
+    chainCode: hd.chainCode,
+    publicKey: hd.publicKey,
+  };
+}
+
+export function readPsbtGlobalMasterKeys(psbtBase64: string): PsbtGlobalMasterKey[] {
+  const tx = openPsbtForEdit(psbtBase64);
+  const entries = getMutableGlobal(tx).xpub ?? [];
+  return entries.map(([key, meta]) => {
+    const hd = hdKeyFromPsbtGlobalXpubKey(key);
+    return {
+      extendedKey: hd.publicExtendedKey,
+      path: formatBip32Path(meta.path),
+      fingerprint: formatFingerprint(meta.fingerprint),
+    };
+  });
+}
+
+export function addPsbtGlobalMasterKey(
+  psbtBase64: string,
+  extendedKey: string,
+  pathStr: string,
+  fingerprintHex: string
+): string {
+  const fpErr = validateFingerprintField(fingerprintHex);
+  if (fpErr) throw new Error(fpErr);
+  const pathErr = validatePathField(pathStr, fingerprintHex);
+  if (pathErr) throw new Error(pathErr);
+
+  const ext = extendedKey.trim();
+  if (!ext) throw new Error('Master public key is required');
+
+  let hd: ReturnType<typeof hdKeyFromExtendedKey>;
+  try {
+    hd = hdKeyFromExtendedKey(ext);
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : 'Invalid extended public key');
+  }
+
+  const fingerprint = parseFingerprintHex(fingerprintHex);
+  if (fingerprint === undefined) throw new Error('BIP32 root fingerprint is required');
+  const path = parsePathInput(pathStr);
+
+  const tx = openPsbtForEdit(psbtBase64);
+  const global = getMutableGlobal(tx);
+  const entry: PsbtGlobalXpubEntry = [xpubKeyFieldsFromHdKey(hd), { fingerprint, path }];
+  if (!global.xpub) global.xpub = [];
+  global.xpub.push(entry);
+  return base64.encode(tx.toPSBT());
+}
+
+export function removePsbtGlobalMasterKey(psbtBase64: string, index: number): string {
+  const tx = openPsbtForEdit(psbtBase64);
+  const global = getMutableGlobal(tx);
+  const list = global.xpub ?? [];
+  if (index < 0 || index >= list.length) {
+    throw new Error('Invalid master public key index');
+  }
+  list.splice(index, 1);
+  if (list.length === 0) delete global.xpub;
+  return base64.encode(tx.toPSBT());
+}
+
+/** Derive compressed pubkey hex from a global xpub matching `fingerprintHex` and extending `ioPathStr`. */
+export function derivePubkeyFromPsbtGlobalMasterKeys(
+  psbtBase64: string,
+  fingerprintHex: string,
+  ioPathStr: string
+): string {
+  const fpErr = validateFingerprintField(fingerprintHex);
+  if (fpErr) throw new Error(fpErr);
+  const pathErr = validatePathField(ioPathStr, fingerprintHex);
+  if (pathErr) throw new Error(pathErr);
+
+  const targetFp = parseFingerprintHex(fingerprintHex);
+  if (targetFp === undefined) throw new Error('Master fingerprint is required');
+  const ioPath = parsePathInput(ioPathStr);
+  if (ioPath.length === 0) throw new Error('Derivation path is required');
+
+  const tx = openPsbtForEdit(psbtBase64);
+  const entries = getMutableGlobal(tx).xpub ?? [];
+  const matches = entries.filter(([, meta]) => meta.fingerprint === targetFp);
+  if (matches.length === 0) {
+    throw new Error(
+      `No master public key with fingerprint ${formatFingerprint(targetFp)} in PSBT globals`
+    );
+  }
+
+  let lastError: string | null = null;
+  for (const [key, meta] of matches) {
+    if (!pathsSharePrefix(meta.path, ioPath)) {
+      lastError = `Derivation path ${formatBip32Path(ioPath)} is not under global path ${formatBip32Path(meta.path)}`;
+      continue;
+    }
+    const hd = hdKeyFromPsbtGlobalXpubKey(key);
+    const rel = relativePathFromPrefix(meta.path, ioPath);
+    const derived = rel ? hd.derive(rel) : hd;
+    if (!derived.publicKey) {
+      lastError = 'Failed to derive public key';
+      continue;
+    }
+    return hex.encode(derived.publicKey);
+  }
+
+  throw new Error(
+    lastError ?? 'Could not derive public key from global master public keys'
+  );
 }

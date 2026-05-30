@@ -12,11 +12,40 @@ const EXTENDED_KEY_VERSIONS: Record<string, Versions> = {
   Zpub: { private: 0x02aa7a99, public: 0x02aa7ed3 },
 };
 
-function hdKeyFromExtendedKey(key: string): HDKey {
+const PUBLIC_VERSION_TO_VERSIONS = new Map<number, Versions>(
+  Object.values(EXTENDED_KEY_VERSIONS).map(v => [v.public, v])
+);
+
+export type PsbtGlobalXpubKeyFields = {
+  version: number;
+  depth: number;
+  parentFingerprint: number;
+  childNumber: number;
+  chainCode: Uint8Array;
+  publicKey: Uint8Array;
+};
+
+export function hdKeyFromExtendedKey(key: string): HDKey {
   const prefix = key.slice(0, 4);
   const versions = EXTENDED_KEY_VERSIONS[prefix];
   if (!versions) throw new Error(`Unknown extended public key prefix: ${prefix}`);
   return HDKey.fromExtendedKey(key, versions);
+}
+
+/** Reconstruct an HDKey from PSBT global `xpub` key fields (for display / derive). */
+export function hdKeyFromPsbtGlobalXpubKey(fields: PsbtGlobalXpubKeyFields): HDKey {
+  const versions = PUBLIC_VERSION_TO_VERSIONS.get(fields.version);
+  if (!versions) {
+    throw new Error(`Unsupported extended public key version: 0x${fields.version.toString(16)}`);
+  }
+  return new HDKey({
+    versions,
+    depth: fields.depth,
+    index: fields.childNumber,
+    parentFingerprint: fields.parentFingerprint,
+    chainCode: fields.chainCode,
+    publicKey: fields.publicKey,
+  });
 }
 
 // Recursively expand all ranges in a path template, returning every

@@ -17,6 +17,7 @@ import {
 import OpenInExplorerButton from './OpenInExplorerButton';
 import PsbtIoForm from './PsbtIoForm';
 import PsbtEditableFee from './PsbtEditableFee';
+import PsbtGlobalMasterKeys from './PsbtGlobalMasterKeys';
 import PsbtEditableLocktime from './PsbtEditableLocktime';
 import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 import PsbtMoveControls from './PsbtMoveControls';
@@ -699,6 +700,13 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
         {psbtVersion !== null && (
           <p className="text-xs text-gray-400">PSBT version: {psbtVersion}</p>
+        )}
+
+        {stored.isPsbt && stored.psbtBase64 && (
+          <PsbtGlobalMasterKeys
+            psbtBase64={stored.psbtBase64}
+            onPsbtUpdated={handlePsbtDerivationUpdated}
+          />
         )}
 
         {/* Details */}

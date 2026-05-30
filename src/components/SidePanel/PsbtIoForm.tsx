@@ -6,7 +6,11 @@ import {
   type OpReturnEditMode,
 } from '../../utils/opReturn';
 import { inputSequenceHintSuffix } from '../../utils/sequence';
-import { PSBT_SCRIPT_TYPE_LABELS, type PsbtScriptKind } from '../../utils/psbt';
+import {
+  PSBT_SCRIPT_TYPE_LABELS,
+  derivePubkeyFromPsbtGlobalMasterKeys,
+  type PsbtScriptKind,
+} from '../../utils/psbt';
 import {
   loadPsbtIoFormDraft,
   savePsbtInputForm,
@@ -99,6 +103,7 @@ export default function PsbtIoForm({
     copyBytes(opReturnPayloadBytes(mempool?.scriptpubkey))
   );
   const [saveErrors, setSaveErrors] = useState<string[]>([]);
+  const [derivePubkeyError, setDerivePubkeyError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -108,6 +113,7 @@ export default function PsbtIoForm({
     setOpReturnPayloadBytesState(copyBytes(opReturnPayloadBytes(mempool?.scriptpubkey)));
     onScriptTypeChange?.(next.scriptType);
     setSaveErrors([]);
+    setDerivePubkeyError(null);
     setSaving(false);
     setDirty(false);
   };
@@ -126,7 +132,24 @@ export default function PsbtIoForm({
     dirtyRef.current = true;
     setDirty(true);
     setSaveErrors([]);
+    setDerivePubkeyError(null);
     setDraft(prev => ({ ...prev, ...partial }));
+  };
+
+  const handleDerivePubkeyFromGlobal = () => {
+    setDerivePubkeyError(null);
+    try {
+      const pubkeyHex = derivePubkeyFromPsbtGlobalMasterKeys(
+        psbtBase64,
+        draft.fingerprint,
+        draft.path
+      );
+      patchDraft({ pubkey: pubkeyHex });
+    } catch (e) {
+      setDerivePubkeyError(
+        e instanceof Error ? e.message : 'Failed to derive public key'
+      );
+    }
   };
 
   const typeOptions = useMemo(
@@ -331,6 +354,16 @@ export default function PsbtIoForm({
               onChange={(e) => patchDraft({ pubkey: e.target.value })}
               onKeyDown={handleFieldKeyDown}
             />
+            <button
+              type="button"
+              className="text-xs text-blue-400 hover:text-blue-300 cursor-pointer mt-0.5"
+              onClick={handleDerivePubkeyFromGlobal}
+            >
+              Derive from Master Public Key
+            </button>
+            {derivePubkeyError ? (
+              <p className="text-sm text-red-400 mt-1 break-words">{derivePubkeyError}</p>
+            ) : null}
           </div>
         </>
       )}

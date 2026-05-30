@@ -28,7 +28,10 @@ html, body, #root {
   cursor: pointer !important;
 }
 
-/* Inline handles sit in flex rows next to labels instead of absolute % positioning */
+/* Inline handles sit in flex rows next to labels instead of absolute % positioning.
+   React Flow sets pointer-events:none on non-connectable handles, which would let
+   clicks fall through to the node — re-enable them so these click-only dots (add the
+   previous / spending transaction) are actually clickable. */
 .react-flow__handle.handle-inline {
   position: relative !important;
   top: auto !important;
@@ -36,6 +39,8 @@ html, body, #root {
   right: auto !important;
   transform: none !important;
   flex-shrink: 0;
+  pointer-events: all !important;
+  cursor: pointer !important;
 }
 
 .react-flow__handle.handle-inline.react-flow__handle-left {

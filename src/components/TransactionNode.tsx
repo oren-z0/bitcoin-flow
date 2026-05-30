@@ -320,6 +320,8 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                     position={Position.Left}
                     id={handle.id}
                     isConnectable={false}
+                    isConnectableStart={false}
+                    isConnectableEnd={false}
                     className="handle-inline nodrag"
                     style={{
                       ...HANDLE_DOT_STYLE,
@@ -419,6 +421,8 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                       position={Position.Right}
                       id={handle.id}
                       isConnectable={false}
+                      isConnectableStart={false}
+                      isConnectableEnd={false}
                       className="handle-inline nodrag"
                       style={{ ...HANDLE_DOT_STYLE, background: dotColor }}
                       onClick={(e) => {

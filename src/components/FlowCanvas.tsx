@@ -27,7 +27,12 @@ import { CreatePsbtIcon, fileButtonClass } from './SidePanel/icons';
 import { useGlobalState, layoutRef } from '../hooks/useGlobalState';
 import TransactionNode from './TransactionNode';
 import { computeEdgeWidth } from '../utils/edgeStyling';
-import { computeInputHandles, computeOutputHandles } from '../utils/handleGrouping';
+import {
+  computeInputHandles,
+  computeOutputHandles,
+  isPsbtInputHandleId,
+  resolvePsbtInputSourceTxids,
+} from '../utils/handleGrouping';
 import { collectGraphConnections } from '../utils/graphConnections';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc } from '../utils/formatting';
@@ -36,6 +41,12 @@ import type { StoredTransaction, AddressGroup } from '../types';
 const nodeTypes: NodeTypes = {
   transaction: TransactionNode,
 };
+
+/**
+ * Max press-to-release duration (ms) for a PSBT input handle interaction to count as a
+ * click (find the source transaction) rather than a connection drag.
+ */
+const PSBT_INPUT_CLICK_MS = 500;
 
 function buildNodes(
   transactions: Record<string, StoredTransaction>
@@ -156,6 +167,13 @@ export default function FlowCanvas() {
   const lastConnectCheckRef = useRef<{
     connection: Connection;
     reason: string | null;
+  } | null>(null);
+  /** Press start (handle + time) for distinguishing a quick click from a connection drag. */
+  const connectStartRef = useRef<{
+    nodeId: string | null;
+    handleId: string | null;
+    handleType: string | null;
+    time: number;
   } | null>(null);
 
   // Always-current snapshot of controlled nodes, readable inside rAF callbacks
@@ -338,13 +356,62 @@ export default function FlowCanvas() {
     return reason === null;
   }, []);
 
-  const onConnectStart = useCallback(() => {
-    connectAppliedRef.current = false;
-    lastConnectCheckRef.current = null;
+  const onConnectStart = useCallback(
+    (
+      _event: React.MouseEvent | React.TouchEvent,
+      params: { nodeId: string | null; handleId: string | null; handleType: string | null }
+    ) => {
+      connectAppliedRef.current = false;
+      lastConnectCheckRef.current = null;
+      connectStartRef.current = {
+        nodeId: params.nodeId,
+        handleId: params.handleId,
+        handleType: params.handleType,
+        time: performance.now(),
+      };
+    },
+    []
+  );
+
+  /**
+   * Quick press-release on a PSBT input handle (no connection made): try to load the
+   * input's source transaction(s) onto the canvas. addTransaction surfaces a toast if
+   * the prevout cannot be fetched.
+   */
+  const findPsbtInputSource = useCallback((nodeId: string, handleId: string) => {
+    const { transactions, addresses, groupMap, addTransaction } = useGlobalState.getState();
+    const stored = transactions[nodeId];
+    if (!stored) return;
+    const txids = resolvePsbtInputSourceTxids(
+      handleId,
+      stored,
+      transactions,
+      addresses,
+      groupMap
+    );
+    txids.forEach(id => void addTransaction(id));
   }, []);
 
   const onConnectEnd = useCallback(() => {
+    const start = connectStartRef.current;
+    connectStartRef.current = null;
+
     if (connectAppliedRef.current) {
+      lastConnectCheckRef.current = null;
+      return;
+    }
+
+    // No connection was made: a quick press-release on a PSBT input handle is a click
+    // (find the source transaction) rather than an aborted drag.
+    if (
+      start &&
+      start.nodeId &&
+      start.handleId &&
+      start.handleType === 'target' &&
+      isPsbtInputHandleId(start.handleId) &&
+      performance.now() - start.time < PSBT_INPUT_CLICK_MS
+    ) {
+      findPsbtInputSource(start.nodeId, start.handleId);
       lastConnectCheckRef.current = null;
       return;
     }
@@ -389,7 +456,7 @@ export default function FlowCanvas() {
       );
     }
     lastConnectCheckRef.current = null;
-  }, [storeApi]);
+  }, [storeApi, findPsbtInputSource]);
 
   const onConnect = useCallback(
     (connection: Connection) => {

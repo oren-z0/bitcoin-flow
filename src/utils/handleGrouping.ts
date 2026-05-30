@@ -457,6 +457,31 @@ export function isPsbtInputHandleId(handleId: string | null | undefined): boolea
   return handleId === 'in-drop' || /^in-/.test(handleId);
 }
 
+/**
+ * Prevout txids referenced by a PSBT input handle — used for the click-to-find-source
+ * action. Returns an empty array for the drop placeholder or a coinbase input (nothing
+ * to find). Grouped handles return every input's prevout txid.
+ */
+export function resolvePsbtInputSourceTxids(
+  handleId: string,
+  stored: StoredTransaction,
+  transactions: Record<string, StoredTransaction>,
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>
+): string[] {
+  const loadedTxids = new Set(Object.keys(transactions));
+  const handles = computeInputHandles(
+    stored.data.vin,
+    addresses,
+    groupMap,
+    loadedTxids,
+    true
+  );
+  const handle = handles.find(h => h.id === handleId);
+  if (!handle || handle.isDropPlaceholder || handle.isCoinbase) return [];
+  return handle.txids;
+}
+
 export function isOutputHandleId(handleId: string | null | undefined): boolean {
   return !!handleId && /^out-/.test(handleId);
 }

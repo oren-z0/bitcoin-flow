@@ -16,6 +16,7 @@ import {
 } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
 import PsbtIoForm from './PsbtIoForm';
+import PsbtEditableFee from './PsbtEditableFee';
 import PsbtEditableLocktime from './PsbtEditableLocktime';
 import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 import PsbtMoveControls from './PsbtMoveControls';
@@ -260,6 +261,10 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const inputCount = tx.vin.length;
   const outputCount = tx.vout.length;
   const showPsbtMove = stored.isPsbt && !!stored.psbtBase64;
+  const canEditFee =
+    stored.isPsbt &&
+    !!stored.psbtBase64 &&
+    tx.vout.some(v => v.scriptpubkey_type !== 'op_return');
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -708,18 +713,31 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
               <span className="text-gray-400">Weight</span>
               <span>{tx.weight} WU</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Fee</span>
-              <span className={tx.fee < 0 ? 'text-red-400' : undefined}>
-                {satsToBtc(tx.fee)} BTC
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Fee rate</span>
-              <span className={tx.fee < 0 ? 'text-red-400' : undefined}>
-                {formatFeeRate(tx.fee, tx.weight)} sat/vB
-              </span>
-            </div>
+            {canEditFee && stored.psbtBase64 ? (
+              <PsbtEditableFee
+                psbtBase64={stored.psbtBase64}
+                fee={tx.fee}
+                weight={tx.weight}
+                vout={tx.vout}
+                feeIsNegative={tx.fee < 0}
+                onPsbtUpdated={handlePsbtDerivationUpdated}
+              />
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Fee</span>
+                  <span className={tx.fee < 0 ? 'text-red-400' : undefined}>
+                    {satsToBtc(tx.fee)} BTC
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Fee rate</span>
+                  <span className={tx.fee < 0 ? 'text-red-400' : undefined}>
+                    {formatFeeRate(tx.fee, tx.weight)} sat/vB
+                  </span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-400">Version</span>
               <span>{tx.version}</span>

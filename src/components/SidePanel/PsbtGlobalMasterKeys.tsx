@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useGlobalState } from '../../hooks/useGlobalState';
 import { truncateTxid } from '../../utils/formatting';
 import {
   addPsbtGlobalMasterKey,
@@ -55,6 +56,15 @@ export default function PsbtGlobalMasterKeys({ psbtBase64, onPsbtUpdated }: Prop
     }
   };
 
+  const copyExtendedKey = (key: string) => {
+    const { addSuccess, addError } = useGlobalState.getState();
+    navigator.clipboard.writeText(key).then(() => {
+      addSuccess('Copied to clipboard');
+    }).catch(() => {
+      addError('Could not copy to clipboard');
+    });
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -84,7 +94,11 @@ export default function PsbtGlobalMasterKeys({ psbtBase64, onPsbtUpdated }: Prop
             >
               <div className="flex items-start gap-1">
                 <div className="flex-1 min-w-0 space-y-0.5">
-                  <div className="text-gray-300 break-all" title={entry.extendedKey}>
+                  <div
+                    className="text-gray-300 break-all cursor-pointer hover:text-white"
+                    title="Click to copy"
+                    onClick={() => copyExtendedKey(entry.extendedKey)}
+                  >
                     {truncateTxid(entry.extendedKey)}
                   </div>
                   <div className="text-gray-400">

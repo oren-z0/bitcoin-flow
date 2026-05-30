@@ -518,7 +518,8 @@ export function resolvePsbtOutputInsertIndexFromHandle(
 }
 
 export function isPsbtInputHandleId(handleId: string | null | undefined): boolean {
-  return !!handleId && /^in-/.test(handleId);
+  if (!handleId) return false;
+  return handleId === 'in-drop' || /^in-/.test(handleId);
 }
 
 /** Source output handle id (excludes `-in` drop targets). */

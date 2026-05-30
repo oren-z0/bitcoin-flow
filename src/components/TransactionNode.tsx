@@ -292,7 +292,9 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
             {inputHandles.map((handle) => (
               <div
                 key={handle.id}
-                className="relative flex items-center gap-1 min-w-0 min-h-[22px]"
+                className={`relative flex items-center gap-1 min-w-0 ${
+                  handle.isDropPlaceholder ? 'min-h-[36px]' : 'min-h-[22px]'
+                }`}
               >
                 {isPsbt && !handle.isCoinbase ? (
                   <>
@@ -302,7 +304,9 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
                       id={handle.id}
                       isConnectable
                       isConnectableEnd
-                      className="psbt-connect-handle nodrag"
+                      className={`psbt-connect-handle nodrag${
+                        handle.isDropPlaceholder ? ' psbt-input-drop-handle' : ''
+                      }`}
                       style={{ top: '50%' }}
                     />
                     <div

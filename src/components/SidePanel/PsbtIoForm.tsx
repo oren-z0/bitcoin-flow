@@ -100,12 +100,14 @@ export default function PsbtIoForm({
   );
   const [saveErrors, setSaveErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   const reloadFromPsbt = () => {
     const next = loadPsbtIoFormDraft(psbtBase64, kind, index, mempool);
     setDraft(next);
     setOpReturnPayloadBytesState(copyBytes(opReturnPayloadBytes(mempool?.scriptpubkey)));
     onScriptTypeChange?.(next.scriptType);
+    setDirty(false);
   };
 
   useEffect(() => {
@@ -120,6 +122,7 @@ export default function PsbtIoForm({
 
   const patchDraft = (partial: Partial<PsbtIoFormDraft>) => {
     dirtyRef.current = true;
+    setDirty(true);
     setSaveErrors([]);
     setDraft(prev => ({ ...prev, ...partial }));
   };
@@ -176,6 +179,7 @@ export default function PsbtIoForm({
     }
 
     dirtyRef.current = false;
+    setDirty(false);
     onPsbtUpdated(result.base64);
     setSaveErrors([]);
   };
@@ -327,7 +331,7 @@ export default function PsbtIoForm({
                 className={`${fieldClass} flex-1 min-w-0`}
                 value={draft.address}
                 spellCheck={false}
-                placeholder="Bitcoin address"
+                placeholder="Leave blank to derive from public key"
                 onChange={(e) => patchDraft({ address: e.target.value })}
               />
               {onAddressInfo && (
@@ -372,8 +376,8 @@ export default function PsbtIoForm({
 
       <button
         type="button"
-        className="w-full text-xs bg-blue-700 hover:bg-blue-600 text-white py-1.5 px-2 rounded cursor-pointer disabled:opacity-50"
-        disabled={saving}
+        className="text-xs bg-blue-700 hover:bg-blue-600 text-white py-1.5 px-4 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={saving || !dirty}
         onClick={handleSave}
       >
         {saving ? 'Saving…' : 'Save'}

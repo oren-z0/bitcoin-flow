@@ -75,6 +75,15 @@ html, body, #root {
   left: -12px !important;
 }
 
+/* Empty PSBT input drop zone — larger hit target (in-drop) */
+.react-flow__handle.psbt-input-drop-handle {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px;
+  min-height: 32px;
+  left: -16px !important;
+}
+
 .react-flow__controls {
   background: #1f2937 !important;
   border: 1px solid #374151 !important;

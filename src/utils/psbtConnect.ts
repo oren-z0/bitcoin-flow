@@ -46,6 +46,29 @@ export function connectionFromConnectEndHandles(
   };
 }
 
+export function isCompleteFlowConnection(connection: Connection): boolean {
+  return !!(
+    connection.source &&
+    connection.target &&
+    connection.sourceHandle &&
+    connection.targetHandle
+  );
+}
+
+function explainIncompleteFlowConnection(connection: Connection): string {
+  const { source, target, sourceHandle, targetHandle } = connection;
+  if (!source || !sourceHandle) {
+    return 'Connection incomplete — drag must start from a green output dot on the right (not the gray drop zone).';
+  }
+  if (!target || !targetHandle) {
+    return (
+      'Connection incomplete — release over a PSBT input on the left (gray dot; empty PSBTs use the hidden in-drop target). ' +
+      'Do not release on the canvas or on the right-side output drop zone (out-…-in).'
+    );
+  }
+  return 'Connection incomplete — missing source or target handle.';
+}
+
 /** Why React Flow rejected a connection during drag (null = valid). */
 export function explainFlowConnectionValidity(
   connection: Connection,
@@ -56,7 +79,7 @@ export function explainFlowConnectionValidity(
   const { source, target, sourceHandle, targetHandle } = connection;
 
   if (!source || !target || !sourceHandle || !targetHandle) {
-    return 'Connection incomplete — release the line on a PSBT input (left, gray) or output drop target.';
+    return explainIncompleteFlowConnection(connection);
   }
 
   if (!isOutputHandleId(sourceHandle)) {

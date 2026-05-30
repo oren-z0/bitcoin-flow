@@ -19,6 +19,7 @@ import { isPsbtOutputDropTargetHandleId } from '../utils/handleGrouping';
 import {
   connectionFromConnectEndHandles,
   explainFlowConnectionValidity,
+  isCompleteFlowConnection,
   logConnectRejected,
 } from '../utils/psbtConnect';
 import 'reactflow/dist/style.css';
@@ -153,6 +154,11 @@ export default function FlowCanvas() {
   const { setCenter, getViewport, fitView } = useReactFlow();
   const storeApi = useStoreApi();
   const connectAppliedRef = useRef(false);
+  /** Last hover during drag with a full source/target pair (for accurate reject logs on release). */
+  const lastConnectCheckRef = useRef<{
+    connection: Connection;
+    reason: string | null;
+  } | null>(null);
 
   // Always-current snapshot of controlled nodes, readable inside rAF callbacks
   const nodesRef = useRef<Node[]>([]);
@@ -322,30 +328,45 @@ export default function FlowCanvas() {
 
   const isValidConnection = useCallback((connection: Connection) => {
     const { transactions, addresses, groupMap } = useGlobalState.getState();
-    return (
-      explainFlowConnectionValidity(
-        connection,
-        transactions,
-        addresses,
-        groupMap
-      ) === null
+    const reason = explainFlowConnectionValidity(
+      connection,
+      transactions,
+      addresses,
+      groupMap
     );
+    if (isCompleteFlowConnection(connection)) {
+      lastConnectCheckRef.current = { connection, reason };
+    }
+    return reason === null;
   }, []);
 
   const onConnectStart = useCallback(() => {
     connectAppliedRef.current = false;
+    lastConnectCheckRef.current = null;
   }, []);
 
   const onConnectEnd = useCallback(() => {
-    if (connectAppliedRef.current) return;
+    if (connectAppliedRef.current) {
+      lastConnectCheckRef.current = null;
+      return;
+    }
 
     const { connectionStartHandle, connectionEndHandle } = storeApi.getState();
-    if (!connectionStartHandle?.nodeId) return;
+    let connection: Connection | null = null;
 
-    const connection = connectionFromConnectEndHandles(
-      connectionStartHandle,
-      connectionEndHandle
-    );
+    if (connectionStartHandle?.nodeId) {
+      connection = connectionFromConnectEndHandles(
+        connectionStartHandle,
+        connectionEndHandle
+      );
+    }
+
+    if (!connection || !isCompleteFlowConnection(connection)) {
+      connection = lastConnectCheckRef.current?.connection ?? connection;
+    }
+
+    if (!connection || !connection.source) return;
+
     const { transactions, addresses, groupMap } = useGlobalState.getState();
     const reason = explainFlowConnectionValidity(
       connection,
@@ -353,10 +374,17 @@ export default function FlowCanvas() {
       addresses,
       groupMap
     );
-    logConnectRejected(
-      reason ??
-        'Dropped on the canvas or an invalid handle — drag from a green output (right) to a PSBT input (left, gray) or output drop target (out-…-in).'
-    );
+
+    if (reason) {
+      logConnectRejected(reason);
+    } else if (lastConnectCheckRef.current?.reason) {
+      logConnectRejected(lastConnectCheckRef.current.reason);
+    } else {
+      logConnectRejected(
+        'Release over the PSBT input on the left (gray dot). The line was valid while hovering but the drop did not land on the handle.'
+      );
+    }
+    lastConnectCheckRef.current = null;
   }, [storeApi]);
 
   const onConnect = useCallback(

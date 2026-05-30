@@ -186,6 +186,14 @@ export default function PsbtIoForm({
     setSaveErrors([]);
   };
 
+  // Enter in a single-line field commits the form, mirroring the Save button.
+  const handleFieldKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (!saving && dirty) handleSave();
+    }
+  };
+
   const trimmedAddress = draft.address.trim();
   const canOpenAddressInfo = !!trimmedAddress && !!onAddressInfo;
 
@@ -221,6 +229,7 @@ export default function PsbtIoForm({
             spellCheck={false}
             aria-label={`Input ${index} sequence`}
             onChange={(e) => patchDraft({ sequenceHex: e.target.value })}
+            onKeyDown={handleFieldKeyDown}
           />
           {sequenceHint ? (
             <div className="mt-0.5 text-[10px] text-gray-500">{sequenceHint}</div>
@@ -298,6 +307,7 @@ export default function PsbtIoForm({
               value={draft.fingerprint}
               placeholder="8 hex chars"
               onChange={(e) => patchDraft({ fingerprint: e.target.value })}
+              onKeyDown={handleFieldKeyDown}
             />
           </div>
           <div>
@@ -308,6 +318,7 @@ export default function PsbtIoForm({
               value={draft.path}
               placeholder="i.e. m/0h/0/0"
               onChange={(e) => patchDraft({ path: e.target.value })}
+              onKeyDown={handleFieldKeyDown}
             />
           </div>
           <div>
@@ -318,6 +329,7 @@ export default function PsbtIoForm({
               value={draft.pubkey}
               placeholder="33-byte compressed pubkey (hex)"
               onChange={(e) => patchDraft({ pubkey: e.target.value })}
+              onKeyDown={handleFieldKeyDown}
             />
           </div>
         </>
@@ -335,6 +347,7 @@ export default function PsbtIoForm({
                 spellCheck={false}
                 placeholder="Leave blank to derive from public key"
                 onChange={(e) => patchDraft({ address: e.target.value })}
+                onKeyDown={handleFieldKeyDown}
               />
               {onAddressInfo && (
                 <button
@@ -361,6 +374,7 @@ export default function PsbtIoForm({
                 value={draft.amountBtc}
                 spellCheck={false}
                 onChange={(e) => patchDraft({ amountBtc: e.target.value })}
+                onKeyDown={handleFieldKeyDown}
               />
               <span>BTC</span>
             </span>

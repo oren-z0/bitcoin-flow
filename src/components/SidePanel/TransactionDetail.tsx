@@ -575,7 +575,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                         />
                         <div
                           className="cursor-pointer hover:opacity-80 font-mono truncate min-w-0 flex-1"
-                          style={{ color: 'rgb(10, 171, 47)' }}
+                          style={{ color: 'rgb(255, 61, 0)' }}
                           onClick={() => handleOutputTxClick(spendingTxid)}
                         >
                           {transactions[spendingTxid]
@@ -599,7 +599,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                     ) : (
                       <div className="flex items-center gap-2">
                         <div
-                          style={{ color: 'rgb(255, 61, 0)' }}
+                          style={{ color: 'rgb(10, 171, 47)' }}
                           className="font-semibold flex-1 min-w-0"
                         >
                           UTXO

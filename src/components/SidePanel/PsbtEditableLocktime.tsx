@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatTimestamp } from '../../utils/formatting';
-import { isLocktimeDisabled, parseLocktimeValue, showsAbsoluteLocktime } from '../../utils/sequence';
+import { isLocktimeDisabled, isTimestampLocktime, parseLocktimeValue } from '../../utils/sequence';
 import { updatePsbtLocktime } from '../../utils/psbt';
 import type { MempoolVin } from '../../types';
 
@@ -30,8 +30,8 @@ export default function PsbtEditableLocktime({
   }, [fieldKey, locktime]);
 
   const disabledSuffix = isLocktimeDisabled(vin) ? ' (disabled)' : '';
-  const absoluteSuffix =
-    showsAbsoluteLocktime(locktime, vin) ? ` (${formatTimestamp(locktime)})` : '';
+  const draftValue = /^\d+$/.test(draft.trim()) ? Number(draft.trim()) : NaN;
+  const timestampText = isTimestampLocktime(draftValue) ? formatTimestamp(draftValue) : null;
 
   const commit = () => {
     if (draft.trim() === String(locktime)) return;
@@ -47,27 +47,29 @@ export default function PsbtEditableLocktime({
   };
 
   return (
-    <span className="flex flex-wrap items-center justify-end gap-1">
-      <input
-        type="text"
-        className={fieldClass}
-        value={draft}
-        spellCheck={false}
-        aria-label="Locktime"
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.currentTarget.blur();
-          }
-          if (e.key === 'Escape') {
-            setDraft(String(locktime));
-            e.currentTarget.blur();
-          }
-        }}
-      />
-      {absoluteSuffix}
-      {disabledSuffix}
+    <span className="flex flex-col items-end gap-0.5">
+      <span className="flex flex-wrap items-center justify-end gap-1">
+        <input
+          type="text"
+          className={fieldClass}
+          value={draft}
+          spellCheck={false}
+          aria-label="Locktime"
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur();
+            }
+            if (e.key === 'Escape') {
+              setDraft(String(locktime));
+              e.currentTarget.blur();
+            }
+          }}
+        />
+        {disabledSuffix}
+      </span>
+      {timestampText && <span className="text-gray-400">{timestampText}</span>}
     </span>
   );
 }

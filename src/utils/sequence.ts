@@ -9,8 +9,20 @@ export function inputHasRelativeLocktime(txVersion: number, sequence: number): b
   return txVersion >= 2 && isRelativeLocktimeSequence(sequence);
 }
 
+/** Locktime values >= this are interpreted as Unix timestamps rather than block heights (BIP 65). */
+export const LOCKTIME_TIMESTAMP_THRESHOLD = 500000000;
+
 export function showsAbsoluteLocktime(locktime: number, vins: { sequence: number }[]): boolean {
-  return locktime >= 500000000 && vins.some(vin => vin.sequence <= 0xfffffffe);
+  return locktime >= LOCKTIME_TIMESTAMP_THRESHOLD && vins.some(vin => vin.sequence <= 0xfffffffe);
+}
+
+/** Whether a raw locktime value falls in the range interpreted as a Unix timestamp. */
+export function isTimestampLocktime(locktime: number): boolean {
+  return (
+    Number.isSafeInteger(locktime) &&
+    locktime >= LOCKTIME_TIMESTAMP_THRESHOLD &&
+    locktime <= 0xffffffff
+  );
 }
 
 /** Locktime is not enforced when every input has nSequence 0xFFFFFFFF. */

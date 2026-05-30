@@ -365,7 +365,7 @@ export default function FlowCanvas() {
 
     if (!connection || !connection.source) return;
 
-    const { transactions, addresses, groupMap } = useGlobalState.getState();
+    const { transactions, addresses, groupMap, addError } = useGlobalState.getState();
     const reason = explainFlowConnectionValidity(
       connection,
       transactions,
@@ -375,6 +375,12 @@ export default function FlowCanvas() {
 
     if (reason) {
       logConnectRejected(reason);
+      // A complete connection that still has a rejection reason (e.g. would create a
+      // cycle) is blocked during the drag, so onConnect never fires to surface it.
+      // Show it to the user instead of only logging to the console.
+      if (isCompleteFlowConnection(connection)) {
+        addError(reason);
+      }
     } else if (lastConnectCheckRef.current?.reason) {
       logConnectRejected(lastConnectCheckRef.current.reason);
     } else {

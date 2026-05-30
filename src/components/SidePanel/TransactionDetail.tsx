@@ -6,12 +6,14 @@ import { formatOpReturnDisplay } from '../../utils/opReturn';
 import { formatInputSequence, isLocktimeDisabled, showsAbsoluteLocktime } from '../../utils/sequence';
 import {
   addPsbtPaymentOutput,
+  exportPsbtBase64,
   isKnownTxid,
   readPsbtIoScriptType,
   readPsbtVersion,
   removePsbtInput,
   removePsbtOutput,
   resolveParentNodeId,
+  type PsbtExportVersion,
   type PsbtScriptKind,
 } from '../../utils/psbt';
 import OpenInExplorerButton from './OpenInExplorerButton';
@@ -55,8 +57,8 @@ function TrashIcon() {
   );
 }
 
-const psbtActionClass =
-  'w-full flex items-center justify-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-2 rounded cursor-pointer';
+const psbtExportBtnClass =
+  'flex-1 flex items-center justify-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-2 rounded cursor-pointer';
 
 function LinkedTransactionVisibilityButton({
   visible,
@@ -115,6 +117,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const [outputDraftScriptTypes, setOutputDraftScriptTypes] = useState<
     Record<number, PsbtScriptKind>
   >({});
+  const [psbtExportVersion, setPsbtExportVersion] = useState<PsbtExportVersion>(2);
 
   React.useEffect(() => {
     if (stored) setNameInput(stored.name || '');
@@ -128,6 +131,12 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
     if (!stored?.isPsbt || !stored.psbtBase64) return null;
     return readPsbtVersion(stored.psbtBase64);
   }, [stored?.isPsbt, stored?.psbtBase64]);
+
+  React.useEffect(() => {
+    if (psbtVersion === 0 || psbtVersion === 1 || psbtVersion === 2) {
+      setPsbtExportVersion(psbtVersion);
+    }
+  }, [selectedTxid, psbtVersion]);
 
   if (!stored || !selectedTxid) return null;
 
@@ -219,10 +228,10 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const showUnknownTxid = stored.isPsbt && !isKnownTxid(tx.txid);
   const displayTxid = isKnownTxid(tx.txid) ? tx.txid : selectedTxid;
 
-  const handleSavePsbt = () => {
+  const handleDownloadPsbt = () => {
     if (!stored.psbtBase64) return;
     try {
-      const bytes = base64.decode(stored.psbtBase64);
+      const bytes = base64.decode(exportPsbtBase64(stored.psbtBase64, psbtExportVersion));
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -232,13 +241,20 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      useGlobalState.getState().addError('Could not save PSBT file');
+      addError('Could not download PSBT file');
     }
   };
 
   const handleCopyPsbt = () => {
     if (!stored.psbtBase64) return;
-    copyToClipboard(stored.psbtBase64, 'PSBT copied to clipboard');
+    try {
+      copyToClipboard(
+        exportPsbtBase64(stored.psbtBase64, psbtExportVersion),
+        'PSBT copied to clipboard',
+      );
+    } catch {
+      addError('Could not copy PSBT');
+    }
   };
 
   const handlePsbtDerivationUpdated = (newBase64: string) => {
@@ -779,16 +795,28 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
       {/* Footer */}
       <div className="p-3 border-t border-gray-700 space-y-2">
         {stored.isPsbt && stored.psbtBase64 && (
-          <>
-            <button type="button" className={psbtActionClass} onClick={handleSavePsbt}>
-              <SaveIcon />
-              Save PSBT
-            </button>
-            <button type="button" className={psbtActionClass} onClick={handleCopyPsbt}>
-              <CopyIcon />
-              Copy PSBT to Clipboard
-            </button>
-          </>
+          <div>
+            <div className="text-xs text-gray-400 mb-1">Save PSBT</div>
+            <select
+              className="w-full bg-gray-700 text-white text-xs rounded px-2 py-1.5 mb-2 border border-gray-600 focus:outline-none focus:border-blue-500"
+              value={psbtExportVersion}
+              onChange={(e) => setPsbtExportVersion(Number(e.target.value) as PsbtExportVersion)}
+            >
+              <option value={0}>PSBT v0</option>
+              <option value={1}>PSBT v1</option>
+              <option value={2}>PSBT v2</option>
+            </select>
+            <div className="flex gap-2">
+              <button type="button" className={psbtExportBtnClass} onClick={handleDownloadPsbt}>
+                <SaveIcon />
+                Download
+              </button>
+              <button type="button" className={psbtExportBtnClass} onClick={handleCopyPsbt}>
+                <CopyIcon />
+                Copy
+              </button>
+            </div>
+          </div>
         )}
         {!stored.isPsbt && isKnownTxid(displayTxid) && (
           <OpenInExplorerButton type="tx" id={displayTxid} />

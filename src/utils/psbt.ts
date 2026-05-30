@@ -1,4 +1,5 @@
 import { Transaction, OutScript, Address, NETWORK, getInputType, p2wpkh, p2pkh, p2tr } from '@scure/btc-signer';
+import { _RawPSBTV0 } from '@scure/btc-signer/psbt.js';
 import { bip32Path, getPrevOut } from '@scure/btc-signer/transaction.js';
 import type { PSBTInputs, PSBTOutputs } from '@scure/btc-signer/transaction.js';
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -1258,6 +1259,23 @@ export function readPsbtIoPubkey(
   const io = kind === 'input' ? tx.getInput(index) : tx.getOutput(index);
   const pk = resolvePubkeyForDerivation(io, kind === 'input');
   return pk ? hex.encode(pk) : undefined;
+}
+
+export type PsbtExportVersion = 0 | 1 | 2;
+
+/** Serialize PSBT for download/copy. In-app editing stays on v2. */
+export function exportPsbtBase64(psbtBase64: string, version: PsbtExportVersion): string {
+  const tx = openPsbtForEdit(psbtBase64);
+  if (version === 2) {
+    return normalizePsbtBase64(base64.encode(tx.toPSBT(2)));
+  }
+  const v0bytes = tx.toPSBT(0);
+  if (version === 0) {
+    return normalizePsbtBase64(base64.encode(v0bytes));
+  }
+  const raw = _RawPSBTV0.decode(v0bytes);
+  raw.global.version = 1;
+  return normalizePsbtBase64(base64.encode(_RawPSBTV0.encode(raw)));
 }
 
 /** PSBT global version field (defaults to 0 when omitted). */

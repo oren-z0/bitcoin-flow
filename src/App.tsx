@@ -66,11 +66,21 @@ function NotificationToasts() {
 }
 
 function LoadingIndicator() {
-  const { loadingTxids } = useGlobalState();
+  const { loadingTxids, transactions } = useGlobalState();
   if (loadingTxids.size === 0) return null;
+  // Empty-page examples show their own spinner; avoid duplicate banners.
+  if (Object.keys(transactions).length === 0) return null;
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-800 border border-gray-600 text-gray-200 text-xs px-4 py-2 rounded shadow">
-      Loading {loadingTxids.size} transaction(s)...
+    <div
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gray-800 border border-gray-600 text-gray-200 text-xs px-4 py-2 rounded shadow flex items-center gap-2"
+      role="status"
+      aria-live="polite"
+    >
+      <span
+        className="inline-block h-3.5 w-3.5 border-2 border-gray-500 border-t-gray-300 rounded-full animate-spin shrink-0"
+        aria-hidden
+      />
+      Loading {loadingTxids.size} transaction{loadingTxids.size === 1 ? '' : 's'}…
     </div>
   );
 }

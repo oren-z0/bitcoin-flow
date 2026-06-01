@@ -629,13 +629,23 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       return;
     }
 
-    // Load all in parallel
-    const results = await Promise.allSettled(
-      toAdd.map(txid =>
-        Promise.all([fetchTransaction(txid), fetchOutspends(txid)])
-          .then(([tx, outspends]) => ({ txid, tx, outspends }))
-      )
-    );
+    set(s => ({
+      loadingTxids: new Set([...s.loadingTxids, ...toAdd]),
+    }));
+
+    let results;
+    try {
+      results = await Promise.allSettled(
+        toAdd.map(txid =>
+          Promise.all([fetchTransaction(txid), fetchOutspends(txid)])
+            .then(([tx, outspends]) => ({ txid, tx, outspends }))
+        )
+      );
+    } finally {
+      set(s => ({
+        loadingTxids: new Set([...s.loadingTxids].filter(id => !toAdd.includes(id))),
+      }));
+    }
 
     set(s => {
       const updated = { ...s.transactions };
@@ -702,7 +712,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
 
     const { autoLayout } = get();
     if (autoLayout) {
-      await get().runLayout();
+      void get().runLayout();
     }
   },
 
@@ -883,11 +893,13 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
   },
 
   setAutoLayout: async (value: boolean) => {
+    const { autoLayout, transactions } = get();
+    if (autoLayout === value) return;
     set(s => {
       persist({ ...s, autoLayout: value });
       return { autoLayout: value };
     });
-    if (value) {
+    if (value && Object.keys(transactions).length > 0) {
       await get().runLayout();
     }
   },

@@ -67,7 +67,10 @@ function emptyPageExampleKey(example: EmptyPageExample): string {
 }
 
 async function runEmptyPageExample(example: EmptyPageExample): Promise<void> {
-  await useGlobalState.getState().setAutoLayout(true);
+  const store = useGlobalState.getState();
+  if (!store.autoLayout) {
+    await store.setAutoLayout(true);
+  }
 
   if ('txids' in example) {
     await useGlobalState.getState().addTransactions(example.txids);
@@ -191,6 +194,8 @@ export default function FlowCanvas() {
   const groupMap = useGlobalState(s => s.groupMap);
   const selectedAddresses = useGlobalState(s => s.selectedAddresses);
   const autoLayout = useGlobalState(s => s.autoLayout);
+  const loadingTxids = useGlobalState(s => s.loadingTxids);
+  const isExampleLoading = loadingTxids.size > 0;
   const [showMiniMap] = useState(() => !prefersCoarsePointer());
 
   const { setCenter, getViewport, fitView } = useReactFlow();
@@ -588,7 +593,23 @@ export default function FlowCanvas() {
             <div className="text-2xl font-semibold mb-2 pointer-events-none">No transactions yet</div>
             <div className="text-sm pointer-events-none">Add transaction IDs from the side panel,<br />or look up an address to explore its history.</div>
             <div className="text-sm mt-4 pointer-events-none font-medium">Examples:</div>
-            <div className="text-sm mt-1 flex flex-col gap-1">
+            {isExampleLoading && (
+              <div
+                className="mt-2 flex items-center justify-center gap-2 text-gray-400 text-sm"
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  className="inline-block h-4 w-4 border-2 border-gray-500 border-t-gray-300 rounded-full animate-spin"
+                  aria-hidden
+                />
+                Loading {loadingTxids.size} transaction{loadingTxids.size === 1 ? '' : 's'}…
+              </div>
+            )}
+            <div
+              className={`text-sm mt-1 flex flex-col gap-1 ${isExampleLoading ? 'opacity-50 pointer-events-none' : ''}`}
+              aria-busy={isExampleLoading}
+            >
               {([
                 { label: 'Satoshi → Hal Finney', txid: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16' },
                 { label: 'Coinbase', txid: '8cc015e338bb71b748dd931a9ab8a244f8202eb1560dc205d610059a3ef75898' },
@@ -602,7 +623,9 @@ export default function FlowCanvas() {
               ] satisfies EmptyPageExample[]).map((example) => (
                 <button
                   key={emptyPageExampleKey(example)}
-                  className="underline hover:text-gray-300 transition-colors cursor-pointer"
+                  type="button"
+                  disabled={isExampleLoading}
+                  className="underline hover:text-gray-300 transition-colors cursor-pointer disabled:cursor-not-allowed"
                   onClick={() => void runEmptyPageExample(example)}
                 >
                   {example.label}

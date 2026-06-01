@@ -23,7 +23,7 @@ import {
 } from '../utils/psbtConnect';
 import 'reactflow/dist/style.css';
 import { SIDE_PANEL_WIDTH } from '../constants/layout';
-import { CreatePsbtIcon, fileButtonClass } from './SidePanel/icons';
+import { CreatePsbtIcon, fileButtonClass, TrashIcon } from './SidePanel/icons';
 import { useGlobalState, layoutRef } from '../hooks/useGlobalState';
 import TransactionNode from './TransactionNode';
 import { computeEdgeWidth } from '../utils/edgeStyling';
@@ -60,16 +60,18 @@ function emptyPageExampleKey(example: EmptyPageExample): string {
   return example.label;
 }
 
-function runEmptyPageExample(example: EmptyPageExample): void {
+async function runEmptyPageExample(example: EmptyPageExample): Promise<void> {
+  await useGlobalState.getState().setAutoLayout(true);
+
   if ('txids' in example) {
-    void useGlobalState.getState().addTransactions(example.txids);
+    await useGlobalState.getState().addTransactions(example.txids);
     return;
   }
   if ('txid' in example) {
-    void useGlobalState.getState().addTransaction(example.txid);
+    await useGlobalState.getState().addTransaction(example.txid);
     return;
   }
-  void example.load();
+  await example.load();
 }
 
 /**
@@ -549,14 +551,28 @@ export default function FlowCanvas() {
     >
       <Background color="#374151" gap={20} />
       <Panel position="top-right" className="!m-12">
-        <button
-          type="button"
-          className={`${fileButtonClass} !text-[1rem] border border-gray-600 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 shadow`}
-          onClick={() => void useGlobalState.getState().createPsbt()}
-        >
-          <CreatePsbtIcon />
-          Create a new PSBT
-        </button>
+        <div className="flex flex-col gap-2 w-max">
+          <button
+            type="button"
+            className={`${fileButtonClass} w-full !text-[1rem] border border-gray-600 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 shadow`}
+            onClick={() => void useGlobalState.getState().createPsbt()}
+          >
+            <CreatePsbtIcon />
+            Create a new PSBT
+          </button>
+          <button
+            type="button"
+            className="w-full flex items-center justify-center gap-1.5 !text-[1rem] bg-red-900 hover:bg-red-800 text-white border border-red-800 px-3 py-1.5 rounded shadow cursor-pointer"
+            onClick={() => {
+              if (confirm('Are you sure you want to clear all state? This cannot be undone.')) {
+                useGlobalState.getState().clearState();
+              }
+            }}
+          >
+            <TrashIcon />
+            Clear State
+          </button>
+        </div>
       </Panel>
       {Object.keys(transactions).length === 0 && (
         <Panel position="top-center" style={{ top: '50%', transform: 'translate(-50%, -50%)' }}>
@@ -579,7 +595,7 @@ export default function FlowCanvas() {
                 <button
                   key={emptyPageExampleKey(example)}
                   className="underline hover:text-gray-300 transition-colors cursor-pointer"
-                  onClick={() => runEmptyPageExample(example)}
+                  onClick={() => void runEmptyPageExample(example)}
                 >
                   {example.label}
                 </button>

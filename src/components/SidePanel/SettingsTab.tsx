@@ -64,21 +64,11 @@ function GithubIcon() {
   );
 }
 
-function TrashIcon() {
-  return (
-    <svg className={iconClass} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M3 6h18" />
-      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-    </svg>
-  );
-}
-
 const stateButtonClass =
   'flex flex-1 items-center justify-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-2 rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
 export default function SettingsTab() {
-  const { autoLayout, setAutoLayout, transactions, addresses, clearState, addError, addSuccess } =
+  const { autoLayout, setAutoLayout, transactions, addresses, addError, addSuccess } =
     useGlobalState();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadProgress, setUploadProgress] = useState<LoadProgress>(null);
@@ -180,12 +170,6 @@ export default function SettingsTab() {
       setGistUrlInput('');
     } catch {
       addError('Could not copy to clipboard');
-    }
-  };
-
-  const handleClearState = () => {
-    if (confirm('Are you sure you want to clear all state? This cannot be undone.')) {
-      clearState();
     }
   };
 
@@ -299,13 +283,6 @@ export default function SettingsTab() {
               Share via Github Gist
             </button>
           )}
-          <button
-            className="w-full flex items-center justify-center gap-1.5 text-sm bg-red-900 hover:bg-red-800 text-white py-2 rounded cursor-pointer"
-            onClick={handleClearState}
-          >
-            <TrashIcon />
-            Clear State
-          </button>
           <input
             ref={fileInputRef}
             type="file"

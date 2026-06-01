@@ -93,7 +93,7 @@ html, body, #root {
 @media (max-width: 768px) {
   .react-flow__controls.flow-zoom-controls {
     /* Clear mobile browser chrome and home indicator (needs viewport-fit=cover). */
-    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 8rem);
+    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
   }
 }
 

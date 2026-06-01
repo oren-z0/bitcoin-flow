@@ -28,29 +28,28 @@ export default function PsbtEditableLocktime({
   onError,
 }: Props) {
   const fieldKey = `${psbtBase64}:${locktime}`;
-  const [draft, setDraft] = useState(() => locktimeDraftDisplay(locktime));
+  const [draft, setDraft] = useState(() => String(locktime));
 
   useEffect(() => {
-    setDraft(locktimeDraftDisplay(locktime));
+    setDraft(String(locktime));
   }, [fieldKey, locktime]);
 
   const disabledSuffix = isLocktimeDisabled(vin) ? ' (disabled)' : '';
 
   const commit = () => {
-    const canonical = locktimeDraftDisplay(locktime);
-    if (draft.trim() === canonical || draft.trim() === String(locktime)) return;
+    if (draft.trim() === String(locktime)) return;
 
     try {
       const next = parseLocktimeValue(draft);
       if (next === locktime) {
-        setDraft(canonical);
+        setDraft(String(locktime));
         return;
       }
       onPsbtUpdated(updatePsbtLocktime(psbtBase64, next));
-      setDraft(locktimeDraftDisplay(next));
+      setDraft(String(next));
     } catch (e) {
       onError(e instanceof Error ? e.message : LOCKTIME_PARSE_ERROR);
-      setDraft(canonical);
+      setDraft(String(locktime));
     }
   };
 
@@ -70,7 +69,7 @@ export default function PsbtEditableLocktime({
               e.currentTarget.blur();
             }
             if (e.key === 'Escape') {
-              setDraft(locktimeDraftDisplay(locktime));
+              setDraft(String(locktime));
               e.currentTarget.blur();
             }
           }}

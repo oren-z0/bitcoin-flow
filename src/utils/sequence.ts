@@ -13,7 +13,7 @@ export function inputHasRelativeLocktime(txVersion: number, sequence: number): b
 export const LOCKTIME_TIMESTAMP_THRESHOLD = 500000000;
 
 export function showsAbsoluteLocktime(locktime: number, vins: { sequence: number }[]): boolean {
-  return locktime >= LOCKTIME_TIMESTAMP_THRESHOLD && vins.some(vin => vin.sequence <= 0xfffffffe);
+  return locktime >= LOCKTIME_TIMESTAMP_THRESHOLD && vins.some(vin => vin.sequence < 0xffffffff);
 }
 
 /** Whether a raw locktime value falls in the range interpreted as a Unix timestamp. */

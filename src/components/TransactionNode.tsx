@@ -224,9 +224,22 @@ function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
   const isMultiHandle = (handle: HandleDescriptor) =>
     (handle.vinIndices?.length ?? 1) > 1 || (handle.voutIndices?.length ?? 1) > 1;
 
+  const notifyGroupedHandleClick = useCallback((side: 'input' | 'output') => {
+    const { addError, setSelectedTxid } = useGlobalState.getState();
+    const plural = side === 'input' ? 'inputs' : 'outputs';
+    const singular = side === 'input' ? 'input' : 'output';
+    addError(
+      `This transaction has too many ${plural}. Select an ${singular} in the sidebar instead.`
+    );
+    setSelectedTxid(txid);
+  }, [txid]);
+
   const handleAddressLabelClick = useCallback(
-    (handle: HandleDescriptor) => {
-      if (isMultiHandle(handle)) return;
+    (handle: HandleDescriptor, side: 'input' | 'output') => {
+      if (isMultiHandle(handle)) {
+        notifyGroupedHandleClick(side);
+        return;
+      }
       if (handle.addresses.length >= 1) {
         const addr = handle.addresses[0];
         if (!addresses[addr]) {
@@ -236,20 +249,26 @@ function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
         window.dispatchEvent(new CustomEvent('open-address-detail', { detail: { address: addr } }));
       }
     },
-    [addresses]
+    [addresses, notifyGroupedHandleClick]
   );
 
   const handleInputHandleClick = useCallback((handle: HandleDescriptor) => {
-    if (isMultiHandle(handle)) return;
+    if (isMultiHandle(handle)) {
+      notifyGroupedHandleClick('input');
+      return;
+    }
     const { addTransaction } = useGlobalState.getState();
     handle.txids.forEach(id => void addTransaction(id));
-  }, []);
+  }, [notifyGroupedHandleClick]);
 
   const handleOutputHandleClick = useCallback((handle: HandleDescriptor) => {
-    if (isMultiHandle(handle)) return;
+    if (isMultiHandle(handle)) {
+      notifyGroupedHandleClick('output');
+      return;
+    }
     const { addTransaction } = useGlobalState.getState();
     handle.txids.forEach(id => void addTransaction(id));
-  }, []);
+  }, [notifyGroupedHandleClick]);
 
   const nodeStyle: React.CSSProperties = {
     borderColor: color || (isSelected ? '#3b82f6' : '#374151'),
@@ -333,7 +352,7 @@ function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
                     addressMap={addresses}
                     groupMap={groupMap}
                     selectedAddresses={selectedAddresses}
-                    onLabelClick={handleAddressLabelClick}
+                    onLabelClick={(h) => handleAddressLabelClick(h, 'input')}
                   />
                 )}
               </div>
@@ -382,7 +401,7 @@ function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
                       addressMap={addresses}
                       groupMap={groupMap}
                       selectedAddresses={selectedAddresses}
-                      onLabelClick={handleAddressLabelClick}
+                      onLabelClick={(h) => handleAddressLabelClick(h, 'output')}
                       psbtOutputSpendable={
                         isPsbtPaymentOutput ? psbtSpendable : undefined
                       }

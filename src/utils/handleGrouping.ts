@@ -282,7 +282,7 @@ export function computeInputHandles(
     }];
   }
 
-  if (count <= MAX_HANDLES) {
+  if (count <= MAX_HANDLES || isPsbt) {
     return vins.map((vin, i) => ({
       id: `in-${i}`,
       label: getInputDisplayLabel(vin, addresses, groupMap, isPsbt, loadedTxids),
@@ -293,7 +293,7 @@ export function computeInputHandles(
     }));
   }
 
-  // More than MAX_HANDLES inputs
+  // More than MAX_HANDLES inputs (non-PSBT only)
   const connectedVins = vins.filter(v => v.txid && loadedTxids.has(v.txid));
   const unconnectedVins = vins.filter(v => !v.txid || !loadedTxids.has(v.txid));
   const connectedCount = connectedVins.length;
@@ -365,11 +365,11 @@ export function computeOutputHandles(
     isOpReturn: vout.scriptpubkey_type === 'op_return',
   });
 
-  if (count <= MAX_HANDLES) {
+  if (count <= MAX_HANDLES || isPsbt) {
     return vouts.map((vout, i) => makeHandle(vout, i, `out-${i}`));
   }
 
-  // More than MAX_HANDLES outputs
+  // More than MAX_HANDLES outputs (non-PSBT only)
   const connectedVouts = vouts.filter((_, i) => isConnectedVout(i));
   const unconnectedVouts = vouts.filter((_, i) => !isConnectedVout(i));
   const connectedCount = connectedVouts.length;

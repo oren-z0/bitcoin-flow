@@ -1,4 +1,4 @@
-import { useGlobalState } from '../hooks/useGlobalState';
+import { useGlobalState, type AddTransactionsOptions } from '../hooks/useGlobalState';
 
 export const LIGHTNING_CHANNEL_URL =
   'https://mempool.space/lightning/channel/774506985784147968';
@@ -29,23 +29,6 @@ const LIGHTNING_CHANNEL_ADDRESSES = [
   },
 ] as const;
 
-export async function loadLightningChannelExample(): Promise<void> {
-  const { addTransactions, updateTransaction, updateAddress } = useGlobalState.getState();
-
-  await addTransactions(LIGHTNING_CHANNEL_TXS.map(t => t.txid));
-
-  for (const { txid, name } of LIGHTNING_CHANNEL_TXS) {
-    updateTransaction(txid, {
-      name,
-      description: LIGHTNING_CHANNEL_URL,
-    });
-  }
-
-  for (const { address, name } of LIGHTNING_CHANNEL_ADDRESSES) {
-    updateAddress(address, { name, isSelected: false });
-  }
-}
-
 const TIMELOCK_RECOVERY_TXS = [
   {
     txid: '8b1a59ba445220d70bb3a5bdc9dd44515f885509e9631fe409a024c483ed73b0',
@@ -68,16 +51,41 @@ const TIMELOCK_RECOVERY_ADDRESSES = [
   },
 ] as const;
 
+function exampleLoadOptions(
+  txs: ReadonlyArray<{ txid: string; name: string; description?: string }>,
+  addresses: ReadonlyArray<{ address: string; name: string }>
+): AddTransactionsOptions {
+  return {
+    transactionMeta: Object.fromEntries(
+      txs.map(({ txid, name, description }) => [
+        txid,
+        { name, ...(description ? { description } : {}) },
+      ])
+    ),
+    addressMeta: Object.fromEntries(
+      addresses.map(({ address, name }) => [address, { name, isSelected: false }])
+    ),
+  };
+}
+
+export async function loadLightningChannelExample(): Promise<void> {
+  const { addTransactions } = useGlobalState.getState();
+  await addTransactions(
+    LIGHTNING_CHANNEL_TXS.map(t => t.txid),
+    exampleLoadOptions(
+      LIGHTNING_CHANNEL_TXS.map(t => ({
+        ...t,
+        description: LIGHTNING_CHANNEL_URL,
+      })),
+      LIGHTNING_CHANNEL_ADDRESSES
+    )
+  );
+}
+
 export async function loadTimelockRecoveryExample(): Promise<void> {
-  const { addTransactions, updateTransaction, updateAddress } = useGlobalState.getState();
-
-  await addTransactions(TIMELOCK_RECOVERY_TXS.map(t => t.txid));
-
-  for (const { txid, name } of TIMELOCK_RECOVERY_TXS) {
-    updateTransaction(txid, { name });
-  }
-
-  for (const { address, name } of TIMELOCK_RECOVERY_ADDRESSES) {
-    updateAddress(address, { name, isSelected: false });
-  }
+  const { addTransactions } = useGlobalState.getState();
+  await addTransactions(
+    TIMELOCK_RECOVERY_TXS.map(t => t.txid),
+    exampleLoadOptions(TIMELOCK_RECOVERY_TXS, TIMELOCK_RECOVERY_ADDRESSES)
+  );
 }

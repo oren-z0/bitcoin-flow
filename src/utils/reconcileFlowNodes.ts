@@ -7,6 +7,19 @@ export type TransactionNodeData = {
   isSelected: boolean;
 };
 
+function storedTransactionDisplayEqual(a: StoredTransaction, b: StoredTransaction): boolean {
+  return (
+    a === b ||
+    (a.name === b.name &&
+      a.description === b.description &&
+      a.color === b.color &&
+      a.data === b.data &&
+      a.outspends === b.outspends &&
+      a.isPsbt === b.isPsbt &&
+      (a.pinnedUtxoVouts?.join(',') ?? '') === (b.pinnedUtxoVouts?.join(',') ?? ''))
+  );
+}
+
 function transactionNodeDataEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
@@ -14,8 +27,8 @@ function transactionNodeDataEqual(a: unknown, b: unknown): boolean {
   const db = b as TransactionNodeData;
   return (
     da.txid === db.txid &&
-    da.stored === db.stored &&
-    da.isSelected === db.isSelected
+    da.isSelected === db.isSelected &&
+    storedTransactionDisplayEqual(da.stored, db.stored)
   );
 }
 

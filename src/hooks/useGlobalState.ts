@@ -28,6 +28,70 @@ import {
 const STORAGE_KEY = 'bitcoin-flow-state';
 const NODE_GAP = 400;
 
+export type AddTransactionsOptions = {
+  transactionMeta?: Record<
+    string,
+    Partial<Pick<StoredTransaction, 'name' | 'description' | 'color'>>
+  >;
+  addressMeta?: Record<
+    string,
+    Partial<Pick<StoredAddress, 'name' | 'description' | 'color' | 'isSelected'>>
+  >;
+};
+
+type TransactionMeta = NonNullable<AddTransactionsOptions['transactionMeta']>[string];
+type AddressMeta = NonNullable<AddTransactionsOptions['addressMeta']>[string];
+
+function applyTransactionMeta(
+  transactions: Record<string, StoredTransaction>,
+  meta?: Record<string, TransactionMeta>
+): Record<string, StoredTransaction> {
+  if (!meta) return transactions;
+  const updated = { ...transactions };
+  for (const [txid, patch] of Object.entries(meta)) {
+    if (updated[txid]) {
+      updated[txid] = { ...updated[txid], ...patch };
+    }
+  }
+  return updated;
+}
+
+function applyAddressMetadata(
+  s: Pick<GlobalStore, 'addresses' | 'groups'>,
+  addressMeta: Record<string, AddressMeta>
+): Pick<GlobalStore, 'addresses' | 'selectedAddresses' | 'groups' | 'groupMap'> {
+  const addresses = { ...s.addresses };
+  let groups = s.groups;
+  for (const [address, patch] of Object.entries(addressMeta)) {
+    const isNew = !addresses[address];
+    const existing = addresses[address] || { isSelected: false };
+    const newData: StoredAddress = { ...existing, ...patch };
+    if (isNew) {
+      const targetGroupId = newData.groupId ?? '';
+      const groupExists = groups.some(g => g.id === targetGroupId);
+      const resolvedGroupId = groupExists ? targetGroupId : '';
+      newData.groupId = resolvedGroupId;
+      groups = groups.map(g =>
+        g.id === resolvedGroupId
+          ? {
+              ...g,
+              addresses: g.addresses.includes(address)
+                ? g.addresses
+                : [...g.addresses, address],
+            }
+          : g
+      );
+    }
+    addresses[address] = newData;
+  }
+  return {
+    addresses,
+    selectedAddresses: buildSelectedAddresses(addresses),
+    groups,
+    groupMap: buildGroupMap(groups),
+  };
+}
+
 interface LayoutRef {
   getViewportCenter: () => { x: number; y: number };
   focusNode: (txid: string) => void;
@@ -61,7 +125,10 @@ interface GlobalStore {
   addTransaction: (txid: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => Promise<void>;
   addPsbt: (base64: string, opts?: { noFocus?: boolean, noSelect?: boolean }) => Promise<void>;
   createPsbt: () => Promise<void>;
-  addTransactions: (txids: string[]) => Promise<void>;
+  addTransactions: (
+    txids: string[],
+    options?: AddTransactionsOptions
+  ) => Promise<void>;
   removeTransaction: (txid: string) => void;
   updateTransaction: (
     txid: string,
@@ -535,13 +602,32 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     }
   },
 
-  addTransactions: async (txids: string[]) => {
+  addTransactions: async (txids: string[], options?: AddTransactionsOptions) => {
     const state = get();
     const toAdd = txids.filter(id => {
       const existing = state.transactions[id];
       return !existing || existing.isPsbt;
     });
-    if (toAdd.length === 0) return;
+    if (toAdd.length === 0) {
+      if (options?.transactionMeta || options?.addressMeta) {
+        set(s => {
+          let transactions = applyTransactionMeta(s.transactions, options.transactionMeta);
+          const addrUpdate = options.addressMeta
+            ? applyAddressMetadata(s, options.addressMeta)
+            : null;
+          persist({
+            ...s,
+            transactions,
+            ...(addrUpdate ?? {}),
+          });
+          return {
+            transactions,
+            ...(addrUpdate ?? {}),
+          };
+        });
+      }
+      return;
+    }
 
     // Load all in parallel
     const results = await Promise.allSettled(
@@ -591,15 +677,26 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
         }
       }
 
-      persist({ ...s, transactions: updated });
-      return { transactions: updated };
+      const withMeta = applyTransactionMeta(updated, options?.transactionMeta);
+      persist({ ...s, transactions: withMeta });
+      return { transactions: withMeta };
     });
 
-    const enriched = enrichPrevoutsFromGraph(get().transactions);
+    let transactions = get().transactions;
+    const enriched = enrichPrevoutsFromGraph(transactions);
     if (enriched) {
+      transactions = applyTransactionMeta(enriched, options?.transactionMeta);
       set(s => {
-        persist({ ...s, transactions: enriched });
-        return { transactions: enriched };
+        persist({ ...s, transactions });
+        return { transactions };
+      });
+    }
+
+    if (options?.addressMeta) {
+      set(s => {
+        const addrUpdate = applyAddressMetadata(s, options.addressMeta!);
+        persist({ ...s, ...addrUpdate });
+        return addrUpdate;
       });
     }
 

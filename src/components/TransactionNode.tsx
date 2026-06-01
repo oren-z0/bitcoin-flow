@@ -485,8 +485,22 @@ function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
   );
 }
 
+function transactionNodePropsEqual(prev: TransactionNodeData, next: TransactionNodeData): boolean {
+  return (
+    prev.txid === next.txid &&
+    prev.isSelected === next.isSelected &&
+    (prev.stored === next.stored ||
+      (prev.stored.name === next.stored.name &&
+        prev.stored.description === next.stored.description &&
+        prev.stored.color === next.stored.color &&
+        prev.stored.data === next.stored.data &&
+        prev.stored.outspends === next.stored.outspends &&
+        prev.stored.isPsbt === next.stored.isPsbt))
+  );
+}
+
 export default memo(TransactionNode, (prev, next) => {
   const p = prev.data as TransactionNodeData;
   const n = next.data as TransactionNodeData;
-  return p.txid === n.txid && p.stored === n.stored && p.isSelected === n.isSelected;
+  return transactionNodePropsEqual(p, n);
 });

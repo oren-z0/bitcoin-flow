@@ -1,9 +1,21 @@
-import ELK from 'elkjs/lib/elk.bundled.js';
 import type { StoredTransaction } from '../types';
 import { computeInputHandles, computeOutputHandles } from './handleGrouping';
 import { sortTxids } from './sorting';
 
-const elk = new ELK();
+type ElkLayoutInstance = {
+  layout(graph: unknown): Promise<{ children?: { id?: string; y?: number }[] }>;
+};
+
+let elkPromise: Promise<ElkLayoutInstance> | null = null;
+
+/** Load ELK on demand so the ~1MB bundled worker is not in the initial JS parse path. */
+async function getElk(): Promise<ElkLayoutInstance> {
+  if (!elkPromise) {
+    elkPromise = import('elkjs/lib/elk.bundled.js').then(mod => new mod.default());
+  }
+  return elkPromise;
+}
+
 const NODE_GAP = 400;
 const NODE_WIDTH = 260;
 const NODE_HEIGHT = 150;
@@ -123,6 +135,7 @@ export async function computeLayout(
   }
 
   try {
+    const elk = await getElk();
     const graph = await elk.layout({
       id: 'root',
       layoutOptions: {

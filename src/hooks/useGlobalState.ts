@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { StoredTransaction, StoredAddress, AddressGroup } from '../types';
 import { fetchTransaction, fetchOutspends } from '../api/mempool';
-import { computeLayout } from '../utils/layout';
 import { sortTxids } from '../utils/sorting';
 import {
   addPsbtInputFromPrevout,
@@ -803,6 +802,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     const { transactions } = get();
     if (Object.keys(transactions).length === 0) return;
     try {
+      const { computeLayout } = await import('../utils/layout');
       const positions = await computeLayout(transactions);
       get().applyLayout(positions);
     } catch (e) {

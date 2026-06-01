@@ -37,7 +37,10 @@ import {
 import { collectGraphConnections } from '../utils/graphConnections';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc } from '../utils/formatting';
-import { reconcileFlowNodes } from '../utils/reconcileFlowNodes';
+import {
+  mergeFlowNodeDataDuringAnimation,
+  reconcileFlowNodes,
+} from '../utils/reconcileFlowNodes';
 import { prefersCoarsePointer } from '../utils/coarsePointer';
 import { loadLightningChannelExample } from '../utils/graphExamples';
 import type { StoredTransaction, AddressGroup } from '../types';
@@ -248,8 +251,11 @@ export default function FlowCanvas() {
   }, [controlledNodes]);
 
   useEffect(() => {
-    if (animatingLayoutRef.current) return;
-    setControlledNodes(prev => reconcileFlowNodes(prev, nodes));
+    setControlledNodes(prev =>
+      animatingLayoutRef.current
+        ? mergeFlowNodeDataDuringAnimation(prev, nodes)
+        : reconcileFlowNodes(prev, nodes)
+    );
   }, [nodes, setControlledNodes]);
 
   useEffect(() => {

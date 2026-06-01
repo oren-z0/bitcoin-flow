@@ -519,7 +519,7 @@ export default function FlowCanvas() {
       <Panel position="top-right" className="!m-12">
         <button
           type="button"
-          className={`${fileButtonClass} border border-gray-600 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 shadow`}
+          className={`${fileButtonClass} !text-[1.2rem] border border-gray-600 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 shadow`}
           onClick={() => void useGlobalState.getState().createPsbt()}
         >
           <CreatePsbtIcon />

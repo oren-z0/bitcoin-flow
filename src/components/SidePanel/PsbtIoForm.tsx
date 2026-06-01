@@ -5,7 +5,12 @@ import {
   parseOpReturnEditDraft,
   type OpReturnEditMode,
 } from '../../utils/opReturn';
-import { inputSequenceHintSuffix, SEQUENCE_VALUE_FORMAT_HINT } from '../../utils/sequence';
+import {
+  formatSequenceHex,
+  inputSequenceHintSuffix,
+  parseSequenceValue,
+  SEQUENCE_VALUE_FORMAT_HINT,
+} from '../../utils/sequence';
 import {
   PSBT_SCRIPT_TYPE_LABELS,
   derivePubkeyFromPsbtGlobalMasterKeys,
@@ -206,6 +211,14 @@ export default function PsbtIoForm({
     dirtyRef.current = false;
     setDirty(false);
     onPsbtUpdated(result.base64);
+    if (kind === 'input') {
+      try {
+        const parsed = parseSequenceValue(draft.sequenceHex);
+        setDraft(prev => ({ ...prev, sequenceHex: formatSequenceHex(parsed) }));
+      } catch {
+        // validated before save
+      }
+    }
     setSaveErrors([]);
   };
 

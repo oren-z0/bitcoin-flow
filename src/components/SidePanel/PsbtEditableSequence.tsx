@@ -41,8 +41,12 @@ export default function PsbtEditableSequence({
 
     try {
       const next = parseSequenceValue(draft);
-      if (next === (sequence >>> 0)) return;
+      if (next === (sequence >>> 0)) {
+        setDraft(currentHex);
+        return;
+      }
       onPsbtUpdated(updatePsbtInputSequence(psbtBase64, inputIndex, next));
+      setDraft(formatSequenceHex(next));
     } catch (e) {
       onError(e instanceof Error ? e.message : SEQUENCE_PARSE_ERROR);
       setDraft(currentHex);

@@ -118,7 +118,7 @@ export function parseSequenceValue(input: string): number {
 export const LOCKTIME_PARSE_ERROR = 'Could not parse locktime value';
 
 export const LOCKTIME_VALUE_FORMAT_HINT =
-  'Format: non-negative integer (block height or Unix time), or UTC date: YYYY-MM-DD hh:mm:ss';
+  'Format: non-negative integer (block height), or UTC date: YYYY-MM-DD hh:mm:ss';
 
 /** UTC `YYYY-MM-DD hh:mm:ss` for a timestamp locktime. */
 export function formatLocktimeUtc(locktime: number): string {

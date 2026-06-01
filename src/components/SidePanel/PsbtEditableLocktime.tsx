@@ -77,7 +77,7 @@ export default function PsbtEditableLocktime({
         />
         {disabledSuffix}
       </span>
-      <span className="text-[10px] text-gray-500 max-w-[11.5rem] text-right">
+      <span className="text-[10px] text-gray-500 max-w-[11.5rem] self-stretch text-left">
         {LOCKTIME_VALUE_FORMAT_HINT}
       </span>
     </span>

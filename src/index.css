@@ -86,6 +86,13 @@ html, body, #root {
 .react-flow__controls {
   background: #1f2937 !important;
   border: 1px solid #374151 !important;
+  margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+}
+
+@media (max-width: 768px) {
+  .react-flow__controls {
+    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem);
+  }
 }
 
 .react-flow__controls-button {

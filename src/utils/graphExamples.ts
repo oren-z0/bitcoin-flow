@@ -45,3 +45,39 @@ export async function loadLightningChannelExample(): Promise<void> {
     updateAddress(address, { name, isSelected: false });
   }
 }
+
+const TIMELOCK_RECOVERY_TXS = [
+  {
+    txid: '8b1a59ba445220d70bb3a5bdc9dd44515f885509e9631fe409a024c483ed73b0',
+    name: 'Initiate Transaction',
+  },
+  {
+    txid: '526c3e7916d3d455ddd85ca520f31fca675ed7b97e4ed6e71e7090fe765b74a0',
+    name: 'Recovery Transaction',
+  },
+] as const;
+
+const TIMELOCK_RECOVERY_ADDRESSES = [
+  {
+    address: 'bc1qrcc6fzcegp33926aavfc06a9e5xkyrxc98sash',
+    name: 'Alert Address',
+  },
+  {
+    address: 'bc1qht9jx9l524xrl8lvzkucpm6ch9jjshyjkh0agl',
+    name: 'Recovery Address',
+  },
+] as const;
+
+export async function loadTimelockRecoveryExample(): Promise<void> {
+  const { addTransactions, updateTransaction, updateAddress } = useGlobalState.getState();
+
+  await addTransactions(TIMELOCK_RECOVERY_TXS.map(t => t.txid));
+
+  for (const { txid, name } of TIMELOCK_RECOVERY_TXS) {
+    updateTransaction(txid, { name });
+  }
+
+  for (const { address, name } of TIMELOCK_RECOVERY_ADDRESSES) {
+    updateAddress(address, { name, isSelected: false });
+  }
+}

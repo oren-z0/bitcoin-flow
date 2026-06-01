@@ -42,7 +42,10 @@ import {
   reconcileFlowNodes,
 } from '../utils/reconcileFlowNodes';
 import { prefersCoarsePointer } from '../utils/coarsePointer';
-import { loadLightningChannelExample } from '../utils/graphExamples';
+import {
+  loadLightningChannelExample,
+  loadTimelockRecoveryExample,
+} from '../utils/graphExamples';
 import type { StoredTransaction, AddressGroup } from '../types';
 
 const nodeTypes: NodeTypes = {
@@ -593,7 +596,7 @@ export default function FlowCanvas() {
                 { label: 'Consolidation', txid: 'ca11d6ef802f4b3d9730cbff112655ad635500ccd657c3406184b26f74e53e15' },
                 { label: 'Lightning channel open & forced close', load: loadLightningChannelExample },
                 { label: 'PayJoin', txid: '7104bae698587b3e75563b7ea7a9aada41d9c787788bc2bf26dd201fd7eca8a2' },
-                { label: 'Timelock Recovery', txids: ['8b1a59ba445220d70bb3a5bdc9dd44515f885509e9631fe409a024c483ed73b0', '526c3e7916d3d455ddd85ca520f31fca675ed7b97e4ed6e71e7090fe765b74a0'] },
+                { label: 'Timelock Recovery', load: loadTimelockRecoveryExample },
                 { label: 'Absolute Locktime', txid: '648fe76b22bc1768b56facab73af046ea40fa190f2e882a7cc99a5b6fccf05de' },
                 { label: 'OP_RETURN', txid: '6dfb16dd580698242bcfd8e433d557ed8c642272a368894de27292a8844a4e75' },
               ] satisfies EmptyPageExample[]).map((example) => (

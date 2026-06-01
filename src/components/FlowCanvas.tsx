@@ -39,11 +39,35 @@ import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc } from '../utils/formatting';
 import { reconcileFlowNodes } from '../utils/reconcileFlowNodes';
 import { prefersCoarsePointer } from '../utils/coarsePointer';
+import { loadLightningChannelExample } from '../utils/graphExamples';
 import type { StoredTransaction, AddressGroup } from '../types';
 
 const nodeTypes: NodeTypes = {
   transaction: TransactionNode,
 };
+
+type EmptyPageExample =
+  | { label: string; txid: string }
+  | { label: string; txids: string[] }
+  | { label: string; load: () => void | Promise<void> };
+
+function emptyPageExampleKey(example: EmptyPageExample): string {
+  if ('txids' in example) return example.txids.join('-');
+  if ('txid' in example) return example.txid;
+  return example.label;
+}
+
+function runEmptyPageExample(example: EmptyPageExample): void {
+  if ('txids' in example) {
+    void useGlobalState.getState().addTransactions(example.txids);
+    return;
+  }
+  if ('txid' in example) {
+    void useGlobalState.getState().addTransaction(example.txid);
+    return;
+  }
+  void example.load();
+}
 
 /**
  * Max press-to-release duration (ms) for a PSBT input handle interaction to count as a
@@ -535,27 +559,23 @@ export default function FlowCanvas() {
             <div className="text-sm pointer-events-none">Add transaction IDs from the side panel,<br />or look up an address to explore its history.</div>
             <div className="text-sm mt-4 pointer-events-none font-medium">Examples:</div>
             <div className="text-sm mt-1 flex flex-col gap-1">
-              {[
+              {([
                 { label: 'Satoshi → Hal Finney', txid: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16' },
                 { label: 'Coinbase', txid: '8cc015e338bb71b748dd931a9ab8a244f8202eb1560dc205d610059a3ef75898' },
                 { label: 'Coinjoin', txid: '353734ec9ed658b2282df9ec2cb1e5b2d56d8d4ddde12963893fb8384956dbf2' },
                 { label: 'Consolidation', txid: 'ca11d6ef802f4b3d9730cbff112655ad635500ccd657c3406184b26f74e53e15' },
-                { label: 'Lightning', txid: '57a2b2325fef1f2be48ea44c3461a1f1530ba47ee307bfc48d49d266030565fe' },
+                { label: 'Lightning channel open & forced close', load: loadLightningChannelExample },
                 { label: 'PayJoin', txid: '7104bae698587b3e75563b7ea7a9aada41d9c787788bc2bf26dd201fd7eca8a2' },
                 { label: 'Timelock Recovery', txids: ['8b1a59ba445220d70bb3a5bdc9dd44515f885509e9631fe409a024c483ed73b0', '526c3e7916d3d455ddd85ca520f31fca675ed7b97e4ed6e71e7090fe765b74a0'] },
                 { label: 'Absolute Locktime', txid: '648fe76b22bc1768b56facab73af046ea40fa190f2e882a7cc99a5b6fccf05de' },
                 { label: 'OP_RETURN', txid: '6dfb16dd580698242bcfd8e433d557ed8c642272a368894de27292a8844a4e75' },
-              ].map(({ label, txid, txids }) => (
+              ] satisfies EmptyPageExample[]).map((example) => (
                 <button
-                  key={txids?.join('-') ?? txid}
+                  key={emptyPageExampleKey(example)}
                   className="underline hover:text-gray-300 transition-colors cursor-pointer"
-                  onClick={() =>
-                    txids
-                      ? void useGlobalState.getState().addTransactions(txids)
-                      : void useGlobalState.getState().addTransaction(txid!)
-                  }
+                  onClick={() => runEmptyPageExample(example)}
                 >
-                  {label}
+                  {example.label}
                 </button>
               ))}
             </div>

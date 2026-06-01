@@ -46,6 +46,7 @@ export async function loadSlimState(
           psbtBase64: normalized,
           ...(meta.name && { name: meta.name }),
           ...(meta.color && { color: meta.color }),
+          ...(meta.description && { description: meta.description }),
         };
       } else {
         const [data, outspends] = await Promise.all([
@@ -58,6 +59,7 @@ export async function loadSlimState(
           outspends,
           ...(meta.name && { name: meta.name }),
           ...(meta.color && { color: meta.color }),
+          ...(meta.description && { description: meta.description }),
         };
       }
     } catch {

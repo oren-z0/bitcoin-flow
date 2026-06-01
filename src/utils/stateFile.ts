@@ -4,6 +4,7 @@ export interface SlimTransactionMeta {
   coordinates: { x: number; y: number };
   name?: string;
   color?: string;
+  description?: string;
   isPsbt?: boolean;
   psbtBase64?: string;
 }
@@ -71,6 +72,13 @@ function parseTransactionMeta(
       return { error: `transactions["${txid}"].color must be a string` };
     }
     if (value.color) meta.color = value.color;
+  }
+
+  if (value.description !== undefined) {
+    if (typeof value.description !== 'string') {
+      return { error: `transactions["${txid}"].description must be a string` };
+    }
+    if (value.description) meta.description = value.description;
   }
 
   if (value.isPsbt !== undefined) {
@@ -206,6 +214,7 @@ export function buildSlimState(
           coordinates: stored.coordinates,
           ...(stored.name && { name: stored.name }),
           ...(stored.color && { color: stored.color }),
+          ...(stored.description && { description: stored.description }),
           ...(stored.isPsbt && stored.psbtBase64 && {
             isPsbt: true,
             psbtBase64: stored.psbtBase64,

@@ -131,6 +131,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
   const stored = selectedTxid ? transactions[selectedTxid] : undefined;
   const [nameInput, setNameInput] = useState('');
+  const [descInput, setDescInput] = useState('');
   const [showEmojiPalette, setShowEmojiPalette] = useState(false);
   const cursorPosRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -142,6 +143,10 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   React.useEffect(() => {
     if (stored) setNameInput(stored.name || '');
   }, [selectedTxid, stored?.name]);
+
+  React.useEffect(() => {
+    if (stored) setDescInput(stored.description || '');
+  }, [selectedTxid, stored?.description]);
 
   React.useEffect(() => {
     setOutputDraftScriptTypes({});
@@ -393,6 +398,21 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
             </>
           )}
         </div>
+
+        <textarea
+          className="w-full bg-gray-700 text-white text-sm px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500 placeholder-gray-500 resize-none mt-2"
+          placeholder="Description (optional)"
+          rows={3}
+          value={descInput}
+          onChange={e => setDescInput(e.target.value)}
+          onBlur={() => updateTransaction(selectedTxid, { description: descInput || undefined })}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+              updateTransaction(selectedTxid, { description: descInput || undefined });
+              e.currentTarget.blur();
+            }
+          }}
+        />
 
         {/* Color */}
         <div className="flex items-center gap-2 mt-2">

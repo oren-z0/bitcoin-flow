@@ -65,7 +65,9 @@ interface GlobalStore {
   removeTransaction: (txid: string) => void;
   updateTransaction: (
     txid: string,
-    patch: Partial<Pick<StoredTransaction, 'name' | 'color' | 'coordinates' | 'pinnedUtxoVouts'>>
+    patch: Partial<
+      Pick<StoredTransaction, 'name' | 'color' | 'description' | 'coordinates' | 'pinnedUtxoVouts'>
+    >
   ) => void;
   updateAddress: (address: string, patch: Partial<StoredAddress>) => void;
   removeAddress: (address: string) => void;
@@ -357,7 +359,12 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       const viewportCenter = layoutRef.getViewportCenter();
       const y = existing?.coordinates.y ?? viewportCenter.y;
       const preserved = existing
-        ? { coordinates: existing.coordinates, name: existing.name, color: existing.color }
+        ? {
+            coordinates: existing.coordinates,
+            name: existing.name,
+            color: existing.color,
+            description: existing.description,
+          }
         : { coordinates: { x: 0, y } };
 
       const newTx: StoredTransaction = {
@@ -556,6 +563,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
             coordinates: existing?.coordinates ?? { x: 0, y: viewportCenter.y },
             name: existing?.name,
             color: existing?.color,
+            description: existing?.description,
             data: tx,
             outspends,
           };

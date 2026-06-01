@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGlobalState } from './useGlobalState';
+import { runWithConcurrency } from '../utils/staggeredRefresh';
 
 export function useMempoolWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -64,10 +65,11 @@ export function useMempoolWebSocket() {
 
 function onNewBlock() {
   const { transactions, refreshTransaction, promotePsbtIfConfirmed } = useGlobalState.getState();
+  const refreshTxids: string[] = [];
 
   for (const [txid, stored] of Object.entries(transactions)) {
     if (stored.isPsbt) {
-      promotePsbtIfConfirmed(txid);
+      void promotePsbtIfConfirmed(txid);
       continue;
     }
 
@@ -75,8 +77,8 @@ function onNewBlock() {
       !stored.data.status.confirmed ||
       stored.outspends.some(o => !o.spent);
 
-    if (needsRefresh) {
-      refreshTransaction(txid);
-    }
+    if (needsRefresh) refreshTxids.push(txid);
   }
+
+  void runWithConcurrency(refreshTxids, 2, txid => refreshTransaction(txid));
 }

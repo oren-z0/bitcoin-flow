@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { useGlobalState } from '../hooks/useGlobalState';
 import {
@@ -14,6 +14,7 @@ import type { StoredTransaction, HandleDescriptor, StoredAddress, AddressGroup, 
 interface TransactionNodeData {
   txid: string;
   stored: StoredTransaction;
+  isSelected: boolean;
 }
 
 const COLOR_RED = 'rgb(255, 61, 0)';
@@ -185,21 +186,14 @@ function HandleLabel({
   );
 }
 
-export default function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
-  const { txid, stored } = data;
-  const {
-    transactions,
-    addresses,
-    groupMap,
-    selectedAddresses,
-    selectedTxid,
-    addTransaction,
-    updateAddress,
-    setSelectedTxid,
-  } = useGlobalState();
+function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
+  const { txid, stored, isSelected } = data;
+  const transactions = useGlobalState(s => s.transactions);
+  const addresses = useGlobalState(s => s.addresses);
+  const groupMap = useGlobalState(s => s.groupMap);
+  const selectedAddresses = useGlobalState(s => s.selectedAddresses);
 
   const { data: tx, outspends, name, color, isPsbt } = stored;
-  const isSelected = selectedTxid === txid;
   const isUnconfirmed = !tx.status.confirmed && !isPsbt;
 
   const inputHandles = useMemo(
@@ -236,30 +230,26 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
       if (handle.addresses.length >= 1) {
         const addr = handle.addresses[0];
         if (!addresses[addr]) {
-          updateAddress(addr, { isSelected: false });
+          useGlobalState.getState().updateAddress(addr, { isSelected: false });
         }
-        setSelectedTxid(undefined);
+        useGlobalState.getState().setSelectedTxid(undefined);
         window.dispatchEvent(new CustomEvent('open-address-detail', { detail: { address: addr } }));
       }
     },
-    [addresses, updateAddress, setSelectedTxid]
+    [addresses]
   );
 
-  const handleInputHandleClick = useCallback(
-    (handle: HandleDescriptor) => {
-      if (isMultiHandle(handle)) return;
-      handle.txids.forEach(id => addTransaction(id));
-    },
-    [addTransaction]
-  );
+  const handleInputHandleClick = useCallback((handle: HandleDescriptor) => {
+    if (isMultiHandle(handle)) return;
+    const { addTransaction } = useGlobalState.getState();
+    handle.txids.forEach(id => void addTransaction(id));
+  }, []);
 
-  const handleOutputHandleClick = useCallback(
-    (handle: HandleDescriptor) => {
-      if (isMultiHandle(handle)) return;
-      handle.txids.forEach(id => addTransaction(id));
-    },
-    [addTransaction]
-  );
+  const handleOutputHandleClick = useCallback((handle: HandleDescriptor) => {
+    if (isMultiHandle(handle)) return;
+    const { addTransaction } = useGlobalState.getState();
+    handle.txids.forEach(id => void addTransaction(id));
+  }, []);
 
   const nodeStyle: React.CSSProperties = {
     borderColor: color || (isSelected ? '#3b82f6' : '#374151'),
@@ -473,3 +463,9 @@ export default function TransactionNode({ data }: NodeProps<TransactionNodeData>
     </div>
   );
 }
+
+export default memo(TransactionNode, (prev, next) => {
+  const p = prev.data as TransactionNodeData;
+  const n = next.data as TransactionNodeData;
+  return p.txid === n.txid && p.stored === n.stored && p.isSelected === n.isSelected;
+});

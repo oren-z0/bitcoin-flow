@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -36,6 +36,8 @@ import {
 import { collectGraphConnections } from '../utils/graphConnections';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc } from '../utils/formatting';
+import { reconcileFlowNodes } from '../utils/reconcileFlowNodes';
+import { prefersCoarsePointer } from '../utils/coarsePointer';
 import type { StoredTransaction, AddressGroup } from '../types';
 
 const nodeTypes: NodeTypes = {
@@ -49,13 +51,14 @@ const nodeTypes: NodeTypes = {
 const PSBT_INPUT_CLICK_MS = 500;
 
 function buildNodes(
-  transactions: Record<string, StoredTransaction>
+  transactions: Record<string, StoredTransaction>,
+  selectedTxid: string | undefined
 ): Node[] {
   return Object.entries(transactions).map(([txid, stored]) => ({
     id: txid,
     type: 'transaction',
     position: stored.coordinates,
-    data: { txid, stored },
+    data: { txid, stored, isSelected: selectedTxid === txid },
     style: { background: 'transparent', border: 'none', padding: 0 },
   }));
 }
@@ -145,24 +148,18 @@ function buildEdges(
 }
 
 export default function FlowCanvas() {
-  const {
-    transactions,
-    addresses,
-    groupMap,
-    selectedAddresses,
-    autoLayout,
-    setSelectedTxid,
-    updateTransaction,
-    setAutoLayout,
-    addTransaction,
-    addTransactions,
-    createPsbt,
-    connectPsbtInputFromOutput,
-  } = useGlobalState();
+  const transactions = useGlobalState(s => s.transactions);
+  const selectedTxid = useGlobalState(s => s.selectedTxid);
+  const addresses = useGlobalState(s => s.addresses);
+  const groupMap = useGlobalState(s => s.groupMap);
+  const selectedAddresses = useGlobalState(s => s.selectedAddresses);
+  const autoLayout = useGlobalState(s => s.autoLayout);
+  const [showMiniMap] = useState(() => !prefersCoarsePointer());
 
   const { setCenter, getViewport, fitView } = useReactFlow();
   const storeApi = useStoreApi();
   const connectAppliedRef = useRef(false);
+  const lastConnectErrorRef = useRef<{ message: string; at: number } | null>(null);
   /** Last hover during drag with a full source/target pair (for accurate reject logs on release). */
   const lastConnectCheckRef = useRef<{
     connection: Connection;
@@ -207,8 +204,8 @@ export default function FlowCanvas() {
   }, [setCenter, getViewport, fitView]);
 
   const nodes = useMemo(
-    () => buildNodes(transactions),
-    [transactions]
+    () => buildNodes(transactions, selectedTxid),
+    [transactions, selectedTxid]
   );
 
   const edges = useMemo(
@@ -226,7 +223,7 @@ export default function FlowCanvas() {
 
   useEffect(() => {
     if (animatingLayoutRef.current) return;
-    setControlledNodes(nodes);
+    setControlledNodes(prev => reconcileFlowNodes(prev, nodes));
   }, [nodes, setControlledNodes]);
 
   useEffect(() => {
@@ -315,32 +312,23 @@ export default function FlowCanvas() {
     };
   }, [setControlledNodes]);
 
-  const onNodeDragStop: NodeDragHandler = useCallback(
-    (_event, node) => {
-      updateTransaction(node.id, {
-        coordinates: { x: node.position.x, y: node.position.y },
-      });
-    },
-    [updateTransaction]
-  );
+  const onNodeDragStop: NodeDragHandler = useCallback((_event, node) => {
+    useGlobalState.getState().updateTransaction(node.id, {
+      coordinates: { x: node.position.x, y: node.position.y },
+    });
+  }, []);
 
-  const onNodeDragStart: NodeDragHandler = useCallback(
-    () => {
-      setAutoLayout(false);
-    },
-    [setAutoLayout]
-  );
+  const onNodeDragStart: NodeDragHandler = useCallback(() => {
+    void useGlobalState.getState().setAutoLayout(false);
+  }, []);
 
-  const onNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      setSelectedTxid(node.id);
-    },
-    [setSelectedTxid]
-  );
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    useGlobalState.getState().setSelectedTxid(node.id);
+  }, []);
 
   const onPaneClick = useCallback(() => {
-    setSelectedTxid(undefined);
-  }, [setSelectedTxid]);
+    useGlobalState.getState().setSelectedTxid(undefined);
+  }, []);
 
   const isValidConnection = useCallback((connection: Connection) => {
     const { transactions, addresses, groupMap } = useGlobalState.getState();
@@ -446,7 +434,12 @@ export default function FlowCanvas() {
       // cycle) is blocked during the drag, so onConnect never fires to surface it.
       // Show it to the user instead of only logging to the console.
       if (isCompleteFlowConnection(connection)) {
-        addError(reason);
+        const now = Date.now();
+        const last = lastConnectErrorRef.current;
+        if (!last || last.message !== reason || now - last.at > 2000) {
+          lastConnectErrorRef.current = { message: reason, at: now };
+          addError(reason);
+        }
       }
     } else if (lastConnectCheckRef.current?.reason) {
       logConnectRejected(lastConnectCheckRef.current.reason);
@@ -470,9 +463,11 @@ export default function FlowCanvas() {
       }
       // Single connection type: a spendable output (source) funds a PSBT input (target).
       // React Flow normalizes the direction, so source is always the output handle.
-      connectPsbtInputFromOutput(source, sourceHandle, target, targetHandle);
+      useGlobalState
+        .getState()
+        .connectPsbtInputFromOutput(source, sourceHandle, target, targetHandle);
     },
-    [connectPsbtInputFromOutput]
+    []
   );
 
   // Keyboard shortcuts
@@ -525,7 +520,7 @@ export default function FlowCanvas() {
         <button
           type="button"
           className={`${fileButtonClass} border border-gray-600 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 shadow`}
-          onClick={() => void createPsbt()}
+          onClick={() => void useGlobalState.getState().createPsbt()}
         >
           <CreatePsbtIcon />
           Create a new PSBT
@@ -552,7 +547,11 @@ export default function FlowCanvas() {
                 <button
                   key={txids?.join('-') ?? txid}
                   className="underline hover:text-gray-300 transition-colors cursor-pointer"
-                  onClick={() => txids ? addTransactions(txids) : addTransaction(txid!)}
+                  onClick={() =>
+                    txids
+                      ? void useGlobalState.getState().addTransactions(txids)
+                      : void useGlobalState.getState().addTransaction(txid!)
+                  }
                 >
                   {label}
                 </button>
@@ -563,7 +562,7 @@ export default function FlowCanvas() {
       )}
       <Controls>
         <ControlButton
-          onClick={() => setAutoLayout(!autoLayout)}
+          onClick={() => void useGlobalState.getState().setAutoLayout(!autoLayout)}
           title={autoLayout ? 'Auto-layout on — click to disable' : 'Auto-layout off — click to enable'}
         >
           {autoLayout ? (
@@ -583,13 +582,15 @@ export default function FlowCanvas() {
           )}
         </ControlButton>
       </Controls>
-      <MiniMap
-        nodeColor={(node) => {
-          const stored = (node.data as { stored: { color?: string } }).stored;
-          return stored?.color || '#4b5563';
-        }}
-        style={{ background: '#1f2937', border: '1px solid #374151' }}
-      />
+      {showMiniMap && (
+        <MiniMap
+          nodeColor={(node) => {
+            const stored = (node.data as { stored: { color?: string } }).stored;
+            return stored?.color || '#4b5563';
+          }}
+          style={{ background: '#1f2937', border: '1px solid #374151' }}
+        />
+      )}
     </ReactFlow>
   );
 }

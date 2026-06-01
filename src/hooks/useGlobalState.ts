@@ -144,18 +144,57 @@ function loadFromStorage(): Partial<GlobalStore> {
   }
 }
 
-function persist(state: Pick<GlobalStore, 'transactions' | 'addresses' | 'groups' | 'selectedTxid' | 'autoLayout'>) {
+const PERSIST_DEBOUNCE_MS = 400;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingPersist: Pick<
+  GlobalStore,
+  'transactions' | 'addresses' | 'groups' | 'selectedTxid' | 'autoLayout'
+> | null = null;
+
+function writePersist(
+  state: Pick<GlobalStore, 'transactions' | 'addresses' | 'groups' | 'selectedTxid' | 'autoLayout'>
+) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      transactions: state.transactions,
-      addresses: state.addresses,
-      groups: state.groups,
-      selectedTxid: state.selectedTxid,
-      autoLayout: state.autoLayout,
-    }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        transactions: state.transactions,
+        addresses: state.addresses,
+        groups: state.groups,
+        selectedTxid: state.selectedTxid,
+        autoLayout: state.autoLayout,
+      })
+    );
   } catch (e) {
     console.error('Failed to persist state', e);
   }
+}
+
+function flushPersist() {
+  if (persistTimer !== null) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  if (!pendingPersist) return;
+  const state = pendingPersist;
+  pendingPersist = null;
+  writePersist(state);
+}
+
+function persist(state: Pick<GlobalStore, 'transactions' | 'addresses' | 'groups' | 'selectedTxid' | 'autoLayout'>) {
+  pendingPersist = state;
+  if (persistTimer !== null) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    flushPersist();
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushPersist);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPersist();
+  });
 }
 
 function buildSelectedAddresses(addresses: Record<string, StoredAddress>): Set<string> {

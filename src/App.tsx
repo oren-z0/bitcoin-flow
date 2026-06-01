@@ -7,6 +7,7 @@ import { useGlobalState } from './hooks/useGlobalState';
 import { useMempoolWebSocket } from './hooks/useMempoolWebSocket';
 import { useShareLinkFromHash } from './hooks/useShareLinkFromHash';
 import type { LoadProgress } from './utils/loadSlimState';
+import { runWithConcurrency } from './utils/staggeredRefresh';
 
 function NotificationToasts() {
   const { errors, successes, dismissError, dismissSuccess } = useGlobalState();
@@ -79,21 +80,21 @@ function AppInner() {
   const [shareLoadProgress, setShareLoadProgress] = useState<LoadProgress>(null);
   useShareLinkFromHash(setShareLoadProgress);
 
-  // On mount, refresh unconfirmed txs; try to promote PSBTs that are now on chain
+  // On mount, refresh unconfirmed txs (limited concurrency — avoids freezing mobile).
   useEffect(() => {
     const { transactions, refreshTransaction, promotePsbtIfConfirmed } = useGlobalState.getState();
+    const refreshTxids: string[] = [];
     for (const [txid, stored] of Object.entries(transactions)) {
       if (stored.isPsbt) {
-        promotePsbtIfConfirmed(txid);
+        void promotePsbtIfConfirmed(txid);
         continue;
       }
       const needsRefresh =
         !stored.data.status.confirmed ||
         stored.outspends.some(o => !o.spent);
-      if (needsRefresh) {
-        refreshTransaction(txid);
-      }
+      if (needsRefresh) refreshTxids.push(txid);
     }
+    void runWithConcurrency(refreshTxids, 2, txid => refreshTransaction(txid));
   }, []);
 
   const [sidePanelVisible, setSidePanelVisible] = useState(true);

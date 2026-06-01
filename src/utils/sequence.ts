@@ -34,23 +34,85 @@ export function formatSequenceHex(sequence: number): string {
   return `0x${(sequence >>> 0).toString(16).toUpperCase().padStart(8, '0')}`;
 }
 
+export const SEQUENCE_PARSE_ERROR = 'Could not parse Sequence value';
+
+export const SEQUENCE_VALUE_FORMAT_HINT =
+  'Digits, hex (starting with "0x"), or duration: W days, X hours, Y minutes, Z seconds';
+
+const TIME_UNIT_SECONDS: Record<string, number> = {
+  second: 1,
+  seconds: 1,
+  minute: 60,
+  minutes: 60,
+  hour: 3600,
+  hours: 3600,
+  day: 86400,
+  days: 86400,
+};
+
+function parseTimeUnitMultiplier(nonDigitPart: string): number {
+  const tokens = nonDigitPart.toLowerCase().match(/[a-z]+|[^a-z]+/g) ?? [];
+  for (const token of tokens) {
+    const mult = TIME_UNIT_SECONDS[token];
+    if (mult !== undefined) return mult;
+  }
+  throw new Error(SEQUENCE_PARSE_ERROR);
+}
+
+/** BIP68 time-based relative locktime from a duration phrase (e.g. "7 days, 1 hour"). */
+function parseSequenceDurationPhrase(input: string): number {
+  const parts = input.match(/\d+|\D+/g);
+  if (!parts || parts.length === 0 || parts.length % 2 !== 0) {
+    throw new Error(SEQUENCE_PARSE_ERROR);
+  }
+  if (!/^\d/.test(input)) {
+    throw new Error(SEQUENCE_PARSE_ERROR);
+  }
+
+  let totalSeconds = 0;
+  for (let i = 0; i < parts.length; i += 2) {
+    const digitPart = parts[i];
+    const unitPart = parts[i + 1] ?? '';
+    if (!/^\d+$/.test(digitPart)) {
+      throw new Error(SEQUENCE_PARSE_ERROR);
+    }
+    const amount = Number(digitPart);
+    if (!Number.isSafeInteger(amount)) {
+      throw new Error(SEQUENCE_PARSE_ERROR);
+    }
+    totalSeconds += amount * parseTimeUnitMultiplier(unitPart);
+  }
+
+  const scaled = Math.round(totalSeconds / 512);
+  if (scaled > 0xffff) {
+    throw new Error(SEQUENCE_PARSE_ERROR);
+  }
+  return (0x00400000 + scaled) >>> 0;
+}
+
 export function parseSequenceValue(input: string): number {
   const s = input.trim();
+  if (s === '') {
+    throw new Error(SEQUENCE_PARSE_ERROR);
+  }
+
   if (/^0x[0-9a-f]+$/i.test(s)) {
     const n = Number.parseInt(s.slice(2), 16);
     if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) {
-      throw new Error('Sequence must be a 32-bit value');
+      throw new Error(SEQUENCE_PARSE_ERROR);
     }
     return n >>> 0;
   }
-  if (!/^\d+$/.test(s)) {
-    throw new Error('Sequence must be 0x… hex or a decimal integer');
+
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) {
+      throw new Error(SEQUENCE_PARSE_ERROR);
+    }
+    return n >>> 0;
   }
-  const n = Number(s);
-  if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) {
-    throw new Error('Sequence must be a 32-bit value');
-  }
-  return n >>> 0;
+
+  return parseSequenceDurationPhrase(s);
 }
 
 export function parseLocktimeValue(input: string): number {

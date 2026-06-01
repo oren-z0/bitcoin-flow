@@ -3,6 +3,8 @@ import {
   formatSequenceHex,
   inputSequenceHintSuffix,
   parseSequenceValue,
+  SEQUENCE_PARSE_ERROR,
+  SEQUENCE_VALUE_FORMAT_HINT,
 } from '../../utils/sequence';
 import { updatePsbtInputSequence } from '../../utils/psbt';
 
@@ -42,7 +44,7 @@ export default function PsbtEditableSequence({
       if (next === (sequence >>> 0)) return;
       onPsbtUpdated(updatePsbtInputSequence(psbtBase64, inputIndex, next));
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Invalid sequence');
+      onError(e instanceof Error ? e.message : SEQUENCE_PARSE_ERROR);
       setDraft(currentHex);
     }
   };
@@ -73,6 +75,7 @@ export default function PsbtEditableSequence({
         />
       </div>
       {hintSuffix ? <div className="mt-0.5 text-gray-500">{hintSuffix}</div> : null}
+      <div className="mt-0.5 text-[10px] text-gray-500">{SEQUENCE_VALUE_FORMAT_HINT}</div>
     </div>
   );
 }

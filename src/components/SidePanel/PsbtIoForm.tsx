@@ -5,7 +5,7 @@ import {
   parseOpReturnEditDraft,
   type OpReturnEditMode,
 } from '../../utils/opReturn';
-import { inputSequenceHintSuffix } from '../../utils/sequence';
+import { inputSequenceHintSuffix, SEQUENCE_VALUE_FORMAT_HINT } from '../../utils/sequence';
 import {
   PSBT_SCRIPT_TYPE_LABELS,
   derivePubkeyFromPsbtGlobalMasterKeys,
@@ -209,7 +209,7 @@ export default function PsbtIoForm({
     setSaveErrors([]);
   };
 
-  // Enter in a single-line field commits the form, mirroring the Save button.
+  // Enter in a single-line field commits the form, mirroring the Update button.
   const handleFieldKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -257,6 +257,7 @@ export default function PsbtIoForm({
           {sequenceHint ? (
             <div className="mt-0.5 text-[10px] text-gray-500">{sequenceHint}</div>
           ) : null}
+          <div className="mt-0.5 text-[10px] text-gray-500">{SEQUENCE_VALUE_FORMAT_HINT}</div>
         </div>
       )}
 
@@ -429,7 +430,7 @@ export default function PsbtIoForm({
         disabled={saving || !dirty}
         onClick={handleSave}
       >
-        {saving ? 'Saving…' : 'Save'}
+        {saving ? 'Updating…' : 'Update'}
       </button>
     </div>
   );

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  formatLocktimeUtc,
   isLocktimeDisabled,
+  isTimestampLocktime,
   LOCKTIME_PARSE_ERROR,
   LOCKTIME_VALUE_FORMAT_HINT,
-  locktimeDraftDisplay,
   parseLocktimeValue,
 } from '../../utils/sequence';
 import { updatePsbtLocktime } from '../../utils/psbt';
@@ -35,6 +36,10 @@ export default function PsbtEditableLocktime({
   }, [fieldKey, locktime]);
 
   const disabledSuffix = isLocktimeDisabled(vin) ? ' (disabled)' : '';
+
+  const utcDateLabel = useMemo(() => {
+    return isTimestampLocktime(locktime) ? formatLocktimeUtc(locktime) : null;
+  }, [locktime]);
 
   const commit = () => {
     if (draft.trim() === String(locktime)) return;
@@ -76,6 +81,11 @@ export default function PsbtEditableLocktime({
         />
         {disabledSuffix}
       </span>
+      {utcDateLabel && (
+        <span className="text-[10px] text-gray-500 self-stretch text-center font-mono">
+          {utcDateLabel}
+        </span>
+      )}
       <span className="text-[10px] text-gray-500 max-w-[11.5rem] self-stretch text-left">
         {LOCKTIME_VALUE_FORMAT_HINT}
       </span>

@@ -31,6 +31,7 @@ import {
   computeInputHandles,
   computeOutputHandles,
   isPsbtInputHandleId,
+  pinnedUtxoVoutSet,
   resolvePsbtInputSourceTxids,
 } from '../utils/handleGrouping';
 import { collectGraphConnections } from '../utils/graphConnections';
@@ -90,7 +91,8 @@ function buildEdges(
       addresses,
       groupMap,
       loadedTxids,
-      !!parent.isPsbt
+      !!parent.isPsbt,
+      pinnedUtxoVoutSet(parent)
     );
     const inHandles = computeInputHandles(
       spendingTx.data.vin,

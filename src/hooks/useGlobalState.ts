@@ -63,7 +63,10 @@ interface GlobalStore {
   createPsbt: () => Promise<void>;
   addTransactions: (txids: string[]) => Promise<void>;
   removeTransaction: (txid: string) => void;
-  updateTransaction: (txid: string, patch: Partial<Pick<StoredTransaction, 'name' | 'color' | 'coordinates'>>) => void;
+  updateTransaction: (
+    txid: string,
+    patch: Partial<Pick<StoredTransaction, 'name' | 'color' | 'coordinates' | 'pinnedUtxoVouts'>>
+  ) => void;
   updateAddress: (address: string, patch: Partial<StoredAddress>) => void;
   removeAddress: (address: string) => void;
   addAddressesToGroup: (entries: Array<{ address: string; name?: string; description?: string; color?: string }>, groupId: string) => void;

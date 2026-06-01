@@ -52,6 +52,8 @@ export interface StoredTransaction {
   color?: string;
   isPsbt?: boolean;
   psbtBase64?: string;
+  /** Unspent output indices to always show as their own handle (not counted toward the 8-handle limit). */
+  pinnedUtxoVouts?: number[];
 }
 
 export interface StoredAddress {

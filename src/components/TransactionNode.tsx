@@ -5,6 +5,7 @@ import {
   computeInputHandles,
   computeOutputHandles,
   isPsbtOutputSpendable,
+  pinnedUtxoVoutSet,
 } from '../utils/handleGrouping';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc, truncateTxid, formatFee, formatTimestamp } from '../utils/formatting';
@@ -211,9 +212,10 @@ function TransactionNode({ data }: NodeProps<TransactionNodeData>) {
         addresses,
         groupMap,
         new Set(Object.keys(transactions)),
-        !!isPsbt
+        !!isPsbt,
+        pinnedUtxoVoutSet(stored)
       ),
-    [txid, tx.vout, outspends, addresses, groupMap, transactions, isPsbt]
+    [txid, tx.vout, outspends, addresses, groupMap, transactions, isPsbt, stored]
   );
 
   const hasSelectedAddress = useMemo(() => {

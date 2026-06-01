@@ -80,6 +80,26 @@ function LinkedTransactionVisibilityButton({
   );
 }
 
+function PinnedUtxoVisibilityButton({
+  pinned,
+  onToggle,
+}: {
+  pinned: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="shrink-0 p-0.5 text-gray-400 hover:text-white cursor-pointer"
+      title={pinned ? 'Ungroup on graph' : 'Always show on graph'}
+      aria-label={pinned ? 'Ungroup on graph' : 'Always show on graph'}
+      onClick={onToggle}
+    >
+      {pinned ? <EyeIcon /> : <EyeOffIcon />}
+    </button>
+  );
+}
+
 function copyToClipboard(text: string, successMessage = 'Copied to clipboard') {
   const { addSuccess, addError } = useGlobalState.getState();
   navigator.clipboard.writeText(text).then(() => {
@@ -161,6 +181,17 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
       if (!ok) return;
     }
     removeTransaction(txid);
+  };
+
+  const pinnedUtxoSet = new Set(stored.pinnedUtxoVouts ?? []);
+
+  const togglePinnedUtxo = (voutIdx: number) => {
+    const next = new Set(stored.pinnedUtxoVouts ?? []);
+    if (next.has(voutIdx)) next.delete(voutIdx);
+    else next.add(voutIdx);
+    updateTransaction(selectedTxid, {
+      pinnedUtxoVouts: [...next].sort((a, b) => a - b),
+    });
   };
 
   const removeLinkedTransactions = (txids: string[]) => {
@@ -633,6 +664,12 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
+                        {!stored.isPsbt && (
+                          <PinnedUtxoVisibilityButton
+                            pinned={pinnedUtxoSet.has(i)}
+                            onToggle={() => togglePinnedUtxo(i)}
+                          />
+                        )}
                         <div
                           style={{ color: 'rgb(10, 171, 47)' }}
                           className="font-semibold flex-1 min-w-0"

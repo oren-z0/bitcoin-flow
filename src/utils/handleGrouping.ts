@@ -1,4 +1,12 @@
-import type { MempoolVin, MempoolVout, StoredAddress, HandleDescriptor, AddressGroup, StoredTransaction } from '../types';
+import type {
+  MempoolVin,
+  MempoolVout,
+  MempoolOutspend,
+  StoredAddress,
+  HandleDescriptor,
+  AddressGroup,
+  StoredTransaction,
+} from '../types';
 import { truncateAddress } from './formatting';
 import { getEffectiveName } from './addressDisplay';
 import { getSpendingTxidsForOutput } from './graphConnections';
@@ -6,9 +14,40 @@ import { voutScriptpubkeyHex } from './psbt';
 
 const MAX_HANDLES = 8;
 
+export function pinnedUtxoVoutSet(stored: StoredTransaction): Set<number> {
+  return new Set(stored.pinnedUtxoVouts ?? []);
+}
+
+function isUnspentNonOpReturnOutput(
+  vout: MempoolVout | undefined,
+  voutIdx: number,
+  outspends: MempoolOutspend[]
+): boolean {
+  if (!vout || vout.scriptpubkey_type === 'op_return') return false;
+  const outspend = outspends[voutIdx];
+  return !(outspend?.spent && outspend.txid);
+}
+
+function isPinnedUtxoVout(
+  voutIdx: number,
+  vouts: MempoolVout[],
+  outspends: MempoolOutspend[],
+  pinnedUtxoVouts: ReadonlySet<number>
+): boolean {
+  return pinnedUtxoVouts.has(voutIdx) && isUnspentNonOpReturnOutput(vouts[voutIdx], voutIdx, outspends);
+}
+
+function sortHandlesByVoutIndex(handles: HandleDescriptor[]): HandleDescriptor[] {
+  return [...handles].sort((a, b) => {
+    const ai = a.voutIndices?.[0] ?? 0;
+    const bi = b.voutIndices?.[0] ?? 0;
+    return ai - bi;
+  });
+}
+
 /** Txids from mempool outspends only — used for red/green output handle color. */
 function mempoolSpendingTxids(
-  outspends: import('../types').MempoolOutspend[],
+  outspends: MempoolOutspend[],
   voutIdx: number
 ): string[] {
   const o = outspends[voutIdx];
@@ -326,15 +365,63 @@ export function computeInputHandles(
   return [...connectedHandles, ...unconnectedHandles];
 }
 
+function computePoolOutputHandles(
+  poolIndices: number[],
+  vouts: MempoolVout[],
+  outspends: MempoolOutspend[],
+  addresses: Record<string, StoredAddress>,
+  groupMap: Record<string, AddressGroup>,
+  isConnectedVout: (voutIdx: number) => boolean,
+  makeHandle: (vout: MempoolVout, i: number, id: string) => HandleDescriptor
+): HandleDescriptor[] {
+  if (poolIndices.length === 0) return [];
+  if (poolIndices.length <= MAX_HANDLES) {
+    return poolIndices.map(i => makeHandle(vouts[i], i, `out-${i}`));
+  }
+
+  const connectedPool = poolIndices.filter(i => isConnectedVout(i));
+  const unconnectedPool = poolIndices.filter(i => !isConnectedVout(i));
+  const connectedCount = connectedPool.length;
+
+  if (connectedCount >= MAX_HANDLES) {
+    const poolVouts = poolIndices.map(i => vouts[i]);
+    return buildCollapsedOutputHandles(
+      poolVouts,
+      vouts,
+      outspends,
+      addresses,
+      groupMap,
+      MAX_HANDLES,
+      'out'
+    );
+  }
+
+  const placesLeft = MAX_HANDLES - connectedCount;
+  const connectedHandles = connectedPool.map(i => makeHandle(vouts[i], i, `out-${i}`));
+  const unconnectedVouts = unconnectedPool.map(i => vouts[i]);
+  const unconnectedHandles = buildCollapsedOutputHandles(
+    unconnectedVouts,
+    vouts,
+    outspends,
+    addresses,
+    groupMap,
+    placesLeft,
+    'out'
+  );
+
+  return [...connectedHandles, ...unconnectedHandles];
+}
+
 export function computeOutputHandles(
   parentTxid: string,
   vouts: MempoolVout[],
-  outspends: import('../types').MempoolOutspend[],
+  outspends: MempoolOutspend[],
   transactions: Record<string, StoredTransaction>,
   addresses: Record<string, StoredAddress>,
   groupMap: Record<string, AddressGroup> = {},
   loadedTxids: Set<string> = new Set(),
-  isPsbt = false
+  isPsbt = false,
+  pinnedUtxoVouts: ReadonlySet<number> = new Set()
 ): HandleDescriptor[] {
   const count = vouts.length;
 
@@ -369,28 +456,28 @@ export function computeOutputHandles(
     return vouts.map((vout, i) => makeHandle(vout, i, `out-${i}`));
   }
 
-  // More than MAX_HANDLES outputs (non-PSBT only)
-  const connectedVouts = vouts.filter((_, i) => isConnectedVout(i));
-  const unconnectedVouts = vouts.filter((_, i) => !isConnectedVout(i));
-  const connectedCount = connectedVouts.length;
-
-  if (connectedCount >= MAX_HANDLES) {
-    return buildCollapsedOutputHandles(vouts, vouts, outspends, addresses, groupMap, MAX_HANDLES, 'out');
+  const pinnedIndices: number[] = [];
+  const poolIndices: number[] = [];
+  for (let i = 0; i < count; i++) {
+    if (isPinnedUtxoVout(i, vouts, outspends, pinnedUtxoVouts)) {
+      pinnedIndices.push(i);
+    } else {
+      poolIndices.push(i);
+    }
   }
 
-  // connectedCount < MAX_HANDLES: connected vouts each get their own handle
-  const placesLeft = MAX_HANDLES - connectedCount;
-
-  const connectedHandles: HandleDescriptor[] = connectedVouts.map((vout) => {
-    const originalIdx = vouts.indexOf(vout);
-    return makeHandle(vout, originalIdx, `out-${originalIdx}`);
-  });
-
-  const unconnectedHandles = buildCollapsedOutputHandles(
-    unconnectedVouts, vouts, outspends, addresses, groupMap, placesLeft, 'out'
+  const pinnedHandles = pinnedIndices.map(i => makeHandle(vouts[i], i, `out-${i}`));
+  const poolHandles = computePoolOutputHandles(
+    poolIndices,
+    vouts,
+    outspends,
+    addresses,
+    groupMap,
+    isConnectedVout,
+    makeHandle
   );
 
-  return [...connectedHandles, ...unconnectedHandles];
+  return sortHandlesByVoutIndex([...pinnedHandles, ...poolHandles]);
 }
 
 /** Resolve a single vout index from an output handle id, or null if grouped/unknown. */
@@ -411,7 +498,8 @@ export function resolveOutputVoutIndexFromHandle(
     addresses,
     groupMap,
     loadedTxids,
-    !!stored.isPsbt
+    !!stored.isPsbt,
+    pinnedUtxoVoutSet(stored)
   );
   const handle = handles.find(h => h.id === handleId);
   if (!handle?.voutIndices || handle.voutIndices.length !== 1) return null;

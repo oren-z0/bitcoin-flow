@@ -1,5 +1,5 @@
 import type { StoredTransaction } from '../types';
-import { computeInputHandles, computeOutputHandles } from './handleGrouping';
+import { computeInputHandles, computeOutputHandles, pinnedUtxoVoutSet } from './handleGrouping';
 import { sortTxids } from './sorting';
 
 type ElkLayoutInstance = {
@@ -53,7 +53,8 @@ export async function computeLayout(
       {},
       {},
       loadedTxids,
-      !!tx.isPsbt
+      !!tx.isPsbt,
+      pinnedUtxoVoutSet(tx)
     );
 
     const ports = [
@@ -103,7 +104,8 @@ export async function computeLayout(
       {},
       {},
       loadedTxids,
-      !!tx.isPsbt
+      !!tx.isPsbt,
+      pinnedUtxoVoutSet(tx)
     );
 
     tx.outspends.forEach((outspend, voutIdx) => {

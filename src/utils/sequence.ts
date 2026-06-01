@@ -37,7 +37,7 @@ export function formatSequenceHex(sequence: number): string {
 export const SEQUENCE_PARSE_ERROR = 'Could not parse Sequence value';
 
 export const SEQUENCE_VALUE_FORMAT_HINT =
-  'Digits, hex (starting with "0x"), or duration: W days, X hours, Y minutes, Z seconds';
+  'Format: digits, hex (starting with "0x"), or duration: "W days, X hours, Y minutes, Z seconds"';
 
 const TIME_UNIT_SECONDS: Record<string, number> = {
   second: 1,

@@ -192,7 +192,7 @@ export default function TransactionsTab() {
             Download CSV file
           </button>
         </div>
-        <div className="text-xs text-gray-500 mt-1">
+        <div className="text-xs text-gray-400 mt-1">
           CSV format: txid, name, color (optional)
         </div>
         <input
@@ -214,7 +214,7 @@ export default function TransactionsTab() {
       {/* Transaction list */}
       <div className="flex-1 overflow-y-auto">
         {sortedTxids.length === 0 ? (
-          <div className="text-center text-gray-500 text-sm p-6">
+          <div className="text-center text-gray-400 text-sm p-6">
             No transactions. Add one above.
           </div>
         ) : (
@@ -242,7 +242,7 @@ export default function TransactionsTab() {
                     {isLoading && <span className="text-xs text-gray-400 ml-1">(loading...)</span>}
                   </div>
                   {stored.name && (
-                    <div className="text-xs text-gray-500 font-mono truncate">
+                    <div className="text-xs text-gray-400 font-mono truncate">
                       {stored.isPsbt && !isKnownTxid(tx.txid)
                         ? 'Unknown id'
                         : truncateTxid(isKnownTxid(tx.txid) ? tx.txid : txid)}

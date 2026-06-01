@@ -26,7 +26,7 @@ import {
 } from '../../utils/psbtIoForm';
 
 const fieldClass =
-  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500 font-mono';
+  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-400 focus:outline-none focus:border-gray-500 font-mono';
 
 const selectClass =
   'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-gray-500 cursor-pointer';
@@ -236,7 +236,7 @@ export default function PsbtIoForm({
   return (
     <div className="space-y-1.5 pt-1.5 border-t border-gray-600">
       <div>
-        <label className="text-[10px] text-gray-500 block mb-0.5">Script type</label>
+        <label className="text-[10px] text-gray-400 block mb-0.5">Script type</label>
         <select
           className={selectClass}
           value={draft.scriptType}
@@ -257,7 +257,7 @@ export default function PsbtIoForm({
 
       {kind === 'input' && (
         <div className="text-gray-400 font-mono">
-          <label className="text-[10px] text-gray-500 block mb-0.5">Sequence</label>
+          <label className="text-[10px] text-gray-400 block mb-0.5">Sequence</label>
           <input
             type="text"
             className={amountFieldClass}
@@ -268,15 +268,15 @@ export default function PsbtIoForm({
             onKeyDown={handleFieldKeyDown}
           />
           {sequenceHint ? (
-            <div className="mt-0.5 text-[10px] text-gray-500">{sequenceHint}</div>
+            <div className="mt-0.5 text-[10px] text-gray-400">{sequenceHint}</div>
           ) : null}
-          <div className="mt-0.5 text-[10px] text-gray-500">{SEQUENCE_VALUE_FORMAT_HINT}</div>
+          <div className="mt-0.5 text-[10px] text-gray-400">{SEQUENCE_VALUE_FORMAT_HINT}</div>
         </div>
       )}
 
       {isOpReturn && (
         <div className="space-y-1">
-          <div className="text-[10px] text-gray-500">OP_RETURN</div>
+          <div className="text-[10px] text-gray-400">OP_RETURN</div>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -330,12 +330,12 @@ export default function PsbtIoForm({
       {showDerivation && (
         <>
           {showOptionalDerivationLabel && (
-            <div className="text-[10px] text-gray-500 italic">
+            <div className="text-[10px] text-gray-400 italic">
               Optional — for change addresses
             </div>
           )}
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">
+            <label className="text-[10px] text-gray-400 block mb-0.5">
               Master Public Key Fingerprint
             </label>
             <input
@@ -348,7 +348,7 @@ export default function PsbtIoForm({
             />
           </div>
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">Derivation Path</label>
+            <label className="text-[10px] text-gray-400 block mb-0.5">Derivation Path</label>
             <input
               type="text"
               className={fieldClass}
@@ -359,7 +359,7 @@ export default function PsbtIoForm({
             />
           </div>
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">Public key</label>
+            <label className="text-[10px] text-gray-400 block mb-0.5">Public key</label>
             <input
               type="text"
               className={fieldClass}
@@ -385,7 +385,7 @@ export default function PsbtIoForm({
       {kind === 'output' && !isOpReturn && (
         <>
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">Address</label>
+            <label className="text-[10px] text-gray-400 block mb-0.5">Address</label>
             <div className="flex items-start gap-1">
               <input
                 type="text"
@@ -413,7 +413,7 @@ export default function PsbtIoForm({
             </div>
           </div>
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">Amount</label>
+            <label className="text-[10px] text-gray-400 block mb-0.5">Amount</label>
             <span className="inline-flex items-center gap-1 text-gray-300">
               <input
                 type="text"

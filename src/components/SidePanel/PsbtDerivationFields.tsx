@@ -17,7 +17,7 @@ import {
 } from '../../utils/psbt';
 
 const fieldClass =
-  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500 font-mono';
+  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-400 focus:outline-none focus:border-gray-500 font-mono';
 
 const selectClass =
   'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:outline-none focus:border-gray-500 cursor-pointer';
@@ -417,7 +417,7 @@ export default function PsbtDerivationFields({
   return (
     <div className="space-y-1.5 pt-1.5 border-t border-gray-600">
       <div>
-        <label className="text-[10px] text-gray-500 block mb-0.5">Script type</label>
+        <label className="text-[10px] text-gray-400 block mb-0.5">Script type</label>
         <select
           className={selectClass}
           value={scriptType}
@@ -435,12 +435,12 @@ export default function PsbtDerivationFields({
       {showDerivationFields && (
         <>
           {showOptionalLabel && (
-            <div className="text-[10px] text-gray-500 italic">
+            <div className="text-[10px] text-gray-400 italic">
               Optional — for change addresses
             </div>
           )}
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">
+            <label className="text-[10px] text-gray-400 block mb-0.5">
               Master Public Key Fingerprint
             </label>
             <input
@@ -456,7 +456,7 @@ export default function PsbtDerivationFields({
             />
           </div>
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">Derivation Path</label>
+            <label className="text-[10px] text-gray-400 block mb-0.5">Derivation Path</label>
             <input
               type="text"
               className={fieldClass}
@@ -470,7 +470,7 @@ export default function PsbtDerivationFields({
             />
           </div>
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">Public key</label>
+            <label className="text-[10px] text-gray-400 block mb-0.5">Public key</label>
             <input
               type="text"
               className={fieldClass}

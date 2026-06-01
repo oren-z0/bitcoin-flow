@@ -82,11 +82,11 @@ export default function PsbtEditableLocktime({
         {disabledSuffix}
       </span>
       {utcDateLabel && (
-        <span className="text-[10px] text-gray-500 self-stretch text-center font-mono">
+        <span className="text-[10px] text-gray-400 self-stretch text-center font-mono">
           {utcDateLabel}
         </span>
       )}
-      <span className="text-[10px] text-gray-500 max-w-[11.5rem] self-stretch text-left">
+      <span className="text-[10px] text-gray-400 max-w-[11.5rem] self-stretch text-left">
         {LOCKTIME_VALUE_FORMAT_HINT}
       </span>
     </span>

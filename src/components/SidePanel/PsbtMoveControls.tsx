@@ -12,7 +12,7 @@ export default function PsbtMoveControls({ count, index, onMove }: Props) {
 
   return (
     <div className="flex items-center gap-0.5 shrink-0">
-      <span className="text-[10px] text-gray-500">Move</span>
+      <span className="text-[10px] text-gray-400">Move</span>
       {index > 0 && (
         <button
           type="button"

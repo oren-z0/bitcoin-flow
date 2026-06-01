@@ -8,7 +8,7 @@ import {
 import { updatePsbtOpReturnPayload } from '../../utils/psbt';
 
 const fieldClass =
-  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500 font-mono break-all';
+  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-400 focus:outline-none focus:border-gray-500 font-mono break-all';
 
 const SPAM_LINK_URL = 'https://www.youtube.com/watch?v=anwy2MPT5RE';
 const OP_RETURN_STANDARD_MAX_BYTES = 80;

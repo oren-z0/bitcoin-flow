@@ -81,7 +81,7 @@ export default function SidePanel({ onHide, className }: Props) {
               </button>
             ))}
             <button
-              className="px-2 py-2 text-gray-500 hover:text-white transition-colors shrink-0 cursor-pointer"
+              className="px-2 py-2 text-gray-400 hover:text-white transition-colors shrink-0 cursor-pointer"
               onClick={onHide}
               title="Hide panel"
             >

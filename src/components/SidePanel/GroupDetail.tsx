@@ -244,7 +244,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
           ← Back to Addresses
         </button>
         <div className="text-sm font-semibold text-gray-200">{group?.name ?? 'Group'}</div>
-        <div className="text-xs text-gray-500 mt-0.5">
+        <div className="text-xs text-gray-400 mt-0.5">
           {groupAddresses.length} address{groupAddresses.length !== 1 ? 'es' : ''}
           {paginationComplete && ` · ${visibleCount} transaction${visibleCount !== 1 ? 's' : ''}`}
         </div>
@@ -254,7 +254,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
       <div className="flex-1 overflow-y-auto p-2">
         {loadError && <div className="text-red-400 text-xs p-2">{loadError}</div>}
         {txEntries.length === 0 && !loading && !loadError && paginationComplete && (
-          <div className="text-gray-500 text-xs text-center p-4">
+          <div className="text-gray-400 text-xs text-center p-4">
             No transactions found.
           </div>
         )}
@@ -304,7 +304,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
                     {storedTx?.name || truncateTxid(tx.txid)}
                   </div>
                 </div>
-                <div className="text-gray-500 font-mono">{truncateAddress(address)}</div>
+                <div className="text-gray-400 font-mono">{truncateAddress(address)}</div>
                 <div className="text-gray-400">
                   {tx.status.confirmed
                     ? tx.status.block_time

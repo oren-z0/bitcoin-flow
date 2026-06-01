@@ -330,9 +330,9 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
           >
             ← Back
           </button>
-          <span className="text-xs text-gray-500 flex-1">Transaction Details</span>
+          <span className="text-xs text-gray-400 flex-1">Transaction Details</span>
           <button
-            className="text-gray-500 hover:text-white transition-colors cursor-pointer"
+            className="text-gray-400 hover:text-white transition-colors cursor-pointer"
             onClick={onHide}
             title="Hide panel"
           >
@@ -345,7 +345,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
         {/* Txid */}
         {showUnknownTxid ? (
-          <div className="text-xs text-gray-500 italic">Unknown id</div>
+          <div className="text-xs text-gray-400 italic">Unknown id</div>
         ) : (
           <div
             className="text-xs text-gray-400 font-mono cursor-pointer hover:text-white truncate"

@@ -45,7 +45,7 @@ export default function PsbtEditableOutputAmount({
 
   return (
     <div>
-      <label className="text-[10px] text-gray-500 block mb-0.5">Amount</label>
+      <label className="text-[10px] text-gray-400 block mb-0.5">Amount</label>
       <span className="inline-flex items-center gap-1 text-gray-300">
         <input
           type="text"

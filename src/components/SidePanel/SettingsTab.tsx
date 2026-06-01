@@ -208,7 +208,7 @@ export default function SettingsTab() {
           </button>
           <span className="text-sm text-gray-300">Auto-layout</span>
         </div>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-gray-400 mt-1">
           Automatically arrange nodes when transactions are added or removed.
         </p>
       </div>
@@ -267,7 +267,7 @@ export default function SettingsTab() {
                 value={gistUrlInput}
                 onChange={(e) => setGistUrlInput(e.target.value)}
                 placeholder={`${GITHUB_GIST_URL}...`}
-                className="w-full text-sm bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500"
+                className="w-full text-sm bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-gray-200 placeholder:text-gray-400 focus:outline-none focus:border-gray-500"
               />
               <div className="flex gap-2">
                 <button
@@ -314,7 +314,7 @@ export default function SettingsTab() {
             onChange={handleUploadState}
           />
         </div>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-gray-400 mt-2">
           Upload merges with existing data. Mined transactions are re-fetched from mempool.space; PSBTs are restored from the saved file. Share Link embeds your graph in the URL; Share via Github Gist uses a public gist for larger states.
         </p>
       </div>

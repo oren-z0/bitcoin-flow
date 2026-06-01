@@ -397,7 +397,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
             Download CSV file
           </button>
         </div>
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-400">
           CSV format: address, name, description, color, group-name
         </div>
         <input
@@ -469,7 +469,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                 ) : (
                   <span className="flex-1 text-xs font-semibold text-gray-300 truncate">
                     {group.name}
-                    <span className="ml-1 text-gray-500 font-normal">({group.addresses.length})</span>
+                    <span className="ml-1 text-gray-400 font-normal">({group.addresses.length})</span>
                   </span>
                 )}
 
@@ -540,7 +540,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                     />
                     {group.color && (
                       <button
-                        className="text-gray-500 hover:text-white text-xs leading-none cursor-pointer"
+                        className="text-gray-400 hover:text-white text-xs leading-none cursor-pointer"
                         title="Clear color"
                         onClick={() => updateGroup(group.id, { color: undefined })}
                       >
@@ -602,7 +602,7 @@ export default function AddressesTab({ onOpenAddressDetail, onOpenGroupDetail }:
                                     {effectiveName || truncateAddress(addr)}
                                   </div>
                                   {effectiveName && (
-                                    <div className="text-xs text-gray-500 font-mono truncate">{truncateAddress(addr)}</div>
+                                    <div className="text-xs text-gray-400 font-mono truncate">{truncateAddress(addr)}</div>
                                   )}
                                 </>
                               );

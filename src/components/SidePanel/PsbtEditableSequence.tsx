@@ -78,8 +78,8 @@ export default function PsbtEditableSequence({
           }}
         />
       </div>
-      {hintSuffix ? <div className="mt-0.5 text-gray-500">{hintSuffix}</div> : null}
-      <div className="mt-0.5 text-[10px] text-gray-500">{SEQUENCE_VALUE_FORMAT_HINT}</div>
+      {hintSuffix ? <div className="mt-0.5 text-gray-400">{hintSuffix}</div> : null}
+      <div className="mt-0.5 text-[10px] text-gray-400">{SEQUENCE_VALUE_FORMAT_HINT}</div>
     </div>
   );
 }

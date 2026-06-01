@@ -10,7 +10,7 @@ import {
 import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 
 const fieldClass =
-  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-gray-500 font-mono';
+  'w-full text-xs bg-gray-900 border border-gray-600 rounded px-2 py-1 text-gray-200 placeholder:text-gray-400 focus:outline-none focus:border-gray-500 font-mono';
 
 interface Props {
   psbtBase64: string;
@@ -121,7 +121,7 @@ export default function PsbtGlobalMasterKeys({ psbtBase64, onPsbtUpdated }: Prop
       {showForm && (
         <div className="bg-gray-800 rounded p-2 space-y-1.5">
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">
+            <label className="text-[10px] text-gray-400 block mb-0.5">
               Master Public Key
             </label>
             <input
@@ -134,7 +134,7 @@ export default function PsbtGlobalMasterKeys({ psbtBase64, onPsbtUpdated }: Prop
             />
           </div>
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">Derivation Path</label>
+            <label className="text-[10px] text-gray-400 block mb-0.5">Derivation Path</label>
             <input
               type="text"
               className={fieldClass}
@@ -144,7 +144,7 @@ export default function PsbtGlobalMasterKeys({ psbtBase64, onPsbtUpdated }: Prop
             />
           </div>
           <div>
-            <label className="text-[10px] text-gray-500 block mb-0.5">
+            <label className="text-[10px] text-gray-400 block mb-0.5">
               BIP32 Root Fingerprint
             </label>
             <input
@@ -181,7 +181,7 @@ export default function PsbtGlobalMasterKeys({ psbtBase64, onPsbtUpdated }: Prop
       )}
 
       {entries.length === 0 && !showForm && (
-        <p className="text-[10px] text-gray-500 italic">No master public keys in PSBT globals.</p>
+        <p className="text-[10px] text-gray-400 italic">No master public keys in PSBT globals.</p>
       )}
     </div>
   );

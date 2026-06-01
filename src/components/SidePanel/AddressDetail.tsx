@@ -253,7 +253,7 @@ export default function AddressDetail({ address, onBack }: Props) {
       <div className="flex-1 overflow-y-auto p-2">
         {loadError && <div className="text-red-400 text-xs p-2">{loadError}</div>}
         {addrTxs.length === 0 && !loading && !loadError && (
-          <div className="text-gray-500 text-xs text-center p-4">
+          <div className="text-gray-400 text-xs text-center p-4">
             No transactions found for this address.
           </div>
         )}
@@ -304,7 +304,7 @@ export default function AddressDetail({ address, onBack }: Props) {
                   </div>
                 </div>
                 {storedTx?.name && (
-                  <div className="text-gray-500 font-mono text-xs">{truncateTxid(tx.txid)}</div>
+                  <div className="text-gray-400 font-mono text-xs">{truncateTxid(tx.txid)}</div>
                 )}
                 <div className="text-gray-400">
                   {tx.status.confirmed

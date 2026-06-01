@@ -115,16 +115,81 @@ export function parseSequenceValue(input: string): number {
   return parseSequenceDurationPhrase(s);
 }
 
-export function parseLocktimeValue(input: string): number {
-  const s = input.trim();
-  if (!/^\d+$/.test(s)) {
-    throw new Error('Locktime must be a non-negative integer');
+export const LOCKTIME_PARSE_ERROR = 'Could not parse locktime value';
+
+export const LOCKTIME_VALUE_FORMAT_HINT =
+  'Format: non-negative integer (block height or Unix time), or UTC date: YYYY-MM-DD hh:mm:ss';
+
+/** UTC `YYYY-MM-DD hh:mm:ss` for a timestamp locktime. */
+export function formatLocktimeUtc(locktime: number): string {
+  const d = new Date(locktime * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+function parseLocktimeUtcDateTime(input: string): number {
+  const parts = input.match(/\d+/g);
+  if (!parts || parts.length !== 6) {
+    throw new Error(LOCKTIME_PARSE_ERROR);
   }
-  const n = Number(s);
-  if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) {
+
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  const hour = Number(parts[3]);
+  const minute = Number(parts[4]);
+  const second = Number(parts[5]);
+
+  if (
+    !Number.isSafeInteger(year) ||
+    !Number.isSafeInteger(month) ||
+    !Number.isSafeInteger(day) ||
+    !Number.isSafeInteger(hour) ||
+    !Number.isSafeInteger(minute) ||
+    !Number.isSafeInteger(second)
+  ) {
+    throw new Error(LOCKTIME_PARSE_ERROR);
+  }
+
+  const ms = Date.UTC(year, month - 1, day, hour, minute, second);
+  const d = new Date(ms);
+  if (
+    d.getUTCFullYear() !== year ||
+    d.getUTCMonth() !== month - 1 ||
+    d.getUTCDate() !== day ||
+    d.getUTCHours() !== hour ||
+    d.getUTCMinutes() !== minute ||
+    d.getUTCSeconds() !== second
+  ) {
+    throw new Error(LOCKTIME_PARSE_ERROR);
+  }
+
+  const seconds = Math.floor(ms / 1000);
+  if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds > 0xffffffff) {
     throw new Error('Locktime must be a 32-bit value');
   }
-  return n;
+  return seconds >>> 0;
+}
+
+export function parseLocktimeValue(input: string): number {
+  const s = input.trim();
+  if (s === '') {
+    throw new Error(LOCKTIME_PARSE_ERROR);
+  }
+
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    if (!Number.isSafeInteger(n) || n < 0 || n > 0xffffffff) {
+      throw new Error('Locktime must be a 32-bit value');
+    }
+    return n >>> 0;
+  }
+
+  return parseLocktimeUtcDateTime(s);
+}
+
+export function locktimeDraftDisplay(locktime: number): string {
+  return isTimestampLocktime(locktime) ? formatLocktimeUtc(locktime) : String(locktime);
 }
 
 /** Text after the hex in `formatInputSequence` (e.g. relative locktime hint). */

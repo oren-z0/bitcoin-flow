@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
-import { formatTimestamp } from '../../utils/formatting';
-import { isLocktimeDisabled, isTimestampLocktime, parseLocktimeValue } from '../../utils/sequence';
+import {
+  isLocktimeDisabled,
+  LOCKTIME_PARSE_ERROR,
+  LOCKTIME_VALUE_FORMAT_HINT,
+  locktimeDraftDisplay,
+  parseLocktimeValue,
+} from '../../utils/sequence';
 import { updatePsbtLocktime } from '../../utils/psbt';
 import type { MempoolVin } from '../../types';
 
 const fieldClass =
-  'text-xs bg-gray-900 border border-gray-600 rounded px-1 py-0.5 text-gray-200 font-mono w-28 text-right focus:outline-none focus:border-gray-500';
+  'text-xs bg-gray-900 border border-gray-600 rounded px-1 py-0.5 text-gray-200 font-mono w-[11.5rem] text-right focus:outline-none focus:border-gray-500';
 
 interface Props {
   psbtBase64: string;
@@ -23,26 +28,29 @@ export default function PsbtEditableLocktime({
   onError,
 }: Props) {
   const fieldKey = `${psbtBase64}:${locktime}`;
-  const [draft, setDraft] = useState(() => String(locktime));
+  const [draft, setDraft] = useState(() => locktimeDraftDisplay(locktime));
 
   useEffect(() => {
-    setDraft(String(locktime));
+    setDraft(locktimeDraftDisplay(locktime));
   }, [fieldKey, locktime]);
 
   const disabledSuffix = isLocktimeDisabled(vin) ? ' (disabled)' : '';
-  const draftValue = /^\d+$/.test(draft.trim()) ? Number(draft.trim()) : NaN;
-  const timestampText = isTimestampLocktime(draftValue) ? formatTimestamp(draftValue) : null;
 
   const commit = () => {
-    if (draft.trim() === String(locktime)) return;
+    const canonical = locktimeDraftDisplay(locktime);
+    if (draft.trim() === canonical || draft.trim() === String(locktime)) return;
 
     try {
       const next = parseLocktimeValue(draft);
-      if (next === locktime) return;
+      if (next === locktime) {
+        setDraft(canonical);
+        return;
+      }
       onPsbtUpdated(updatePsbtLocktime(psbtBase64, next));
+      setDraft(locktimeDraftDisplay(next));
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Invalid locktime');
-      setDraft(String(locktime));
+      onError(e instanceof Error ? e.message : LOCKTIME_PARSE_ERROR);
+      setDraft(canonical);
     }
   };
 
@@ -62,14 +70,16 @@ export default function PsbtEditableLocktime({
               e.currentTarget.blur();
             }
             if (e.key === 'Escape') {
-              setDraft(String(locktime));
+              setDraft(locktimeDraftDisplay(locktime));
               e.currentTarget.blur();
             }
           }}
         />
         {disabledSuffix}
       </span>
-      {timestampText && <span className="text-gray-400">{timestampText}</span>}
+      <span className="text-[10px] text-gray-500 max-w-[11.5rem] text-right">
+        {LOCKTIME_VALUE_FORMAT_HINT}
+      </span>
     </span>
   );
 }

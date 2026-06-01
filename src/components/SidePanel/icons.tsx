@@ -1,12 +1,12 @@
 const iconClass = 'shrink-0';
 
-/** Document with plus — create new PSBT */
-export function CreatePsbtIcon() {
+/** Plus — create new PSBT */
+export function CreatePsbtIcon({ size = 16 }: { size?: number }) {
   return (
     <svg
       className={iconClass}
-      width="14"
-      height="14"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -15,10 +15,8 @@ export function CreatePsbtIcon() {
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-      <path d="M12 11v6" />
-      <path d="M9 14h6" />
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
     </svg>
   );
 }

@@ -12,9 +12,10 @@ type Tab = 'transactions' | 'addresses' | 'settings';
 
 interface Props {
   onHide: () => void;
+  className?: string;
 }
 
-export default function SidePanel({ onHide }: Props) {
+export default function SidePanel({ onHide, className }: Props) {
   const { selectedTxid, setSelectedTxid } = useGlobalState();
   const [tab, setTab] = useState<Tab>('transactions');
   const [addressDetailView, setAddressDetailView] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export default function SidePanel({ onHide }: Props) {
 
   return (
     <div
-      className="flex flex-col h-full bg-gray-800 border-l border-gray-700 text-gray-200"
+      className={`flex flex-col h-full bg-gray-800 border-l border-gray-700 text-gray-200 ${className ?? ''}`}
       style={{ width: SIDE_PANEL_WIDTH }}
     >
       {selectedTxid ? (

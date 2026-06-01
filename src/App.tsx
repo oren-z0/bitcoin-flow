@@ -102,9 +102,13 @@ function AppInner() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-900">
       {/* Flow canvas */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative min-w-0">
         <FlowCanvas />
-        <div className="absolute top-3 left-3 text-gray-500 text-sm font-mono select-none">
+        <div
+          className={`absolute top-3 left-3 z-0 text-gray-500 text-sm font-mono select-none ${
+            sidePanelVisible ? 'max-md:hidden' : ''
+          }`}
+        >
           <div className="pointer-events-none">bitcoinflow.niot.space</div>
           <a
             href="https://njump.me/nprofile1qqsrx9hzmz8lj8ss38r4lmkumza2yfvtg4z45wc4dtmp04lv0x69legpz4mhxue69uhhyetvv9ujuerpd46hxtnfduhszrnhwden5te0dehhxtnvdakz7qgkwaehxw309ash2arg9ehx7um5wgcjucm0d5hsfa7mst"
@@ -119,7 +123,7 @@ function AppInner() {
 
       {/* Side panel */}
       {sidePanelVisible
-        ? <SidePanel onHide={() => setSidePanelVisible(false)} />
+        ? <SidePanel className="relative z-20 shrink-0" onHide={() => setSidePanelVisible(false)} />
         : (
           <button
             className="absolute top-2 right-2 z-10 p-1.5 rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors cursor-pointer"

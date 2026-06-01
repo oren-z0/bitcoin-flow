@@ -23,7 +23,7 @@ import {
 } from '../utils/psbtConnect';
 import 'reactflow/dist/style.css';
 import { SIDE_PANEL_WIDTH } from '../constants/layout';
-import { CreatePsbtIcon, fileButtonClass, TrashIcon } from './SidePanel/icons';
+import { CreatePsbtIcon, TrashIcon } from './SidePanel/icons';
 import { useGlobalState, layoutRef } from '../hooks/useGlobalState';
 import TransactionNode from './TransactionNode';
 import { computeEdgeWidth } from '../utils/edgeStyling';
@@ -48,6 +48,9 @@ import type { StoredTransaction, AddressGroup } from '../types';
 const nodeTypes: NodeTypes = {
   transaction: TransactionNode,
 };
+
+const canvasPanelButtonClass =
+  'w-full grid grid-cols-[1rem_1fr_1rem] items-center gap-x-2 text-[1rem] px-3 py-2 rounded shadow cursor-pointer border';
 
 type EmptyPageExample =
   | { label: string; txid: string }
@@ -551,18 +554,19 @@ export default function FlowCanvas() {
     >
       <Background color="#374151" gap={20} />
       <Panel position="top-right" className="!m-12">
-        <div className="flex flex-col gap-2 w-max">
+        <div className="flex flex-col gap-4 w-max min-w-[12rem]">
           <button
             type="button"
-            className={`${fileButtonClass} w-full !text-[1rem] border border-gray-600 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 shadow`}
+            className={`${canvasPanelButtonClass} border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200`}
             onClick={() => void useGlobalState.getState().createPsbt()}
           >
             <CreatePsbtIcon />
-            Create a new PSBT
+            <span className="col-start-2 text-center">Create a new PSBT</span>
+            <span className="col-start-3" aria-hidden />
           </button>
           <button
             type="button"
-            className="w-full flex items-center justify-center gap-1.5 !text-[1rem] bg-red-900 hover:bg-red-800 text-white border border-red-800 px-3 py-1.5 rounded shadow cursor-pointer"
+            className={`${canvasPanelButtonClass} border-red-800 bg-red-900 hover:bg-red-800 text-white`}
             onClick={() => {
               if (confirm('Are you sure you want to clear all state? This cannot be undone.')) {
                 useGlobalState.getState().clearState();
@@ -570,7 +574,8 @@ export default function FlowCanvas() {
             }}
           >
             <TrashIcon />
-            Clear State
+            <span className="col-start-2 text-center">Clear State</span>
+            <span className="col-start-3" aria-hidden />
           </button>
         </div>
       </Panel>

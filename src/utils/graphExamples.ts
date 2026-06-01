@@ -65,6 +65,7 @@ function exampleLoadOptions(
     addressMeta: Object.fromEntries(
       addresses.map(({ address, name }) => [address, { name, isSelected: false }])
     ),
+    fitViewAfterLayout: true,
   };
 }
 

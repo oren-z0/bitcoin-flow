@@ -28,6 +28,11 @@ import {
 const STORAGE_KEY = 'bitcoin-flow-state';
 const NODE_GAP = 400;
 
+export type LayoutOptions = {
+  /** Frame all nodes after layout animation finishes. */
+  fitView?: boolean;
+};
+
 export type AddTransactionsOptions = {
   transactionMeta?: Record<
     string,
@@ -37,6 +42,7 @@ export type AddTransactionsOptions = {
     string,
     Partial<Pick<StoredAddress, 'name' | 'description' | 'color' | 'isSelected'>>
   >;
+  fitViewAfterLayout?: boolean;
 };
 
 type TransactionMeta = NonNullable<AddTransactionsOptions['transactionMeta']>[string];
@@ -95,7 +101,11 @@ function applyAddressMetadata(
 interface LayoutRef {
   getViewportCenter: () => { x: number; y: number };
   focusNode: (txid: string) => void;
-  setNodePositions: (positions: Record<string, { x: number; y: number }>, animate: boolean) => void;
+  setNodePositions: (
+    positions: Record<string, { x: number; y: number }>,
+    animate: boolean,
+    options?: LayoutOptions
+  ) => void;
   fitView: () => void;
 }
 
@@ -146,8 +156,11 @@ interface GlobalStore {
   removeGroup: (groupId: string) => void;
   setSelectedTxid: (txid: string | undefined) => void;
   setAutoLayout: (value: boolean) => void;
-  applyLayout: (positions: Record<string, { x: number; y: number }>) => void;
-  runLayout: () => Promise<void>;
+  applyLayout: (
+    positions: Record<string, { x: number; y: number }>,
+    options?: LayoutOptions
+  ) => void;
+  runLayout: (options?: LayoutOptions) => Promise<void>;
   refreshTransaction: (txid: string) => Promise<void>;
   promotePsbtIfConfirmed: (txid: string) => Promise<void>;
   replacePsbtNode: (oldNodeId: string, psbtBase64: string) => void;
@@ -712,7 +725,9 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
 
     const { autoLayout } = get();
     if (autoLayout) {
-      void get().runLayout();
+      void get().runLayout(
+        options?.fitViewAfterLayout ? { fitView: true } : undefined
+      );
     }
   },
 
@@ -904,7 +919,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
     }
   },
 
-  applyLayout: (positions) => {
+  applyLayout: (positions, options) => {
     set(s => {
       const updated = { ...s.transactions };
       for (const [txid, pos] of Object.entries(positions)) {
@@ -915,16 +930,16 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       persist({ ...s, transactions: updated });
       return { transactions: updated };
     });
-    layoutRef.setNodePositions(positions, true);
+    layoutRef.setNodePositions(positions, true, options);
   },
 
-  runLayout: async () => {
+  runLayout: async (options) => {
     const { transactions } = get();
     if (Object.keys(transactions).length === 0) return;
     try {
       const { computeLayout } = await import('../utils/layout');
       const positions = await computeLayout(transactions);
-      get().applyLayout(positions);
+      get().applyLayout(positions, options);
     } catch (e) {
       console.error('Layout failed', e);
     }

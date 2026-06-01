@@ -110,7 +110,7 @@ function AppInner() {
   const [sidePanelVisible, setSidePanelVisible] = useState(true);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gray-900">
+    <div className="flex h-dvh w-screen overflow-hidden bg-gray-900">
       {/* Flow canvas */}
       <div className="flex-1 relative min-w-0">
         <FlowCanvas />

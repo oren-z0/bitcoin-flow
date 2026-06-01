@@ -79,7 +79,7 @@ export async function loadSlimState(
   if (slim.autoLayout !== undefined) {
     await useGlobalState.getState().setAutoLayout(slim.autoLayout);
   } else if (useGlobalState.getState().autoLayout) {
-    await useGlobalState.getState().runLayout();
+    await useGlobalState.getState().runLayout({ fitView: true });
   }
 
   onProgress?.(null);

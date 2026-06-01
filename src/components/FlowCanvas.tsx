@@ -73,7 +73,9 @@ async function runEmptyPageExample(example: EmptyPageExample): Promise<void> {
   }
 
   if ('txids' in example) {
-    await useGlobalState.getState().addTransactions(example.txids);
+    await useGlobalState.getState().addTransactions(example.txids, {
+      fitViewAfterLayout: true,
+    });
     return;
   }
   if ('txid' in example) {
@@ -219,6 +221,9 @@ export default function FlowCanvas() {
   const nodesRef = useRef<Node[]>([]);
   const animFrameRef = useRef<number | null>(null);
   const animatingLayoutRef = useRef(false);
+  const hadTransactionsOnMountRef = useRef(
+    Object.keys(useGlobalState.getState().transactions).length > 0
+  );
 
   // Register layout ref callbacks
   useEffect(() => {
@@ -283,8 +288,10 @@ export default function FlowCanvas() {
 
     layoutRef.setNodePositions = (
       positions: Record<string, { x: number; y: number }>,
-      animate: boolean
+      animate: boolean,
+      options?: { fitView?: boolean }
     ) => {
+      const shouldFitView = options?.fitView ?? false;
       // Cancel any in-progress animation
       if (animFrameRef.current !== null) {
         cancelAnimationFrame(animFrameRef.current);
@@ -300,6 +307,9 @@ export default function FlowCanvas() {
             return pos ? { ...node, position: pos } : node;
           })
         );
+        if (shouldFitView) {
+          requestAnimationFrame(() => layoutRef.fitView());
+        }
         return;
       }
 
@@ -344,6 +354,9 @@ export default function FlowCanvas() {
               return pos ? { ...node, position: pos } : node;
             })
           );
+          if (shouldFitView) {
+            requestAnimationFrame(() => layoutRef.fitView());
+          }
         }
       };
 
@@ -356,6 +369,12 @@ export default function FlowCanvas() {
       }
     };
   }, [setControlledNodes]);
+
+  // Frame a graph restored from localStorage on first mount (replaces React Flow's fitView prop).
+  useEffect(() => {
+    if (!hadTransactionsOnMountRef.current) return;
+    requestAnimationFrame(() => layoutRef.fitView());
+  }, []);
 
   const onNodeDragStop: NodeDragHandler = useCallback((_event, node) => {
     useGlobalState.getState().updateTransaction(node.id, {
@@ -552,8 +571,6 @@ export default function FlowCanvas() {
       onConnect={onConnect}
       isValidConnection={isValidConnection}
       nodeTypes={nodeTypes}
-      fitView
-      fitViewOptions={{ padding: 0.2 }}
       minZoom={0.05}
       maxZoom={3}
       deleteKeyCode={null}
@@ -588,8 +605,12 @@ export default function FlowCanvas() {
         </div>
       </Panel>
       {Object.keys(transactions).length === 0 && (
-        <Panel position="top-center" style={{ top: '50%', transform: 'translate(-50%, -50%)' }}>
-          <div className="text-center text-gray-500 select-none">
+        <Panel
+          position="top-center"
+          className="max-md:!w-[min(27rem,calc(100vw-2rem))]"
+          style={{ top: '50%', transform: 'translate(-50%, -50%)' }}
+        >
+          <div className="text-center text-gray-500 select-none w-full">
             <div className="text-2xl font-semibold mb-2 pointer-events-none">No transactions yet</div>
             <div className="text-sm pointer-events-none">Add transaction IDs from the side panel,<br />or look up an address to explore its history.</div>
             <div className="text-sm mt-4 pointer-events-none font-medium">Examples:</div>
@@ -635,7 +656,7 @@ export default function FlowCanvas() {
           </div>
         </Panel>
       )}
-      <Controls>
+      <Controls className="flow-zoom-controls">
         <ControlButton
           onClick={() => void useGlobalState.getState().setAutoLayout(!autoLayout)}
           title={autoLayout ? 'Auto-layout on — click to disable' : 'Auto-layout off — click to enable'}

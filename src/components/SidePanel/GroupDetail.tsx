@@ -220,10 +220,9 @@ export default function GroupDetail({ groupId, onBack }: Props) {
 
       const wasEmpty = Object.keys(useGlobalState.getState().transactions).length === 0;
       const toAdd = [...allTxids].filter(txid => !transactions[txid]);
-      await addTransactions(toAdd);
-      if (wasEmpty && toAdd.length > 0) {
-        setTimeout(() => layoutRef.fitView(), 1000);
-      }
+      await addTransactions(toAdd, {
+        fitViewAfterLayout: wasEmpty && toAdd.length > 0,
+      });
     } finally {
       setAddingAll(false);
     }

@@ -1,12 +1,7 @@
 /** nSequence indicates a relative locktime (BIP 68) when version >= 2. */
-export function isRelativeLocktimeSequence(sequence: number): boolean {
-  if (sequence <= 0x0000ffff) return true;
-  if (sequence >= 0x00400000 && sequence <= 0x0040ffff) return true;
-  return false;
-}
-
 export function inputHasRelativeLocktime(txVersion: number, sequence: number): boolean {
-  return txVersion >= 2 && isRelativeLocktimeSequence(sequence);
+  // Ignore sequences that are exactly 0 or 0x00400000 because the relative locktime is 0 blcoks/seconds.
+  return txVersion >= 2 && ((0 < sequence && sequence <= 0x0000ffff) || (0x00400000 < sequence && sequence <= 0x0040ffff));
 }
 
 /** Locktime values >= this are interpreted as Unix timestamps rather than block heights (BIP 65). */

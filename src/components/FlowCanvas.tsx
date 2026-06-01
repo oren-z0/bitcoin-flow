@@ -516,7 +516,7 @@ export default function FlowCanvas() {
       connectionRadius={50}
     >
       <Background color="#374151" gap={20} />
-      <Panel position="top-right" className="!m-3">
+      <Panel position="top-right" className="!m-12">
         <button
           type="button"
           className={`${fileButtonClass} border border-gray-600 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 shadow`}

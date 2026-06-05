@@ -178,14 +178,23 @@ export default function GroupDetail({ groupId, onBack }: Props) {
 
         let isFirst = true;
         while (addressIndex < addrs.length) {
+          // Persist cursor before each request so a failure can resume here.
+          cursorRef.current = { addressIndex, lastConfirmedTxid };
+
           if (!isFirst) await sleep(500);
           isFirst = false;
           const address = addrs[addressIndex];
-          const txs: MempoolTx[] = lastConfirmedTxid
-            ? await fetchAddressTxsChain(address, lastConfirmedTxid)
-            : await fetchAddressTxs(address);
 
-          // Mirror what loadPage does: deduplicate and update the visible list
+          let txs: MempoolTx[];
+          try {
+            txs = lastConfirmedTxid
+              ? await fetchAddressTxsChain(address, lastConfirmedTxid)
+              : await fetchAddressTxs(address);
+          } catch {
+            setHasMore(true);
+            return;
+          }
+
           const newEntries: TxEntry[] = [];
           for (const tx of txs) {
             allTxids.add(tx.txid);
@@ -207,16 +216,18 @@ export default function GroupDetail({ groupId, onBack }: Props) {
             addressIndex++;
             lastConfirmedTxid = undefined;
           }
+
+          cursorRef.current = { addressIndex, lastConfirmedTxid };
         }
 
-        // Pagination is now complete
         cursorRef.current = { addressIndex };
         setHasMore(false);
         setPaginationComplete(true);
       }
 
       const wasEmpty = Object.keys(useGlobalState.getState().transactions).length === 0;
-      const toAdd = [...allTxids].filter(txid => !transactions[txid]);
+      const loaded = useGlobalState.getState().transactions;
+      const toAdd = [...allTxids].filter(txid => !loaded[txid]);
       await addTransactions(toAdd, {
         fitViewAfterLayout: wasEmpty && toAdd.length > 0,
       });

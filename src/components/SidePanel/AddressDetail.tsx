@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGlobalState, layoutRef } from '../../hooks/useGlobalState';
-import { fetchAddressInfo, fetchAddressTxs, fetchAddressTxsChain, InvalidInputError } from '../../api/mempool';
+import { fetchAddressInfo, fetchAddressTxs, fetchAddressTxsChain } from '../../api/mempool';
 import { truncateTxid, formatTimestamp } from '../../utils/formatting';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 import type { MempoolTx } from '../../types';
@@ -35,7 +35,6 @@ export default function AddressDetail({ address, onBack }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [addrTxs, setAddrTxs] = useState<MempoolTx[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
   const [hasMore, setHasMore] = useState(false);
 
   useEffect(() => {
@@ -46,7 +45,6 @@ export default function AddressDetail({ address, onBack }: Props) {
 
   const loadTxs = useCallback(async (lastSeenTxid?: string) => {
     setLoading(true);
-    setLoadError('');
     try {
       let txs: MempoolTx[];
       if (lastSeenTxid) {
@@ -61,12 +59,8 @@ export default function AddressDetail({ address, onBack }: Props) {
         const confirmedCount = txs.filter(tx => tx.status.confirmed).length;
         setHasMore(confirmedCount >= 25);
       }
-    } catch (e) {
-      if (e instanceof InvalidInputError) {
-        setLoadError(e.message);
-      } else {
-        setLoadError('Failed to load transactions');
-      }
+    } catch {
+      // Error toast is shown by the mempool API error handler.
     } finally {
       setLoading(false);
     }
@@ -252,8 +246,7 @@ export default function AddressDetail({ address, onBack }: Props) {
 
       {/* Transaction list */}
       <div className="flex-1 overflow-y-auto p-2">
-        {loadError && <div className="text-red-400 text-xs p-2">{loadError}</div>}
-        {addrTxs.length === 0 && !loading && !loadError && (
+        {addrTxs.length === 0 && !loading && (
           <div className="text-gray-400 text-xs text-center p-4">
             No transactions found for this address.
           </div>

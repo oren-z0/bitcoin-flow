@@ -3,6 +3,7 @@ import { ReactFlowProvider } from 'reactflow';
 import FlowCanvas from './components/FlowCanvas';
 import SidePanel from './components/SidePanel/SidePanel';
 import StateLoadProgress from './components/StateLoadProgress';
+import { setMempoolApiErrorHandler } from './api/mempool';
 import { useGlobalState } from './hooks/useGlobalState';
 import { useMempoolWebSocket } from './hooks/useMempoolWebSocket';
 import { useShareLinkFromHash } from './hooks/useShareLinkFromHash';
@@ -89,6 +90,11 @@ function AppInner() {
   useMempoolWebSocket();
   const [shareLoadProgress, setShareLoadProgress] = useState<LoadProgress>(null);
   useShareLinkFromHash(setShareLoadProgress);
+
+  useEffect(() => {
+    setMempoolApiErrorHandler(msg => useGlobalState.getState().addError(msg));
+    return () => setMempoolApiErrorHandler(null);
+  }, []);
 
   // On mount, refresh unconfirmed txs (limited concurrency — avoids freezing mobile).
   useEffect(() => {

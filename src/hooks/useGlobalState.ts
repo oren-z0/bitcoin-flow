@@ -392,7 +392,7 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
   nextSuccessId: 0,
 
   addError: (msg: string) => {
-    set(s => ({ errors: [...s.errors, msg] }));
+    set(s => (s.errors.includes(msg) ? s : { errors: [...s.errors, msg] }));
   },
 
   dismissError: (index: number) => {
@@ -488,7 +488,6 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
       set(s => ({
         loadingTxids: new Set([...s.loadingTxids].filter(id => id !== txid)),
       }));
-      get().addError(`Failed to load transaction ${txid.slice(0, 8)}...`);
       console.error('Failed to add transaction', txid, e);
     }
   },
@@ -1185,8 +1184,8 @@ export const useGlobalState = create<GlobalStore>((set, get) => ({
 
     try {
       const [tx, outspends] = await Promise.all([
-        fetchTransaction(chainTxid),
-        fetchOutspends(chainTxid),
+        fetchTransaction(chainTxid, { silent: true }),
+        fetchOutspends(chainTxid, { silent: true }),
       ]);
       set(s => {
         const stored = s.transactions[nodeId];

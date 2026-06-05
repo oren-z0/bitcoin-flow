@@ -38,7 +38,6 @@ export default function GroupDetail({ groupId, onBack }: Props) {
 
   const [txEntries, setTxEntries] = useState<TxEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [paginationComplete, setPaginationComplete] = useState(false);
   const [addingAll, setAddingAll] = useState(false);
@@ -54,7 +53,6 @@ export default function GroupDetail({ groupId, onBack }: Props) {
     if (startAddressIndex >= addrs.length) return;
 
     setLoading(true);
-    setLoadError('');
 
     let addressIndex = startAddressIndex;
     let lastConfirmedTxid = startLastConfirmedTxid;
@@ -110,7 +108,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
       setHasMore(false);
       setPaginationComplete(true);
     } catch {
-      setLoadError('Failed to load transactions');
+      // Error toast is shown by the mempool API error handler.
     } finally {
       setLoading(false);
     }
@@ -128,7 +126,6 @@ export default function GroupDetail({ groupId, onBack }: Props) {
       return;
     }
     setTxEntries([]);
-    setLoadError('');
     setHasMore(false);
     setPaginationComplete(false);
     setConfirmingAddAll(false);
@@ -251,8 +248,7 @@ export default function GroupDetail({ groupId, onBack }: Props) {
 
       {/* Transaction list */}
       <div className="flex-1 overflow-y-auto p-2">
-        {loadError && <div className="text-red-400 text-xs p-2">{loadError}</div>}
-        {txEntries.length === 0 && !loading && !loadError && paginationComplete && (
+        {txEntries.length === 0 && !loading && paginationComplete && (
           <div className="text-gray-400 text-xs text-center p-4">
             No transactions found.
           </div>

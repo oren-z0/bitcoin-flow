@@ -14,42 +14,94 @@ export class InvalidInputError extends Error {
   }
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) {
-    if (res.status === 400) {
-      try {
+export class MempoolApiError extends Error {
+  readonly status: number;
+  readonly path: string;
+
+  constructor(status: number, path: string) {
+    super(`API error ${status}: ${path}`);
+    this.name = 'MempoolApiError';
+    this.status = status;
+    this.path = path;
+  }
+}
+
+export type MempoolFetchOptions = {
+  /** When true, failures are not reported to the global error handler. */
+  silent?: boolean;
+};
+
+let onApiError: ((message: string) => void) | null = null;
+
+export function setMempoolApiErrorHandler(handler: ((message: string) => void) | null) {
+  onApiError = handler;
+}
+
+function reportApiError(error: unknown) {
+  if (!onApiError) return;
+
+  if (error instanceof InvalidInputError) {
+    onApiError(
+      error.message === 'invalid hex string'
+        ? 'Invalid transaction ID'
+        : error.message === 'invalid bitcoin address'
+          ? 'Invalid Bitcoin address'
+          : error.message
+    );
+    return;
+  }
+
+  if (error instanceof MempoolApiError) {
+    onApiError('mempool.space request failed');
+    return;
+  }
+
+  onApiError('Could not reach mempool.space');
+}
+
+async function apiFetch<T>(path: string, options?: MempoolFetchOptions): Promise<T> {
+  try {
+    const res = await fetch(`${BASE}${path}`);
+    if (!res.ok) {
+      if (res.status === 400) {
         const body = (await res.text()).trim().toLowerCase();
         if (body === 'invalid hex string' || body === 'invalid bitcoin address') {
           throw new InvalidInputError(body);
         }
-      } catch {
-        // Ignore
       }
+      throw new MempoolApiError(res.status, path);
     }
-    throw new Error(`API error ${res.status}: ${path}`);
+    return res.json() as Promise<T>;
+  } catch (error) {
+    if (!options?.silent) {
+      reportApiError(error);
+    }
+    throw error;
   }
-  return res.json();
 }
 
-export function fetchTransaction(txid: string): Promise<MempoolTx> {
-  return apiFetch<MempoolTx>(`/tx/${txid}`);
+export function fetchTransaction(txid: string, options?: MempoolFetchOptions): Promise<MempoolTx> {
+  return apiFetch<MempoolTx>(`/tx/${txid}`, options);
 }
 
-export function fetchOutspends(txid: string): Promise<MempoolOutspend[]> {
-  return apiFetch<MempoolOutspend[]>(`/tx/${txid}/outspends`);
+export function fetchOutspends(txid: string, options?: MempoolFetchOptions): Promise<MempoolOutspend[]> {
+  return apiFetch<MempoolOutspend[]>(`/tx/${txid}/outspends`, options);
 }
 
-export function fetchAddressInfo(address: string): Promise<MempoolAddressInfo> {
-  return apiFetch<MempoolAddressInfo>(`/address/${address}`);
+export function fetchAddressInfo(address: string, options?: MempoolFetchOptions): Promise<MempoolAddressInfo> {
+  return apiFetch<MempoolAddressInfo>(`/address/${address}`, options);
 }
 
 // Returns all mempool txs + first 25 confirmed txs for the address
-export function fetchAddressTxs(address: string): Promise<MempoolTx[]> {
-  return apiFetch<MempoolTx[]>(`/address/${address}/txs`);
+export function fetchAddressTxs(address: string, options?: MempoolFetchOptions): Promise<MempoolTx[]> {
+  return apiFetch<MempoolTx[]>(`/address/${address}/txs`, options);
 }
 
 // Returns the next page of 25 confirmed txs after lastSeenTxid
-export function fetchAddressTxsChain(address: string, lastSeenTxid: string): Promise<MempoolTx[]> {
-  return apiFetch<MempoolTx[]>(`/address/${address}/txs/chain/${lastSeenTxid}`);
+export function fetchAddressTxsChain(
+  address: string,
+  lastSeenTxid: string,
+  options?: MempoolFetchOptions
+): Promise<MempoolTx[]> {
+  return apiFetch<MempoolTx[]>(`/address/${address}/txs/chain/${lastSeenTxid}`, options);
 }

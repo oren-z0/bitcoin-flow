@@ -1,5 +1,6 @@
 import type { Node } from 'reactflow';
 import type { StoredTransaction } from '../types';
+import { pinnedUtxoVoutsKey } from './handleGrouping';
 
 export type TransactionNodeData = {
   txid: string;
@@ -16,7 +17,7 @@ function storedTransactionDisplayEqual(a: StoredTransaction, b: StoredTransactio
       a.data === b.data &&
       a.outspends === b.outspends &&
       a.isPsbt === b.isPsbt &&
-      (a.pinnedUtxoVouts?.join(',') ?? '') === (b.pinnedUtxoVouts?.join(',') ?? ''))
+      pinnedUtxoVoutsKey(a.pinnedUtxoVouts) === pinnedUtxoVoutsKey(b.pinnedUtxoVouts))
   );
 }
 

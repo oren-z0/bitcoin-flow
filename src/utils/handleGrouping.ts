@@ -18,6 +18,12 @@ export function pinnedUtxoVoutSet(stored: StoredTransaction): Set<number> {
   return new Set(stored.pinnedUtxoVouts ?? []);
 }
 
+/** Canonical key for order-independent pinned-vout equality checks. */
+export function pinnedUtxoVoutsKey(pinnedUtxoVouts: readonly number[] | undefined): string {
+  if (!pinnedUtxoVouts?.length) return '';
+  return [...pinnedUtxoVouts].sort((a, b) => a - b).join(',');
+}
+
 /** Whether an unspent output is shown as its own handle on the graph (not collapsed). */
 export function isUtxoVoutShownOnGraph(
   voutIdx: number,

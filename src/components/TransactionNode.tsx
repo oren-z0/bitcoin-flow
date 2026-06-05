@@ -6,6 +6,7 @@ import {
   computeOutputHandles,
   isPsbtOutputSpendable,
   pinnedUtxoVoutSet,
+  pinnedUtxoVoutsKey,
 } from '../utils/handleGrouping';
 import { getEffectiveColor } from '../utils/addressDisplay';
 import { satsToBtc, truncateTxid, formatFee, formatTimestamp } from '../utils/formatting';
@@ -496,8 +497,8 @@ function transactionNodePropsEqual(prev: TransactionNodeData, next: TransactionN
         prev.stored.data === next.stored.data &&
         prev.stored.outspends === next.stored.outspends &&
         prev.stored.isPsbt === next.stored.isPsbt &&
-        (prev.stored.pinnedUtxoVouts?.join(',') ?? '') ===
-          (next.stored.pinnedUtxoVouts?.join(',') ?? '')))
+        pinnedUtxoVoutsKey(prev.stored.pinnedUtxoVouts) ===
+          pinnedUtxoVoutsKey(next.stored.pinnedUtxoVouts)))
   );
 }
 

@@ -78,7 +78,7 @@ function reportApiError(error: unknown) {
     return;
   }
 
-  onApiError('Could not reach mempool.space');
+  onApiError('Could not reach mempool.space, this could happen due to rate limiting or network issues.');
 }
 
 async function apiFetch<T>(path: string, options?: MempoolFetchOptions): Promise<T> {

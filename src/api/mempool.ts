@@ -6,6 +6,28 @@ export interface MempoolAddressInfo {
 }
 
 const BASE = 'https://mempool.space/api';
+const FETCH_ATTEMPTS = 3;
+const FETCH_RETRY_DELAY_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetries(url: string): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt++) {
+    try {
+      return await fetch(url);
+    } catch (error) {
+      lastError = error;
+      console.error(`mempool.space fetch failed (attempt ${attempt}/${FETCH_ATTEMPTS})`, error);
+      if (attempt < FETCH_ATTEMPTS) {
+        await sleep(FETCH_RETRY_DELAY_MS);
+      }
+    }
+  }
+  throw lastError;
+}
 
 export class InvalidInputError extends Error {
   constructor(message: string) {
@@ -52,7 +74,7 @@ function reportApiError(error: unknown) {
   }
 
   if (error instanceof MempoolApiError) {
-    onApiError('mempool.space request failed');
+    onApiError(`mempool.space request failed with status ${error.status}`);
     return;
   }
 
@@ -61,7 +83,7 @@ function reportApiError(error: unknown) {
 
 async function apiFetch<T>(path: string, options?: MempoolFetchOptions): Promise<T> {
   try {
-    const res = await fetch(`${BASE}${path}`);
+    const res = await fetchWithRetries(`${BASE}${path}`);
     if (!res.ok) {
       if (res.status === 400) {
         const body = (await res.text()).trim().toLowerCase();

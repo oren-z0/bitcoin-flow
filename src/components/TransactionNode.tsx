@@ -495,7 +495,9 @@ function transactionNodePropsEqual(prev: TransactionNodeData, next: TransactionN
         prev.stored.color === next.stored.color &&
         prev.stored.data === next.stored.data &&
         prev.stored.outspends === next.stored.outspends &&
-        prev.stored.isPsbt === next.stored.isPsbt))
+        prev.stored.isPsbt === next.stored.isPsbt &&
+        (prev.stored.pinnedUtxoVouts?.join(',') ?? '') ===
+          (next.stored.pinnedUtxoVouts?.join(',') ?? '')))
   );
 }
 

@@ -12,10 +12,24 @@ import { getEffectiveName } from './addressDisplay';
 import { getSpendingTxidsForOutput } from './graphConnections';
 import { voutScriptpubkeyHex } from './psbt';
 
-const MAX_HANDLES = 8;
+export const MAX_HANDLES = 8;
 
 export function pinnedUtxoVoutSet(stored: StoredTransaction): Set<number> {
   return new Set(stored.pinnedUtxoVouts ?? []);
+}
+
+/** Whether an unspent output is shown as its own handle on the graph (not collapsed). */
+export function isUtxoVoutShownOnGraph(
+  voutIdx: number,
+  outputCount: number,
+  pinnedUtxoVouts: ReadonlySet<number> | undefined
+): boolean {
+  if (outputCount <= MAX_HANDLES) return true;
+  return pinnedUtxoVouts?.has(voutIdx) ?? false;
+}
+
+export function canToggleUtxoVoutVisibility(outputCount: number): boolean {
+  return outputCount > MAX_HANDLES;
 }
 
 function isUnspentNonOpReturnOutput(

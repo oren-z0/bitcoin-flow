@@ -25,6 +25,10 @@ import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 import { EyeIcon, EyeOffIcon } from './icons';
+import {
+  canToggleUtxoVoutVisibility,
+  isUtxoVoutShownOnGraph,
+} from '../../utils/handleGrouping';
 
 const iconClass = 'shrink-0';
 
@@ -81,21 +85,30 @@ function LinkedTransactionVisibilityButton({
 }
 
 function PinnedUtxoVisibilityButton({
-  pinned,
+  displayed,
+  toggleable,
   onToggle,
 }: {
-  pinned: boolean;
+  displayed: boolean;
+  toggleable: boolean;
   onToggle: () => void;
 }) {
+  const title = toggleable
+    ? displayed
+      ? 'Hide from graph'
+      : 'Show on graph'
+    : 'Always shown on graph';
   return (
     <button
       type="button"
-      className="shrink-0 p-0.5 text-gray-400 hover:text-white cursor-pointer"
-      title={pinned ? 'Ungroup on graph' : 'Always show on graph'}
-      aria-label={pinned ? 'Ungroup on graph' : 'Always show on graph'}
-      onClick={onToggle}
+      className={`shrink-0 p-0.5 text-gray-400 ${
+        toggleable ? 'hover:text-white cursor-pointer' : 'cursor-default'
+      }`}
+      title={title}
+      aria-label={title}
+      onClick={toggleable ? onToggle : undefined}
     >
-      {pinned ? <EyeIcon /> : <EyeOffIcon />}
+      {displayed ? <EyeIcon /> : <EyeOffIcon />}
     </button>
   );
 }
@@ -191,6 +204,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
   const pinnedUtxoSet = new Set(stored.pinnedUtxoVouts ?? []);
 
   const togglePinnedUtxo = (voutIdx: number) => {
+    if (!canToggleUtxoVoutVisibility(tx.vout.length)) return;
     const next = new Set(stored.pinnedUtxoVouts ?? []);
     if (next.has(voutIdx)) next.delete(voutIdx);
     else next.add(voutIdx);
@@ -313,6 +327,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
 
   const inputCount = tx.vin.length;
   const outputCount = tx.vout.length;
+  const utxoVisibilityToggleable = canToggleUtxoVoutVisibility(outputCount);
   const showPsbtMove = stored.isPsbt && !!stored.psbtBase64;
   const canEditFee =
     stored.isPsbt &&
@@ -686,7 +701,8 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                       <div className="flex items-center gap-2">
                         {!stored.isPsbt && (
                           <PinnedUtxoVisibilityButton
-                            pinned={pinnedUtxoSet.has(i)}
+                            displayed={isUtxoVoutShownOnGraph(i, outputCount, pinnedUtxoSet)}
+                            toggleable={utxoVisibilityToggleable}
                             onToggle={() => togglePinnedUtxo(i)}
                           />
                         )}

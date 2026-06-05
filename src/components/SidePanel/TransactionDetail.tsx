@@ -24,7 +24,7 @@ import PsbtEditableLocktime from './PsbtEditableLocktime';
 import PsbtRemoveIoButton from './PsbtRemoveIoButton';
 import PsbtMoveControls from './PsbtMoveControls';
 import { EMOJI_PALETTE } from '../../utils/emoji';
-import { EyeIcon, EyeOffIcon } from './icons';
+import { EyeIcon, EyeOffIcon, TransactionVisibilityButton } from './icons';
 import {
   canToggleUtxoVoutVisibility,
   isUtxoVoutShownOnGraph,
@@ -63,26 +63,6 @@ function TrashIcon() {
 
 const psbtExportBtnClass =
   'flex-1 flex items-center justify-center gap-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-gray-200 py-2 px-2 rounded cursor-pointer';
-
-function LinkedTransactionVisibilityButton({
-  visible,
-  onToggle,
-}: {
-  visible: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="shrink-0 p-0.5 text-gray-400 hover:text-white cursor-pointer"
-      title={visible ? 'Hide transaction' : 'Show transaction'}
-      aria-label={visible ? 'Hide transaction' : 'Show transaction'}
-      onClick={onToggle}
-    >
-      {visible ? <EyeIcon /> : <EyeOffIcon />}
-    </button>
-  );
-}
 
 function PinnedUtxoVisibilityButton({
   displayed,
@@ -535,7 +515,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                 <div key={i} className="bg-gray-700 rounded p-2 text-xs space-y-1">
                   <div className="flex items-center gap-2">
                     {!vin.is_coinbase && vin.txid && (
-                      <LinkedTransactionVisibilityButton
+                      <TransactionVisibilityButton
                         visible={vinInState}
                         onToggle={() => {
                           if (vinInState) {
@@ -664,7 +644,7 @@ export default function TransactionDetail({ onOpenAddressDetail, onHide }: Props
                   {!isOpReturn ? (
                     spendingTxid ? (
                       <div className="flex items-center gap-2">
-                        <LinkedTransactionVisibilityButton
+                        <TransactionVisibilityButton
                           visible={spendingInState}
                           onToggle={() => {
                             if (spendingInState) {

@@ -88,3 +88,24 @@ export function EyeOffIcon() {
     </svg>
   );
 }
+
+/** Toggle whether a transaction is shown on the graph. */
+export function TransactionVisibilityButton({
+  visible,
+  onToggle,
+}: {
+  visible: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="shrink-0 p-0.5 text-gray-400 hover:text-white cursor-pointer"
+      title={visible ? 'Hide transaction' : 'Show transaction'}
+      aria-label={visible ? 'Hide transaction' : 'Show transaction'}
+      onClick={onToggle}
+    >
+      {visible ? <EyeIcon /> : <EyeOffIcon />}
+    </button>
+  );
+}

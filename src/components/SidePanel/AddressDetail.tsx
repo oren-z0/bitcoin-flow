@@ -5,6 +5,7 @@ import { truncateTxid, formatTimestamp } from '../../utils/formatting';
 import { EMOJI_PALETTE } from '../../utils/emoji';
 import type { MempoolTx } from '../../types';
 import OpenInExplorerButton from './OpenInExplorerButton';
+import { TransactionVisibilityButton } from './icons';
 
 const addrTxCache = new Map<string, { txs: MempoolTx[]; hasMore: boolean }>();
 
@@ -284,17 +285,15 @@ export default function AddressDetail({ address, onBack }: Props) {
             return (
               <div key={tx.txid} className="bg-gray-700 rounded p-2 text-xs">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={isInState}
-                    onChange={() => {
+                  <TransactionVisibilityButton
+                    visible={isInState}
+                    onToggle={() => {
                       if (isInState) {
                         removeTransaction(tx.txid);
                       } else {
                         addTransaction(tx.txid, { noSelect: true });
                       }
                     }}
-                    className="shrink-0 cursor-pointer accent-blue-500"
                   />
                   <div
                     className="text-blue-400 cursor-pointer hover:text-blue-300 font-mono truncate"

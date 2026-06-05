@@ -47,6 +47,9 @@ export async function loadSlimState(
           ...(meta.name && { name: meta.name }),
           ...(meta.color && { color: meta.color }),
           ...(meta.description && { description: meta.description }),
+          ...(meta.pinnedUtxoVouts?.length && {
+            pinnedUtxoVouts: meta.pinnedUtxoVouts,
+          }),
         };
       } else {
         const [data, outspends] = await Promise.all([
@@ -60,6 +63,9 @@ export async function loadSlimState(
           ...(meta.name && { name: meta.name }),
           ...(meta.color && { color: meta.color }),
           ...(meta.description && { description: meta.description }),
+          ...(meta.pinnedUtxoVouts?.length && {
+            pinnedUtxoVouts: meta.pinnedUtxoVouts,
+          }),
         };
       }
     } catch {

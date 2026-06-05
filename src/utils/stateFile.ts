@@ -7,6 +7,8 @@ export interface SlimTransactionMeta {
   description?: string;
   isPsbt?: boolean;
   psbtBase64?: string;
+  /** Unspent output indices pinned as their own graph handles. */
+  pinnedUtxoVouts?: number[];
 }
 
 export interface SlimState {
@@ -32,6 +34,25 @@ const PSBT_NODE_ID_RE = /^psbt_[0-9a-f]{64}$/i;
 
 function isValidTransactionKey(key: string): boolean {
   return TXID_RE.test(key) || PSBT_NODE_ID_RE.test(key);
+}
+
+function parsePinnedUtxoVouts(
+  value: unknown,
+  path: string
+): { vouts: number[] } | { error: string } {
+  if (!Array.isArray(value)) {
+    return { error: `${path} must be an array` };
+  }
+  const vouts: number[] = [];
+  for (let i = 0; i < value.length; i++) {
+    const item = value[i];
+    if (typeof item !== 'number' || !Number.isInteger(item) || item < 0) {
+      return { error: `${path}[${i}] must be a non-negative integer` };
+    }
+    vouts.push(item);
+  }
+  vouts.sort((a, b) => a - b);
+  return { vouts };
 }
 
 function parseCoordinates(
@@ -93,6 +114,15 @@ function parseTransactionMeta(
       return { error: `transactions["${txid}"].psbtBase64 must be a string` };
     }
     if (value.psbtBase64) meta.psbtBase64 = value.psbtBase64;
+  }
+
+  if (value.pinnedUtxoVouts !== undefined) {
+    const parsed = parsePinnedUtxoVouts(
+      value.pinnedUtxoVouts,
+      `transactions["${txid}"].pinnedUtxoVouts`
+    );
+    if ('error' in parsed) return parsed;
+    if (parsed.vouts.length > 0) meta.pinnedUtxoVouts = parsed.vouts;
   }
 
   if (meta.isPsbt && !meta.psbtBase64) {
@@ -218,6 +248,9 @@ export function buildSlimState(
           ...(stored.isPsbt && stored.psbtBase64 && {
             isPsbt: true,
             psbtBase64: stored.psbtBase64,
+          }),
+          ...(stored.pinnedUtxoVouts?.length && {
+            pinnedUtxoVouts: stored.pinnedUtxoVouts,
           }),
         },
       ])
